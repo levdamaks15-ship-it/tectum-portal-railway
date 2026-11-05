@@ -1,0 +1,577 @@
+{% extends "core/base.html" %}
+
+{% block title %}Кабинет мастера ЛКЦ — Раскрой и комплектующие | Tectum{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/ru.js"></script>
+    <link rel="stylesheet" href="/static/modules/lkc/lkc.css?v=20261105_v1">
+{% endblock %}
+
+{% block content %}
+<div class="lkc-wrapper">
+<!-- Tabs Navigation: Matching Production Portal Stripe style -->
+        <div id="tabs-menu" class="tabs-container" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1.5rem;">
+            <a href="#report" class="tab-btn active" id="tab-btn-report" onclick="switchLKCTab('report', event)">
+                <span class="tab-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+                <span class="tab-label">Рапорт<br>мастера</span>
+            </a>
+            <a href="#downtimes" class="tab-btn" id="tab-btn-downtimes" onclick="switchLKCTab('downtimes', event)">
+                <span class="tab-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                <span class="tab-label">Журнал<br>простоев</span>
+            </a>
+            <a href="#weekly" class="tab-btn" id="tab-btn-weekly" onclick="switchLKCTab('weekly', event)">
+                <span class="tab-icon"><i class="fa-solid fa-calendar-week"></i></span>
+                <span class="tab-label">Недельная<br>сводка</span>
+            </a>
+            <a href="#norms" class="tab-btn" id="tab-btn-norms" onclick="switchLKCTab('norms', event)">
+                <span class="tab-icon"><i class="fa-solid fa-book-bookmark"></i></span>
+                <span class="tab-label">Нормативы<br>ЛКЦ</span>
+            </a>
+        </div>
+
+        <!-- ==================================================== -->
+        <!-- TAB 1: РАПОРТ МАСТЕРА                                -->
+        <!-- ==================================================== -->
+        <div id="tab-report" class="lkc-tab-pane" style="display: block;">
+
+            <!-- Блок 1: 📋 Параметры смены -->
+            <div class="lkc-section expanded" id="sec-shift-params">
+                <div class="lkc-section-header" onclick="toggleLKCSection('sec-shift-params')">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-clipboard-list" style="color: var(--lkc-primary);"></i> 1. Параметры смены
+                    </h3>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" class="lkc-btn-secondary" onclick="event.stopPropagation(); resetLKCReportForm();" style="font-size: 0.8rem; padding: 4px 10px;">
+                            <i class="fa-solid fa-broom"></i> Очистить форму
+                        </button>
+                        <i class="fa-solid fa-chevron-down acc-icon"></i>
+                    </div>
+                </div>
+                <div class="lkc-section-content">
+                    <div class="lkc-grid-4">
+                        <div class="lkc-form-group">
+                            <label>Дата рапорта</label>
+                            <div style="position: relative;">
+                                <input type="text" id="report-date-input" placeholder="ДД.ММ.ГГГГ" onchange="loadReportForDate(this.value)">
+                                <i class="fa-regular fa-calendar-days" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none;"></i>
+                            </div>
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Смена</label>
+                            <select id="report-shift-select" onchange="onShiftSelectChange(this.value)">
+                                <option value="День" selected>☀️ День</option>
+                                <option value="Ночь">🌙 Ночь</option>
+                            </select>
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Участок</label>
+                            <input type="text" value="ЛКЦ" readonly style="background: #f1f5f9; color: #1e293b; font-weight: 700;">
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Мастер смены</label>
+                            <select id="report-master-select">
+                                <option value="Миркасимов И.М." selected>Миркасимов И.М.</option>
+                                <option value="Бекбосынов Р.">Бекбосынов Р.</option>
+                                <option value="Монаев С.">Монаев С.</option>
+                                <option value="Султанулы С.">Султанулы С.</option>
+                                <option value="Дауылбай М.">Дауылбай М.</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 2: 🏭 Выпуск продукции и комплектов (Таблица) -->
+            <div class="lkc-section expanded" id="sec-production-items">
+                <div class="lkc-section-header" onclick="toggleLKCSection('sec-production-items')">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-industry" style="color: var(--lkc-primary);"></i> 2. Выпуск продукции и комплектов (Заказы)
+                    </h3>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" class="lkc-btn-primary desktop-only" id="btn-add-item" onclick="event.stopPropagation(); addLKCItemRow();" style="font-size: 0.95rem; font-weight: 700; padding: 10px 22px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.2);">
+                            <i class="fa-solid fa-plus"></i> Добавить строку
+                        </button>
+                        <i class="fa-solid fa-chevron-down acc-icon"></i>
+                    </div>
+                </div>
+                <div class="lkc-section-content">
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table" id="lkc-items-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">№</th>
+                                    <th style="min-width: 240px;">Размер / Типоразмер</th>
+                                    <th style="width: 85px; min-width: 85px; text-align: center;">План (шт)</th>
+                                    <th style="width: 95px; min-width: 95px; text-align: center;">Факт (шт)</th>
+                                    <th style="min-width: 190px;">Комплект (Заказ / Партия)</th>
+                                    <th style="width: 100px; min-width: 100px; text-align: center;">Кол-во компл.</th>
+                                    <th style="width: 80px; min-width: 80px; background: #e0f2fe; text-align: center;">T (шт)</th>
+                                    <th style="width: 80px; min-width: 80px; background: #e0f2fe; text-align: center;">L (шт)</th>
+                                    <th style="width: 90px; min-width: 90px; background: #e0f2fe; text-align: center;">Шурупы</th>
+                                    <th style="width: 95px; min-width: 95px; background: #e0f2fe; text-align: center;">Полосы (шт)</th>
+                                    <th style="width: 45px; text-align: center;">🗑️</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-items-tbody">
+                                <!-- Dynamic rows generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button type="button" class="lkc-btn-secondary mobile-only" onclick="addLKCItemRow();" style="width: 100%; justify-content: center; min-height: 48px; font-size: 1.02rem; font-weight: 700; border-radius: 12px; border: 1.5px dashed var(--lkc-primary); color: var(--lkc-primary); background: #fff5f5;">
+                            <i class="fa-solid fa-plus"></i> Добавить строку продукции
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 3: 📦 Списание сырья и сдача на склад -->
+            <div class="lkc-section expanded" id="sec-raw-materials">
+                <div class="lkc-section-header" onclick="toggleLKCSection('sec-raw-materials')">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-boxes-stacked" style="color: var(--lkc-primary);"></i> 3. Списание сырья и сдача на склад
+                    </h3>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" class="lkc-btn-secondary" onclick="event.stopPropagation(); applyTheoreticalRawDemand();" style="font-size: 0.85rem; font-weight: 700; padding: 6px 14px; border-radius: 8px; border: 1.5px solid #0284c7; color: #0284c7; background: #f0f9ff; display: flex; align-items: center; gap: 6px;" title="Рассчитать нормативную потребность листов по факту смены">
+                            <i class="fa-solid fa-bolt"></i> <span class="desktop-only">Нормы расхода</span>
+                        </button>
+                        <button type="button" class="lkc-btn-primary desktop-only" id="btn-add-raw-item" onclick="event.stopPropagation(); addLKCRawMaterialRow();" style="font-size: 0.95rem; font-weight: 700; padding: 10px 22px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.2);">
+                            <i class="fa-solid fa-plus"></i> Добавить списание сырья
+                        </button>
+                        <i class="fa-solid fa-chevron-down acc-icon"></i>
+                    </div>
+                </div>
+                <div class="lkc-section-content">
+                    <!-- Сводка материального баланса ЛКЦ (Material Balance Engine) -->
+                    <div id="lkc-balance-summary-banner" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-weight: 700; color: #1e293b; font-size: 0.9rem;"><i class="fa-solid fa-scale-balanced" style="color: #0284c7;"></i> Баланс смены:</span>
+                            <span class="badge" id="balance-badge-norm" style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">
+                                Норма: <strong id="bal-norm-total">0</strong> л. (6мм: <span id="bal-norm-6">0</span>, 8мм: <span id="bal-norm-8">0</span>, 10мм: <span id="bal-norm-10">0</span>)
+                            </span>
+                            <span class="badge" id="balance-badge-diff" style="background: #f1f5f9; color: #475569; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">
+                                Баланс (Списано = Сдано + Брак): <strong id="bal-diff-val">0</strong>
+                            </span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px; font-size: 0.88rem; font-weight: 700;">
+                            <span style="color: #15803d;"><i class="fa-solid fa-chart-line"></i> КИС: <span id="bal-kis-val">0.0</span>%</span>
+                            <span style="color: #dc2626;"><i class="fa-solid fa-triangle-exclamation"></i> Брак: <span id="bal-defect-val">0.0</span>%</span>
+                        </div>
+                    </div>
+
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table" id="lkc-raw-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">№</th>
+                                    <th style="min-width: 260px;">Наименование сырья / Материал</th>
+                                    <th style="width: 140px; text-align: center;">Списано (шт)</th>
+                                    <th style="width: 150px; text-align: center;">Сдано на склад ГП (шт)</th>
+                                    <th style="width: 140px; text-align: center;">Отходы / Брак (шт)</th>
+                                    <th style="min-width: 150px;">Примечание / Партия</th>
+                                    <th style="width: 45px; text-align: center;">🗑️</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-raw-tbody">
+                                <!-- Dynamic raw material rows generated by JS -->
+                            </tbody>
+                            <tfoot>
+                                <tr style="background: #f8fafc; font-weight: 700; font-size: 0.92rem;">
+                                    <td colspan="2" style="text-align: right; color: #475569; padding: 10px 14px;">ИТОГО ПО СМЕНЕ:</td>
+                                    <td style="text-align: center; color: #1e293b; font-size: 1rem;" id="raw-total-spent">0</td>
+                                    <td style="text-align: center; color: #15803d; font-size: 1rem;" id="raw-total-submitted">0</td>
+                                    <td style="text-align: center; color: #dc2626; font-size: 1rem;" id="raw-total-scrap">0</td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button type="button" class="lkc-btn-secondary mobile-only" onclick="addLKCRawMaterialRow();" style="width: 100%; justify-content: center; min-height: 48px; font-size: 1.02rem; font-weight: 700; border-radius: 12px; border: 1.5px dashed var(--lkc-primary); color: var(--lkc-primary); background: #fff5f5;">
+                            <i class="fa-solid fa-plus"></i> Добавить строку сырья
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Нижняя панель действий -->
+            <div class="lkc-save-bar">
+                <div style="font-size: 0.88rem; color: #64748b; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-shield-halved" style="color: #10b981; font-size: 1.1rem;"></i>
+                    <span>Автосохранение черновика активно</span>
+                </div>
+                <div>
+                    <button type="button" class="lkc-btn-primary" id="btn-save-report" onclick="saveLKCReport()" style="padding: 12px 28px; font-size: 1rem; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.25);">
+                        <i class="fa-solid fa-floppy-disk"></i> СОХРАНИТЬ РАПОРТ СМЕНЫ
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================================================== -->
+        <!-- TAB 2: ЖУРНАЛ ПРОСТОЕВ                               -->
+        <!-- ==================================================== -->
+        <div id="tab-downtimes" class="lkc-tab-pane" style="display: none;">
+            
+            <div class="lkc-section expanded">
+                <div class="lkc-section-header">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i> Фиксация простоя оборудования
+                    </h3>
+                </div>
+                <div class="lkc-section-content" style="display: block;">
+                    <div class="lkc-grid-4">
+                        <div class="lkc-form-group">
+                            <label>Время начала</label>
+                            <input type="time" id="dt-start-time" value="09:00">
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Время окончания</label>
+                            <input type="time" id="dt-end-time" value="09:30">
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Узел оборудования</label>
+                            <select id="dt-node-select">
+                                <option value="Дисковая пила раскроя" selected>Дисковая пила раскроя</option>
+                                <option value="Станок нарезки профиля">Станок нарезки профиля</option>
+                                <option value="Погрузчик / подача листов">Погрузчик / подача листов</option>
+                                <option value="Электрооборудование">Электрооборудование</option>
+                                <option value="Отсутствие сырья (плоского листа)">Отсутствие сырья (плоского листа)</option>
+                                <option value="Отсутствие комплектующих (уголки/шурупы)">Отсутствие комплектующих (уголки/шурупы)</option>
+                                <option value="Прочее">Прочее</option>
+                            </select>
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Категория простоя</label>
+                            <select id="dt-category-select">
+                                <option value="Механическая" selected>Механическая (поломка, диск)</option>
+                                <option value="Электрическая">Электрическая</option>
+                                <option value="Организационная">Организационная (сырье, комплектация)</option>
+                                <option value="Технологическая">Технологическая</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="lkc-grid-3" style="margin-top: 1rem;">
+                        <div class="lkc-form-group" style="grid-column: span 2;">
+                            <label>Причина и описание</label>
+                            <input type="text" id="dt-reason-input" placeholder="Например: затупился пильный диск, замена и регулировка пилы">
+                        </div>
+                        <div class="lkc-form-group" style="display: flex; justify-content: flex-end; align-items: flex-end;">
+                            <button type="button" class="lkc-btn-primary" onclick="addLKCDowntimeRecord()" style="width: 100%;">
+                                <i class="fa-solid fa-plus"></i> Зафиксировать простой
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Таблица журнала простоев -->
+            <div class="lkc-section expanded">
+                <div class="lkc-section-header">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-list" style="color: var(--lkc-primary);"></i> Журнал простоев ЛКЦ
+                    </h3>
+                    <button class="lkc-btn-secondary" onclick="loadLKCDowntimes()" style="font-size: 0.8rem; padding: 4px 10px;">
+                        <i class="fa-solid fa-rotate-right"></i> Обновить
+                    </button>
+                </div>
+                <div class="lkc-section-content" style="display: block;">
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Интервал</th>
+                                    <th>Длительность</th>
+                                    <th>Узел</th>
+                                    <th>Категория</th>
+                                    <th>Причина / Комментарий</th>
+                                    <th>Мастер</th>
+                                    <th style="width: 40px; text-align: center;">🗑️</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-downtimes-tbody">
+                                <!-- Loaded via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================================================== -->
+        <!-- TAB 3: НЕДЕЛЬНАЯ СВОДКА                              -->
+        <!-- ==================================================== -->
+        <div id="tab-weekly" class="lkc-tab-pane" style="display: none;">
+            
+            <div class="lkc-section expanded">
+                <div class="lkc-section-header">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-calendar-days" style="color: var(--lkc-navy);"></i> Недельный рапорт ЛКЦ (Архив и Сводка)
+                    </h3>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="lkc-btn-secondary" onclick="downloadLKCExcel()">
+                            <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i> Выгрузить Excel
+                        </button>
+                        <button type="button" class="lkc-btn-secondary" id="btn-sync-lkc-sheets" onclick="syncLKCGoogleSheets(this)">
+                            <i class="fa-solid fa-arrows-rotate" style="color: #2563eb;"></i> Выгрузить в Google Таблицу
+                        </button>
+                        <a href="https://docs.google.com/spreadsheets/d/1V3eF2b9yN3uOcgTrDbQI8N8Y26GDrtne8E6hbQpMjjE/edit" target="_blank" class="lkc-btn-secondary" id="link-lkc-sheets" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-table" style="color: #0f9d58;"></i> Google Таблица ЛКЦ <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.72rem; color: #94a3b8;"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="lkc-section-content" style="display: block;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button class="lkc-btn-secondary" onclick="shiftLKCWeek(-1)"><i class="fa-solid fa-chevron-left"></i> Пред. неделя</button>
+                            <strong id="weekly-period-display" style="font-size: 0.95rem; color: #1e293b;">--</strong>
+                            <button class="lkc-btn-secondary" onclick="shiftLKCWeek(1)">След. неделя <i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table" id="lkc-weekly-summary-table">
+                            <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>Дата</th>
+                                    <th>Мастер</th>
+                                    <th>Размер / Типоразмер</th>
+                                    <th>План (шт)</th>
+                                    <th>Факт (шт)</th>
+                                    <th>Комплект</th>
+                                    <th>Компл.</th>
+                                    <th style="background: #e0f2fe;">T</th>
+                                    <th style="background: #e0f2fe;">L</th>
+                                    <th style="background: #e0f2fe;">Шурупы</th>
+                                    <th style="background: #e0f2fe;">Полосы</th>
+                                    <th>Сдано</th>
+                                    <th>Примечания</th>
+                                    <th>Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-weekly-summary-tbody">
+                                <!-- Loaded via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================================================== -->
+        <!-- TAB 4: НОРМАТИВЫ ЛКЦ                                -->
+        <!-- ==================================================== -->
+        <div id="tab-norms" class="lkc-tab-pane" style="display: none;">
+            
+            <div class="lkc-section expanded">
+                <div class="lkc-section-header">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-book-bookmark" style="color: var(--lkc-primary);"></i> Справочник нормативов расхода комплектующих и сменных норм ЛКЦ
+                    </h3>
+                </div>
+                <div class="lkc-section-content" style="display: block;">
+                    
+                    <!-- Карточки ключевых нормативов -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+                        
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 1.25rem;">
+                            <h4 style="margin: 0 0 8px; color: #1e3a8a; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-cubes"></i> Грядка 3.6 м (3600х900х240)
+                            </h4>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Норма на 1 комплект (свободный ввод плана):</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1; line-height: 1.6;">
+                                • T-профиль: <strong>6 шт</strong> | L-уголок: <strong>4 шт</strong><br>
+                                • Шурупы: <strong>40 шт</strong> | Полосы: <strong>10 шт</strong>
+                            </div>
+                        </div>
+
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #6366f1; border-radius: 12px; padding: 1.25rem;">
+                            <h4 style="margin: 0 0 8px; color: #4338ca; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-cubes"></i> Грядка 2.7 м (2700х900х240)
+                            </h4>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Норма на 1 комплект (свободный ввод плана):</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1; line-height: 1.6;">
+                                • T-профиль: <strong>4 шт</strong> | L-уголок: <strong>4 шт</strong><br>
+                                • Шурупы: <strong>32 шт</strong> | Полосы: <strong>8 шт</strong>
+                            </div>
+                        </div>
+
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; border-radius: 12px; padding: 1.25rem;">
+                            <h4 style="margin: 0 0 8px; color: #065f46; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-cubes"></i> Грядка 1.8 м (1800х900х240)
+                            </h4>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Норма на 1 комплект (свободный ввод плана):</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1; line-height: 1.6;">
+                                • T-профиль: <strong>2 шт</strong> | L-уголок: <strong>4 шт</strong><br>
+                                • Шурупы: <strong>24 шт</strong> | Полосы: <strong>6 шт</strong>
+                            </div>
+                        </div>
+
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 1.25rem;">
+                            <h4 style="margin: 0 0 8px; color: #92400e; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-scissors"></i> Раскрой полос (6, 8, 10 мм)
+                            </h4>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Коэффициенты раскроя листа 1800х1200:</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1; line-height: 1.6;">
+                                • 1800х400: <strong>3 полосы</strong> / лист<br>
+                                • 1800х300: <strong>4 полосы</strong> / лист<br>
+                                • 1800х240: <strong>5 полос</strong> / лист (высота борта по чертежу)<br>
+                                • 1800х200: <strong>6 полос</strong> / лист
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Таблица всех утвержденных нормативов -->
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table">
+                            <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>Наименование изделия / типоразмера</th>
+                                    <th>Тип продукции</th>
+                                    <th>Норма T (шт)</th>
+                                    <th>Норма L (шт)</th>
+                                    <th>Норма Шурупов</th>
+                                    <th>Норма Полос</th>
+                                    <th>Базовый план</th>
+                                    <th>Техническое описание и примечания</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-norms-tbody">
+                                <!-- Loaded via JS from Catalog -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Toast container -->
+    <div class="lkc-toast-container" id="lkc-toast-container"></div>
+
+    <!-- Universal Notification Modal (как в боевом рапорте) -->
+    <div id="universal-notification-overlay" class="modal-overlay-fade"
+        style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); z-index: 9998; backdrop-filter: blur(4px);">
+    </div>
+    <div id="universal-notification-modal" class="modal-centered card"
+        style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; width: 90%; max-width: 480px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.25); background: #ffffff; padding: 2rem 1.5rem; text-align: center; border: 1px solid #e2e8f0; border-radius: 16px;">
+        <div id="unm-icon"
+            style="width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; transition: all 0.3s ease;">
+            <span id="unm-icon-text" style="font-size: 2.5rem; font-weight: bold;"></span>
+        </div>
+        <h2 id="unm-title" style="margin-bottom: 0.75rem; color: #0f172a; font-size: 1.35rem; font-weight: 700;"></h2>
+        <div id="unm-message"
+            style="color: #475569; margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5; word-break: break-word; max-height: 45vh; overflow-y: auto; text-align: left; background: #f8fafc; padding: 0.85rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+        </div>
+        <button onclick="closeUniversalNotification()" id="unm-btn"
+            style="font-size: 1.05rem; padding: 0.7rem 2.5rem; border-radius: 8px; border: none; color: #ffffff; cursor: pointer; font-weight: 600; transition: all 0.2s ease;">
+            ОК
+        </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ПОШАГОВАЯ ШТОРКА ВЫБОРА ПРОДУКЦИИ (ЛКЦ)   -->
+    <!-- ========================================== -->
+    <div id="lkc-product-sheet-backdrop" class="lkc-sheet-backdrop" onclick="closeLKCProductSheet()">
+        <div id="lkc-product-sheet" class="lkc-bottom-sheet" onclick="event.stopPropagation()">
+            <!-- Drag handle bar for mobile UX -->
+            <div class="sheet-drag-handle"></div>
+
+            <!-- Header -->
+            <div class="sheet-header">
+                <div class="sheet-header-left">
+                    <button type="button" id="sheet-btn-back" class="sheet-btn-back" onclick="goToSheetStep(1)" style="display: none;">
+                        <i class="fa-solid fa-arrow-left"></i> Назад
+                    </button>
+                    <div>
+                        <h3 id="sheet-title" class="sheet-main-title">Выбор продукции</h3>
+                        <span id="sheet-subtitle" class="sheet-step-subtitle">Шаг 1 из 2: Выберите типоразмер</span>
+                    </div>
+                </div>
+                <button type="button" class="sheet-btn-close" onclick="closeLKCProductSheet()" aria-label="Закрыть">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Step 1: Base Dimensions / Categories -->
+            <div id="sheet-step-1" class="sheet-step-panel">
+                <div class="sheet-cat-filter-chips">
+                    <button type="button" class="sheet-chip active" data-cat="all" onclick="filterSheetDimensions('all', this)">Все</button>
+                    <button type="button" class="sheet-chip" data-cat="strip" onclick="filterSheetDimensions('strip', this)">Полосы</button>
+                    <button type="button" class="sheet-chip" data-cat="sheet" onclick="filterSheetDimensions('sheet', this)">Листы</button>
+                    <button type="button" class="sheet-chip" data-cat="bed" onclick="filterSheetDimensions('bed', this)">Грядки</button>
+                </div>
+                <div class="sheet-items-scrollable" id="sheet-step1-items">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+            <!-- Step 2: Thickness Selection (6, 8, 10 мм) -->
+            <div id="sheet-step-2" class="sheet-step-panel" style="display: none;">
+                <div class="sheet-step2-header">
+                    <div class="sheet-selected-preview">
+                        <span class="preview-label">Выбранный типоразмер:</span>
+                        <div class="preview-title" id="sheet-step2-base-name">Полоса 1800×300</div>
+                        <div class="preview-hint" id="sheet-step2-base-hint">4 полосы с 1 цельного листа 1800×1200</div>
+                    </div>
+                    <div class="sheet-step2-question">
+                        <i class="fa-solid fa-ruler-combined" style="color: var(--lkc-primary);"></i>
+                        <span>Выберите толщину листа:</span>
+                    </div>
+                </div>
+
+                <div class="sheet-thickness-options">
+                    <button type="button" class="sheet-thick-card" onclick="selectLKCThickness('6 мм')">
+                        <div class="thick-info">
+                            <span class="thick-badge badge-6">6 мм</span>
+                            <div class="thick-meta">
+                                <span class="thick-title">Толщина 6 мм</span>
+                                <span class="thick-desc">Раскрой листа 6 мм 1800×1200</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right thick-arrow"></i>
+                    </button>
+
+                    <button type="button" class="sheet-thick-card" onclick="selectLKCThickness('8 мм')">
+                        <div class="thick-info">
+                            <span class="thick-badge badge-8">8 мм</span>
+                            <div class="thick-meta">
+                                <span class="thick-title">Толщина 8 мм</span>
+                                <span class="thick-desc">Раскрой листа 8 мм 1800×1200</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right thick-arrow"></i>
+                    </button>
+
+                    <button type="button" class="sheet-thick-card" onclick="selectLKCThickness('10 мм')">
+                        <div class="thick-info">
+                            <span class="thick-badge badge-10">10 мм</span>
+                            <div class="thick-meta">
+                                <span class="thick-title">Толщина 10 мм</span>
+                                <span class="thick-desc">Раскрой листа 10 мм 1800×1200</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right thick-arrow"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
+    <script src="/static/modules/lkc/lkc.js?v=20261105_v1"></script>
+{% endblock %}

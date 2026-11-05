@@ -1,0 +1,2161 @@
+{% extends "core/base.html" %}
+
+{% block title %}Планнер задач предприятия | Tectum{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="/static/css/planner.css?v=20261105_v1">
+    <link rel="stylesheet" href="/static/modules/tasks/tasks.css?v=20261105_v1">
+{% endblock %}
+
+{% block content %}
+<!-- Horizon Tabs Bar (3 Levels of Planning) -->
+    <div class="horizon-nav-bar"
+        style="background: #ffffff; border-bottom: 1px solid var(--tbl-border); padding: 0.5rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="#weekly" class="horizon-tab-btn active" id="tab-horizon-weekly"
+                onclick="switchHorizon('weekly', event)">
+                <i class="fa-solid fa-bolt" style="color: #2563eb;"></i> <span>⚡ Недельный спринт</span>
+            </a>
+            <a href="#services" class="horizon-tab-btn" id="tab-horizon-services"
+                onclick="switchHorizon('services', event)">
+                <i class="fa-solid fa-wrench" style="color: #059669;"></i> <span>🔧 Службы ОГМ / ОГЭ</span>
+            </a>
+            <a href="#tech_council" class="horizon-tab-btn" id="tab-horizon-tech_council"
+                onclick="switchHorizon('tech_council', event)">
+                <i class="fa-solid fa-microscope" style="color: #0284c7;"></i> <span>🔬 Техсовет</span>
+            </a>
+            <a href="#quality_day" class="horizon-tab-btn" id="tab-horizon-quality_day"
+                onclick="switchHorizon('quality_day', event)">
+                <i class="fa-solid fa-clipboard-check" style="color: #ea580c;"></i> <span>📋 День качества</span>
+            </a>
+            <a href="#roadmaps" class="horizon-tab-btn" id="tab-horizon-roadmaps"
+                onclick="switchHorizon('roadmaps', event)">
+                <i class="fa-solid fa-map-location-dot" style="color: #7c3aed;"></i> <span>🗺️ Дорожные карты и
+                    проекты</span>
+            </a>
+        </div>
+
+        <!-- Tags Cloud Toggle -->
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button type="button" class="filter-chip" id="btn-toggle-tags-bar" onclick="toggleTagsCloudBar()"
+                title="Показать / скрыть облако хэштегов">
+                <i class="fa-solid fa-hashtag" style="color: #2563eb;"></i> <span>Теги</span> <span
+                    id="tags-count-badge"
+                    style="background: #eff6ff; color: #1d4ed8; padding: 1px 5px; border-radius: 10px; font-size: 0.7rem; font-weight: 700;">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tags Cloud Bar (Expandable / Collapsible) -->
+    <div id="tags-cloud-bar"
+        style="display: none; background: #f8fafc; border-bottom: 1px solid var(--tbl-border); padding: 0.5rem 1.5rem; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <span
+            style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Хэштеги:</span>
+        <div id="tags-cloud-items" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Toolbar: Month/Week Selector & Action Buttons -->
+    <div class="toolbar" id="main-toolbar">
+        <div class="toolbar-group toolbar-group-dates">
+            <!-- Hidden synced selects to guarantee 100% backward compatibility for all legacy scripts -->
+            <div style="display: none;" aria-hidden="true">
+                <select id="filter-month" onchange="onMonthChange()">
+                    <option value="all">🌐 За всё время</option>
+                    <option value="Январь 2026">Январь 2026</option>
+                    <option value="Февраль 2026">Февраль 2026</option>
+                    <option value="Март 2026">Март 2026</option>
+                    <option value="Апрель 2026">Апрель 2026</option>
+                    <option value="Май 2026">Май 2026</option>
+                    <option value="Июнь 2026">Июнь 2026</option>
+                    <option value="Июль 2026">Июль 2026</option>
+                    <option value="Август 2026">Август 2026</option>
+                    <option value="Сентябрь 2026">Сентябрь 2026</option>
+                    <option value="Октябрь 2026" selected>Октябрь 2026</option>
+                    <option value="Ноябрь 2026">Ноябрь 2026</option>
+                    <option value="Декабрь 2026">Декабрь 2026</option>
+                </select>
+                <select id="filter-week" onchange="onWeekSelectChange(this.value)"></select>
+            </div>
+
+            <!-- Custom Month Trigger Chip & Popover -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="toolbar-date-chip" id="btn-toolbar-month" onclick="toggleToolbarDatePopover('month', event)" title="Выбрать месяц">
+                    <i class="fa-solid fa-calendar" style="color: #64748b; font-size: 13px;"></i>
+                    <span id="label-toolbar-month">Октябрь 2026</span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <div class="filter-dropdown-popover month-picker-popover" id="popover-toolbar-month" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-list custom-scroll" id="list-toolbar-month" style="max-height: 320px;">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Week Trigger Chip & Popover -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="toolbar-date-chip" id="btn-toolbar-week" onclick="toggleToolbarDatePopover('week', event)" title="Выбрать неделю или диапазон задач">
+                    <i class="fa-solid fa-calendar-week" style="color: #2563eb; font-size: 13px;"></i>
+                    <span id="label-toolbar-week">Неделя 4 (26.10 - 30.10)</span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <div class="filter-dropdown-popover week-picker-popover" id="popover-toolbar-week" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-list custom-scroll" id="list-toolbar-week" style="max-height: 380px;">
+                        <!-- Populated dynamically with Quick scopes & Monthly weeks -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Reset to Current Week / Today -->
+            <button type="button" class="btn-preset-chip" id="btn-nav-today" onclick="resetToCurrentWeek()" title="Вернуться к сегодняшнему дню">
+                <i class="fa-solid fa-calendar-day" style="color: #2563eb;"></i> <span>Сегодня</span>
+            </button>
+
+            <!-- Vertical divider -->
+            <div class="toolbar-divider-v hide-mobile"></div>
+
+            <!-- Custom Date Range Button & Floating Popover -->
+            <div style="position: relative; display: inline-block;">
+                <button type="button" class="btn-preset-chip" id="btn-custom-date-range" onclick="toggleDateRangePopover(event)" title="Выбрать произвольный диапазон дат">
+                    <i class="fa-solid fa-calendar-days" style="color: #2563eb;"></i>
+                    <span id="date-range-btn-label">Диапазон дат</span>
+                    <span id="date-range-active-indicator" style="display: none; width: 7px; height: 7px; background: #2563eb; border-radius: 50%; margin-left: 2px;"></span>
+                </button>
+
+                <!-- Floating Date Range Card Popover -->
+                <div id="date-range-popover" class="date-range-popover" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="popover-header">
+                        <span><i class="fa-solid fa-calendar-range" style="color: #2563eb; margin-right: 6px;"></i>Выбор периода дат</span>
+                        <button type="button" class="popover-close-btn" onclick="closeDateRangePopover()">&times;</button>
+                    </div>
+                    <div class="popover-body">
+                        <div class="date-input-row">
+                            <div class="date-input-group">
+                                <label>От даты:</label>
+                                <input type="date" id="custom-date-from" class="popover-date-input">
+                            </div>
+                            <div class="date-input-group">
+                                <label>До даты:</label>
+                                <input type="date" id="custom-date-to" class="popover-date-input">
+                            </div>
+                        </div>
+                        
+                        <!-- Quick presets -->
+                        <div class="popover-presets">
+                            <button type="button" class="popover-preset-chip" onclick="applyQuickDatePreset('7d')">7 дней</button>
+                            <button type="button" class="popover-preset-chip" onclick="applyQuickDatePreset('14d')">14 дней</button>
+                            <button type="button" class="popover-preset-chip" onclick="applyQuickDatePreset('this_month')">Текущий месяц</button>
+                            <button type="button" class="popover-preset-chip" onclick="applyQuickDatePreset('next_month')">След. месяц</button>
+                        </div>
+                    </div>
+                    <div class="popover-footer">
+                        <button type="button" class="btn-popover-reset" onclick="resetCustomDateRange()">Сбросить</button>
+                        <button type="button" class="btn-popover-apply" onclick="applyCustomDateRange()">Применить</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Roadmap State Chips & Quarter Selector -->
+            <div id="roadmap-status-chips" style="display: none; align-items: center; gap: 0.35rem;">
+                <button type="button" class="btn-preset-chip active" id="chip-roadmap-active" onclick="setRoadmapScope('active')" title="Только активные проекты в работе">
+                    <i class="fa-solid fa-play" style="color: #10b981;"></i> <span>В работе</span>
+                </button>
+                <button type="button" class="btn-preset-chip" id="chip-roadmap-completed" onclick="setRoadmapScope('completed')" title="Завершенные и принятые проекты">
+                    <i class="fa-solid fa-trophy" style="color: #f59e0b;"></i> <span>Завершённые</span>
+                </button>
+                <button type="button" class="btn-preset-chip" id="chip-roadmap-all" onclick="setRoadmapScope('all')" title="Все проекты за всё время">
+                    <i class="fa-solid fa-layer-group" style="color: #6366f1;"></i> <span>Все</span>
+                </button>
+            </div>
+
+            <select class="select-filter date-pill-select" id="filter-quarter" onchange="onRoadmapQuarterSelectChange(this.value)"
+                style="display: none; font-weight: 700; color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff;">
+                <option value="active" selected>🟢 Активные проекты</option>
+                <option value="completed">🏆 Завершённые проекты</option>
+                <option value="Q4 2026">Q4 2026 (Текущий)</option>
+                <option value="Q1 2027">Q1 2027</option>
+                <option value="Q2 2027">Q2 2027</option>
+                <option value="Q3 2027">Q3 2027</option>
+                <option value="Q4 2027">Q4 2027</option>
+                <option value="Q3 2026">Q3 2026</option>
+                <option value="Q2 2026">Q2 2026</option>
+                <option value="Q1 2026">Q1 2026</option>
+                <option value="all">📅 За всё время</option>
+            </select>
+        </div>
+
+        <div class="toolbar-group toolbar-group-actions">
+            <!-- My Tasks Filter Toggle (Desktop & Tablet) -->
+            <button class="btn-action btn-secondary-action" id="btn-toggle-my-tasks" onclick="toggleMyTasksFilter()"
+                title="Показать только мои задачи (автор или исполнитель)">
+                <i class="fa-solid fa-user-check" style="color: #2563eb;"></i> <span id="btn-my-tasks-label">Мои задачи</span>
+            </button>
+
+            <!-- Bulk Add Tasks Button -->
+            <button class="btn-action btn-secondary-action hide-mobile" id="btn-bulk-add-tasks" onclick="openBulkTasksModal()"
+                title="Массовое создание нескольких задач за один раз">
+                <i class="fa-solid fa-layer-group" style="color: #4f46e5;"></i> <span>Массовый ввод</span>
+            </button>
+
+            <!-- Print Button (Desktop only) -->
+            <button class="btn-action btn-secondary-action hide-mobile" onclick="printTasksPlanner()"
+                title="Печать текущей таблицы задач для инфостенда">
+                <i class="fa-solid fa-print"></i> <span>Печать</span>
+            </button>
+
+            <!-- Add Task Button (Primary Red) -->
+            <button class="btn-action btn-primary-action" id="btn-add-task-main" onclick="openAddTaskModal()">
+                <i class="fa-solid fa-plus"></i> <span id="btn-add-task-text">Задача</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Summary Dashboard Bar -->
+    <div class="kpi-summary-bar" id="kpi-summary-bar" style="display: none !important;">
+        <div class="kpi-card-chip" onclick="applyPresetFilter('all')" title="Показать все задачи">
+            <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">Всего задач</div>
+                <div class="kpi-value" id="kpi-val-total">0</div>
+            </div>
+        </div>
+        <div class="kpi-card-chip" onclick="applyPresetFilter('in_work')" title="Показать задачи в работе">
+            <i class="fa-solid fa-bolt" style="color: #f59e0b; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">В работе</div>
+                <div class="kpi-value" style="color: #b45309;" id="kpi-val-work">0</div>
+            </div>
+        </div>
+        <div class="kpi-card-chip" onclick="applyPresetFilter('done')" title="Показать выполненные задачи">
+            <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">Выполнено (<span id="kpi-val-percent">0%</span>)</div>
+                <div class="kpi-value" style="color: #15803d;" id="kpi-val-done">0</div>
+            </div>
+        </div>
+        <div class="kpi-card-chip" onclick="applyPresetFilter('moved')" title="Показать перенесённые задачи">
+            <i class="fa-solid fa-calendar-days" style="color: #0284c7; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">Перенесено</div>
+                <div class="kpi-value" style="color: #0369a1;" id="kpi-val-moved">0</div>
+            </div>
+        </div>
+        <div class="kpi-card-chip" onclick="applyPresetFilter('cancelled')" title="Показать отменённые задачи">
+            <i class="fa-solid fa-ban" style="color: #ef4444; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">Отменено</div>
+                <div class="kpi-value" style="color: #b91c1c;" id="kpi-val-cancelled">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Presets & Service Chips Bar -->
+    <div class="quick-filters-bar" id="quick-filters-bar" style="display: none !important;">
+        <div class="quick-chips-group" id="quick-chips-group">
+            <button type="button" class="filter-chip active" id="chip-all" onclick="applyGlobalAllFilter()"
+                title="Показать все задачи завода">
+                <i class="fa-solid fa-layer-group"></i> <span>Все задачи</span>
+            </button>
+            <button type="button" class="filter-chip" id="chip-my" onclick="toggleMyTasksFilter()"
+                title="Показать только мои задачи (автор или исполнитель)">
+                <i class="fa-solid fa-user-check"></i> <span id="chip-my-label">Мои задачи</span>
+            </button>
+            <button type="button" class="filter-chip" id="chip-month-scope" onclick="toggleMonthScope()"
+                title="Переключить диапазон: Текущая неделя / Весь месяц">
+                <i class="fa-solid fa-calendar-days" style="color: #0284c7;"></i> <span id="chip-month-scope-label">Весь месяц</span>
+            </button>
+            <button type="button" class="filter-chip" id="chip-inwork" onclick="applyPresetFilter('in_work')"
+                title="Задачи в работе">
+                <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> <span>В работе</span>
+            </button>
+
+            <!-- Separator -->
+            <span style="color: #cbd5e1; font-weight: 300; margin: 0 2px;">|</span>
+
+            <!-- Service Zone Chips -->
+            <button type="button" class="filter-chip" id="chip-zone-ogm" onclick="applyDepartmentFilter('ОГМ')">🔧 ОГМ
+                Механики</button>
+            <button type="button" class="filter-chip" id="chip-zone-oge" onclick="applyDepartmentFilter('ОГЭ')">⚡ ОГЭ
+                Электрики</button>
+            <button type="button" class="filter-chip" id="chip-zone-tech"
+                onclick="applyDepartmentFilter('Технологи')">🔬 Технологи</button>
+            <button type="button" class="filter-chip" id="chip-zone-qcd" onclick="applyDepartmentFilter('ОТК')">📋 ОТК /
+                СКК</button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <button type="button" class="btn-reset-filters" id="btn-reset-filters-chip" onclick="resetAllFilters()"
+                style="display: none;" title="Сбросить все активные фильтры">
+                <i class="fa-solid fa-rotate-left"></i> <span>Сбросить (<span id="reset-filter-count">0</span>)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Filters Panel (Expandable on Mobile) -->
+    <div class="mobile-filters-panel" id="mobile-filters-panel">
+        <div class="mobile-filters-grid">
+            <div>
+                <label
+                    style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Зона
+                    / Служба</label>
+                <select class="select-filter" id="mobile-filter-zone" onchange="syncMobileFilter('zone', this.value)"
+                    style="width: 100%; font-size: 0.8rem;">
+                    <option value="all">📁 Все зоны</option>
+                </select>
+            </div>
+            <div>
+                <label
+                    style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Статус</label>
+                <select class="select-filter" id="mobile-filter-status"
+                    onchange="syncMobileFilter('status', this.value)" style="width: 100%; font-size: 0.8rem;">
+                    <option value="all">⚡ Все статусы</option>
+                    <option value="🟡 В работе">🟡 В работе</option>
+                    <option value="🟢 Выполнено">🟢 Выполнено</option>
+                    <option value="🔵 Перенесено">🔵 Перенесено</option>
+                    <option value="🔴 Отменено">🔴 Отменено</option>
+                </select>
+            </div>
+            <div>
+                <label
+                    style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Исполнитель</label>
+                <select class="select-filter" id="mobile-filter-assignee"
+                    onchange="syncMobileFilter('assignee', this.value)" style="width: 100%; font-size: 0.8rem;">
+                    <option value="all">👤 Все исполн.</option>
+                </select>
+            </div>
+            <div>
+                <label
+                    style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Автор</label>
+                <select class="select-filter" id="mobile-filter-author"
+                    onchange="syncMobileFilter('author', this.value)" style="width: 100%; font-size: 0.8rem;">
+                    <option value="all">✍️ Все авторы</option>
+                </select>
+            </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem;">
+            <button class="btn-action btn-secondary-action" style="font-size: 0.75rem; padding: 3px 8px;"
+                onclick="resetAllFilters()">
+                <i class="fa-solid fa-rotate-left"></i> Сбросить фильтры
+            </button>
+        </div>
+    </div>
+
+    <!-- Printable Header (Visible only on Print / PDF) -->
+    <div class="print-only-header" id="print-header">
+        <div class="print-header-brand">
+            <img src="/static/img/Logo.png" alt="Tectum Logo">
+            <div class="print-header-title">
+                <h2>TECTUM ENGINEERING — ПЛАННЕР ЗАДАЧ</h2>
+                <span id="print-header-subtitle">ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО</span>
+            </div>
+        </div>
+        <div class="print-meta-info" id="print-meta-info">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Floating Batch Actions Toolbar for Services -->
+    <div id="services-bulk-bar"
+        style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 1050; background: #0f172a; color: #ffffff; padding: 0.65rem 1.25rem; border-radius: 50px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3); align-items: center; gap: 0.85rem; border: 1px solid #334155;">
+        <div
+            style="font-size: 0.85rem; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-check-double" style="color: #38bdf8;"></i>
+            <span>Выбрано: <span id="services-selected-count" style="color: #38bdf8;">0</span></span>
+        </div>
+        <div style="height: 18px; width: 1px; background: #334155;"></div>
+        <button type="button" class="btn-action" onclick="executeServicesBulkStatus('🟢 Выполнено')"
+            style="background: #10b981; color: #fff; font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;"
+            title="Завершить все выбранные задачи">
+            <i class="fa-solid fa-check"></i> <span>Выполнить</span>
+        </button>
+        <button type="button" class="btn-action" onclick="executeServicesBulkMove()"
+            style="background: #3b82f6; color: #fff; font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;"
+            title="Перенести все выбранные задачи на следующую неделю">
+            <i class="fa-solid fa-arrow-right"></i> <span>На след. неделю</span>
+        </button>
+        <button type="button" class="btn-action" onclick="executeServicesBulkStatus('🔴 Отменено')"
+            style="background: #ef4444; color: #fff; font-size: 0.8rem; padding: 5px 10px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;"
+            title="Отменить выбранные задачи">
+            <i class="fa-solid fa-xmark"></i> <span>Отменить</span>
+        </button>
+        <button type="button" onclick="clearServicesSelection()"
+            style="background: transparent; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 0 4px; display: flex; align-items: center;"
+            title="Снять выделение">
+            &times;
+        </button>
+    </div>
+
+    <!-- Sticky Quick-Filter Deck (Pinned directly above table) -->
+    <div class="planner-filter-deck" id="planner-filter-deck">
+        <div class="filter-deck-chips">
+            <!-- Chip Зона -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="filter-deck-chip" id="chip-filter-zone" onclick="toggleDeckFilterPopover('zone', event)">
+                    <i class="fa-solid fa-folder" style="color: #f59e0b;"></i>
+                    <span>Зона: <b id="label-filter-zone">Все</b></span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <!-- Zone Popover -->
+                <div class="filter-dropdown-popover" id="popover-filter-zone" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-search-wrap">
+                        <input type="text" class="filter-popover-search-input" id="search-filter-zone" placeholder="🔍 Поиск зоны / службы..." oninput="filterZoneList(this.value)">
+                    </div>
+                    <div class="filter-popover-list custom-scroll" id="list-filter-zone">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chip Автор -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="filter-deck-chip" id="chip-filter-author" onclick="toggleDeckFilterPopover('author', event)">
+                    <i class="fa-solid fa-pen-nib" style="color: #6366f1;"></i>
+                    <span>Автор: <b id="label-filter-author">Все</b></span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <!-- Author Person Picker Popover -->
+                <div class="filter-dropdown-popover person-picker-popover" id="popover-filter-author" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-search-wrap">
+                        <input type="text" class="filter-popover-search-input" id="search-filter-author" placeholder="🔍 Поиск сотрудника..." oninput="filterPersonList('author', this.value)">
+                    </div>
+                    <div class="filter-popover-list custom-scroll" id="list-filter-author">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chip Исполнитель (Searchable Person Picker) -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="filter-deck-chip" id="chip-filter-assignee" onclick="toggleDeckFilterPopover('assignee', event)">
+                    <i class="fa-solid fa-user" style="color: #2563eb;"></i>
+                    <span>Исполнитель: <b id="label-filter-assignee">Все</b></span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <!-- Assignee Person Picker Popover -->
+                <div class="filter-dropdown-popover person-picker-popover" id="popover-filter-assignee" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-search-wrap">
+                        <input type="text" class="filter-popover-search-input" id="search-filter-assignee" placeholder="🔍 Поиск сотрудника или службы..." oninput="filterPersonList('assignee', this.value)">
+                    </div>
+                    <div class="filter-popover-list custom-scroll" id="list-filter-assignee">
+                        <!-- Populated dynamically with top/groups/avatars -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chip Статус -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="filter-deck-chip" id="chip-filter-status" onclick="toggleDeckFilterPopover('status', event)">
+                    <i class="fa-solid fa-bolt" style="color: #ea580c;"></i>
+                    <span>Статус: <b id="label-filter-status">Все</b></span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <!-- Status Popover -->
+                <div class="filter-dropdown-popover" id="popover-filter-status" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-list custom-scroll" id="list-filter-status">
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', 'all')">
+                            <span class="filter-option-icon">⚡</span>
+                            <span class="filter-option-text font-bold">Все статусы</span>
+                        </div>
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', '🟡 В работе')">
+                            <span class="filter-option-icon">🟡</span>
+                            <span class="filter-option-text">В работе</span>
+                        </div>
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', '🟢 Выполнено')">
+                            <span class="filter-option-icon">🟢</span>
+                            <span class="filter-option-text">Выполнено</span>
+                        </div>
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', '🔵 Перенесено')">
+                            <span class="filter-option-icon">🔵</span>
+                            <span class="filter-option-text">Перенесено</span>
+                        </div>
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', '🔴 Отменено')">
+                            <span class="filter-option-icon">🔴</span>
+                            <span class="filter-option-text">Отменено</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reset Filters Button -->
+            <button type="button" class="btn-reset-deck" id="btn-reset-filters-deck" onclick="resetAllFilters()" style="display: none;" title="Сбросить все активные фильтры">
+                <i class="fa-solid fa-xmark"></i> <span>Сбросить</span>
+            </button>
+        </div>
+
+        <!-- Meta: Task Counter -->
+        <div class="filter-deck-meta">
+            <span class="filter-results-badge" id="deck-results-counter">
+                <i class="fa-solid fa-circle" style="color: #2563eb; font-size: 7px;"></i> <span id="deck-tasks-count-text">Найдено 0 задач</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Main Container: Table (Weekly / Services) + Cards + Roadmaps Tree -->
+    <main class="table-container">
+        <!-- Hidden synced select elements to guarantee 100% compatibility across all legacy scripts -->
+        <div style="display: none;" aria-hidden="true">
+            <select id="table-filter-zone"><option value="all">all</option></select>
+            <select id="table-filter-author"><option value="all">all</option></select>
+            <select id="table-filter-assignee"><option value="all">all</option></select>
+            <select id="table-filter-status"><option value="all">all</option></select>
+        </div>
+
+        <!-- 1. Weekly & Services Table (Desktop/Print) -->
+        <div id="planner-table-wrapper">
+            <table class="planner-table">
+                <thead>
+                    <tr class="planner-thead-row">
+                        <th style="width: 60px;" id="th-col-id">
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <input type="checkbox" id="th-select-all-services"
+                                    onchange="toggleSelectAllServices(this.checked)"
+                                    style="display: none; cursor: pointer; width: 14px; height: 14px; accent-color: #2563eb;"
+                                    title="Выбрать все задачи">
+                                <span>ID</span>
+                            </div>
+                        </th>
+                        <th style="width: 120px; min-width: 120px;">ЗОНА / СЛУЖБА</th>
+                        <th style="width: 38%; min-width: 320px;">СУТЬ ЗАДАЧИ</th>
+                        <th style="width: 50px; text-align: center;">ФОТО</th>
+                        <th style="width: 110px; min-width: 110px;">АВТОР</th>
+                        <th style="width: 125px; min-width: 125px;">ИСПОЛНИТЕЛЬ</th>
+                        <th style="width: 80px; white-space: nowrap; text-align: center;">СРОК</th>
+                        <th style="width: 115px; min-width: 115px; text-align: center; white-space: nowrap;">СТАТУС</th>
+                        <th style="width: 18%; min-width: 170px;">ФАКТ / КОММЕНТАРИЙ</th>
+                        <th style="width: 85px; text-align: center;">ДЕЙСТВИЯ</th>
+                    </tr>
+                </thead>
+                <tbody id="tasks-table-body">
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 2rem; color: #64748b;">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Mobile Cards List -->
+            <div id="tasks-cards-container" class="planner-cards-container">
+                <div style="text-align: center; padding: 2rem; color: #64748b;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
+                </div>
+            </div>
+
+            <!-- My Tasks Pagination Bar -->
+            <div id="my-tasks-pagination-bar" style="display: none; padding: 12px 18px; background: #ffffff; border-top: 1px solid #e2e8f0; border-radius: 0 0 12px 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                <div id="my-tasks-pagination-info" style="font-size: 0.85rem; color: #475569; font-weight: 500;">
+                    Показано 0 из 0 задач
+                </div>
+                <div id="my-tasks-pagination-controls" class="stitch-pagination" style="display: flex; align-items: center; gap: 6px;">
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Roadmaps & Strategic Projects Container (Grid View) -->
+        <div id="roadmaps-view-container" style="display: none;">
+            <div id="roadmaps-cards-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.25rem;">
+                <div style="text-align: center; padding: 2rem; color: #64748b; grid-column: 1 / -1;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Загрузка дорожных карт...
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Roadmaps & Projects Print Table Container (Visible ONLY in Print when in Roadmaps or Printing a Project) -->
+        <div id="roadmap-print-wrapper" style="display: none;">
+            <table class="planner-table roadmap-print-table" id="roadmap-print-table">
+                <thead>
+                    <tr class="planner-thead-row">
+                        <th style="width: 7%; text-align: center;">КОД</th>
+                        <th style="width: 31%;">ПРОЕКТ / СЛУЖБА / ЭТАП</th>
+                        <th style="width: 15%;">БЛОКЕРЫ / ЗАВИСИМОСТИ</th>
+                        <th style="width: 14%;">ОТВЕТСТВЕННЫЙ</th>
+                        <th style="width: 8%; text-align: center; white-space: nowrap;">СРОК</th>
+                        <th style="width: 12%; text-align: center;">ПРОГРЕСС / СТАТУС</th>
+                        <th style="width: 13%; text-align: center;">ОТМЕТКА / КОНТРОЛЬ</th>
+                    </tr>
+                </thead>
+                <tbody id="roadmap-print-table-body">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem; color: #64748b;">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Формирование печатной таблицы дорожных карт...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- CREATE / EDIT TASK MODAL -->
+    <div class="modal-overlay" id="task-modal" style="z-index: 6500;">
+        <div class="modal-box" style="max-width: 680px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                    <h3 id="modal-title" style="margin: 0;">Новая задача</h3>
+                    <span id="modal-horizon-badge" class="modal-horizon-badge">⚡ Недельный спринт</span>
+                </div>
+                <button class="modal-close" onclick="closeTaskModal()">&times;</button>
+            </div>
+
+            <input type="hidden" id="task-id-input" value="">
+
+            <!-- Hidden Planning Horizon & Conditional Department Row -->
+            <input type="hidden" id="task-type-input" value="weekly">
+            <div class="form-row" id="task-department-row" style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.6rem 0.75rem;">
+                <label style="margin-bottom: 0.35rem; font-weight: 700; color: #92400e;"><i class="fa-solid fa-screwdriver-wrench" style="color: #ea580c;"></i> Служба</label>
+                <select class="form-select" id="task-department-input" style="font-weight: 600; height: 42px;">
+                    <option value="">-- Без привязки к службе --</option>
+                    <option value="ОГМ">🔧 ОГМ (Механики)</option>
+                    <option value="ОГЭ">⚡ ОГЭ (Электрики)</option>
+                    <option value="Технологи">🔬 Технологи</option>
+                    <option value="ОТК">📋 ОТК / СКК</option>
+                </select>
+            </div>
+
+            <!-- Roadmap Hierarchy Section: Parent Project & Multi-Blockers (Shown ONLY in Roadmaps) -->
+            <div id="task-roadmap-hierarchy-section" style="display: none;">
+                <!-- Hierarchy: Parent Project -->
+                <div class="form-row" id="task-parent-row">
+                    <label id="task-parent-label" style="font-weight: 700; color: #0f172a;"><i class="fa-solid fa-folder-tree" style="color: #6366f1;"></i> Родительский проект / Дорожная карта</label>
+                    <select class="form-select" id="task-parent-input" onchange="onTaskParentInputChange(this.value)">
+                        <option value="">-- Без родительского проекта --</option>
+                    </select>
+                    <!-- Hidden legacy input for backwards compatibility -->
+                    <input type="hidden" id="task-depends-input" value="">
+                </div>
+
+                <!-- Multi-Blockers Picker (Rule 27 Component) -->
+                <div class="form-row" id="task-blockers-picker-container" style="margin-bottom: 0.85rem;">
+                    <!-- Populated dynamically via renderMultiBlockerPicker -->
+                </div>
+            </div>
+
+            <!-- Roadmap Specific Fields (Quarter & Progress) -->
+            <div class="form-row" id="task-roadmap-fields-row" style="display: none; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 0.6rem 0.75rem;">
+                <div>
+                    <label style="color: #6d28d9; font-weight: 600;">Целевой квартал</label>
+                    <select class="form-select" id="task-quarter-input">
+                        <option value="Q4 2026" selected>Q4 2026 (Текущий)</option>
+                        <option value="Q1 2027">Q1 2027</option>
+                        <option value="Q2 2027">Q2 2027</option>
+                        <option value="Q3 2027">Q3 2027</option>
+                        <option value="Q4 2027">Q4 2027</option>
+                        <option value="Q3 2026">Q3 2026</option>
+                        <option value="Q2 2026">Q2 2026</option>
+                        <option value="Q1 2026">Q1 2026</option>
+                        <option value="Долгосрочный">Долгосрочный (2027+)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="color: #6d28d9; font-weight: 600;">Прогресс выполнения: <span id="task-progress-display" style="font-weight: 700; color: #7c3aed;">0%</span></label>
+                    <input type="range" min="0" max="100" step="5" value="0" id="task-progress-input" oninput="document.getElementById('task-progress-display').textContent = this.value + '%'" style="width: 100%; accent-color: #7c3aed; margin-top: 6px;">
+                </div>
+            </div>
+
+            <!-- Task text (Full Width) -->
+            <div class="form-row">
+                <label id="task-primary-label" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Суть задачи *</label>
+                <textarea class="form-textarea" id="task-ru-input" rows="3"
+                    placeholder="Введите четкую формулировку задачи..."
+                    oninput="onTaskInputChanged('primary')" required
+                    style="resize: vertical; min-height: 82px; width: 100%; box-sizing: border-box;"></textarea>
+                <input type="hidden" id="task-kz-input" value="">
+            </div>
+
+            <!-- Hidden Tags Input for Backwards Compatibility -->
+            <input type="hidden" id="task-tags-input" value="">
+
+            <!-- Zone -->
+            <div class="form-row">
+                <label style="margin-bottom: 0.35rem; font-weight: 600;">Зона / Участок</label>
+                <div class="zone-picker-wrapper" style="position: relative;">
+                    <input type="hidden" id="task-zone-input" value="Бережливое производство">
+                    <div class="zone-select-modern" id="btn-task-zone-trigger" onclick="toggleTaskZonePopover(event)" tabindex="0" title="Нажмите для выбора зоны / участка">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="zone-icon-circle" id="task-zone-icon" style="background: #eff6ff; color: #2563eb; font-size: 0.85rem;">
+                                <i class="fa-solid fa-folder"></i>
+                            </div>
+                            <span id="task-zone-display-text" style="font-size: 0.88rem; color: #1e293b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Бережливое производство</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down" id="task-zone-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                    </div>
+                    <div class="filter-dropdown-popover zone-picker-popover task-zone-popover" id="popover-task-zone" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="filter-popover-search-wrap">
+                            <input type="text" class="filter-popover-search-input" id="search-task-zone" placeholder="🔍 Поиск зоны / участка..." oninput="renderTaskZonePickerList(this.value)">
+                        </div>
+                        <div class="filter-popover-list" id="list-task-zone" style="max-height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Photo BEFORE (Clean direct picker & preview card, exact 56px height) -->
+            <div class="form-row">
+                <label style="margin-bottom: 0.35rem; font-weight: 600;"><i class="fa-solid fa-camera" style="color: #2563eb;"></i> Фото ДО <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(исходное состояние / проблема)</span></label>
+                <input type="file" id="task-photo-gallery" accept="image/*" style="display: none;"
+                    onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn', 'task-photo-thumb-container')">
+                <input type="hidden" id="task-photo-input" value="">
+                
+                <div class="photo-attach-wrapper" id="task-photo-attach-wrapper">
+                    <button type="button" class="photo-attach-btn-modern" id="btn-attach-photo-do"
+                        onclick="document.getElementById('task-photo-gallery').click()"
+                        title="Выбрать фото из галереи или камеры">
+                        <div class="photo-attach-icon"><i class="fa-solid fa-camera"></i></div>
+                        <div class="photo-attach-content">
+                            <span class="photo-attach-title">Прикрепить фото ДО</span>
+                            <span class="photo-attach-sub">До 15 МБ, авто-сжатие WebP</span>
+                        </div>
+                    </button>
+                    <div id="task-photo-thumb-container" style="display: none;"></div>
+                </div>
+                <!-- Hidden legacy elements for compatibility -->
+                <div id="task-photo-preview-hint" style="display: none !important;"></div>
+                <button type="button" id="task-photo-preview-btn" style="display: none !important;"></button>
+            </div>
+
+            <!-- Photo AFTER (Факт выполнения / Результат) -->
+            <div class="form-row" id="task-photo-after-row">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Фото ПОСЛЕ
+                        <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(факт выполнения / результат)</span></label>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="file" id="task-photo-after-gallery" accept="image/*" style="display: none;"
+                            onchange="handlePhotoFileUpload(this, 'task-photo-after-input', 'task-photo-after-preview-hint', 'task-photo-after-preview-btn', 'task-photo-after-thumb-container')">
+                        <button type="button" class="btn-action btn-secondary-action"
+                            style="font-size: 0.75rem; padding: 4px 10px;"
+                            onclick="document.getElementById('task-photo-after-gallery').click()"
+                            title="Выбрать фото из галереи или файлов">
+                            <i class="fa-solid fa-images"></i> <span>Выбрать фото ПОСЛЕ</span>
+                        </button>
+                    </div>
+                </div>
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="url" class="form-input" id="task-photo-after-input"
+                        placeholder="Ссылка на фото ПОСЛЕ или загрузите через кнопку выше..."
+                        oninput="onPhotoInputChanged('task-photo-after-input', 'task-photo-after-preview-hint', 'task-photo-after-preview-btn', 'task-photo-after-thumb-container')" style="padding-right: 85px;">
+                    <button type="button" id="task-photo-after-preview-btn" class="btn-action btn-secondary-action"
+                        style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;"
+                        onclick="openPhotoViewerModal(document.getElementById('task-photo-input')?.value, document.getElementById('task-photo-after-input').value, 'after')">
+                        <i class="fa-solid fa-eye"></i> Просмотр
+                    </button>
+                </div>
+                <div id="task-photo-after-thumb-container" style="display: none; margin-top: 6px; align-items: center; gap: 8px;"></div>
+                <div id="task-photo-after-preview-hint"
+                    style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-circle-check"></i> <span>Фото ПОСЛЕ прикреплено</span>
+                </div>
+            </div>
+
+            <!-- Author & Assignee (Exact 48px height aligned) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
+                <div>
+                    <label style="margin-bottom: 0.35rem; font-weight: 600;">Автор задачи</label>
+                    <div class="author-lock-card" id="task-author-card" title="Автор задачи определяется автоматически">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="author-avatar-circle" id="task-author-avatar">👤</div>
+                            <div style="display: flex; flex-direction: column; min-width: 0;">
+                                <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                    <span id="task-author-name-text" style="font-weight: 600; font-size: 0.88rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">—</span>
+                                    <span id="task-author-role-text" class="author-role-pill">Автор</span>
+                                </div>
+                                <span style="font-size: 0.68rem; color: #94a3b8; line-height: 1.1;">Авторизованный профиль</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-lock" style="color: #94a3b8; font-size: 0.85rem; margin-left: 0.5rem; flex-shrink: 0;" title="Автор определяется текущей сессией"></i>
+                    </div>
+                    <input type="hidden" id="task-author-input" value="">
+                </div>
+                <div>
+                    <label style="margin-bottom: 0.35rem; font-weight: 600;">Исполнитель</label>
+                    <div class="assignee-picker-wrapper" style="position: relative;">
+                        <input type="hidden" id="task-assignee-input" value="">
+                        <div class="assignee-select-modern" id="btn-task-assignee-trigger" onclick="toggleTaskAssigneePopover(event)" tabindex="0" title="Нажмите для выбора сотрудника">
+                            <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                                <div class="author-avatar-circle" id="task-assignee-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.75rem;">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                                <span id="task-assignee-display-text" style="font-size: 0.88rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите исполнителя --</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" id="task-assignee-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                        </div>
+                        <div class="filter-dropdown-popover person-picker-popover task-assignee-popover" id="popover-task-assignee" style="display: none;" onclick="event.stopPropagation()">
+                            <div class="filter-popover-search-wrap">
+                                <input type="text" class="filter-popover-search-input" id="search-task-assignee" placeholder="🔍 Поиск сотрудника..." oninput="renderTaskAssigneePickerList(this.value)">
+                            </div>
+                            <div class="filter-popover-list" id="list-task-assignee" style="max-height: 250px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deadline & Status -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row"
+                id="task-due-status-row">
+                <div id="task-due-container">
+                    <label style="margin-bottom: 0.35rem; font-weight: 600;">Срок выполнения (Дата)</label>
+                    <input type="date" class="form-input due-date-input-modern" id="task-due-input" onchange="onDueDateInputChanged(this.value)" oninput="onDueDateInputChanged(this.value)">
+                    <div id="task-due-target-badge" class="due-date-target-badge" style="display: none;"></div>
+                </div>
+                <div id="task-status-container">
+                    <label style="margin-bottom: 0.35rem; font-weight: 600;">Статус</label>
+                    <select class="form-select" id="task-status-input" style="height: 44px;">
+                        <option value="🟡 В работе">🟡 В работе</option>
+                        <option value="🟢 Выполнено">🟢 Выполнено</option>
+                        <option value="🔵 Перенесено">🔵 Перенесено</option>
+                        <option value="🔴 Отменено">🔴 Отменено</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Comment / Fact -->
+            <div class="form-row" id="task-comment-container">
+                <label style="margin-bottom: 0.35rem; font-weight: 600;">Факт / Комментарий</label>
+                <input type="text" class="form-input" id="task-comment-input"
+                    placeholder="Ход выполнения, замечания..." style="height: 44px;">
+            </div>
+
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div id="task-reassign-container" style="display: none !important;">
+                    <button type="button" class="btn-action" id="btn-modal-reassign-task"
+                        style="display: none !important; background: #6366f1; color: #ffffff; font-weight: 600;"
+                        onclick="openReassignModalFromEdit()">
+                        <i class="fa-solid fa-share-nodes"></i> <span>Переадресовать</span>
+                    </button>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="button" class="btn-action btn-secondary-action"
+                        onclick="closeTaskModal()">Отмена</button>
+                    <button type="button" class="btn-action btn-primary-action"
+                        onclick="saveTaskModal()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUICK SUBTASK / MILESTONE MODAL -->
+    <div class="modal-overlay" id="subtask-quick-modal" style="display: none; z-index: 5100;">
+        <div class="modal-box" style="max-width: 500px; width: 92vw; max-height: 85vh; overflow-y: auto; word-break: break-word; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f8fafc 0%, #ede9fe 100%); border-bottom: 1px solid #ddd6fe; padding: 0.9rem 1.15rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: #7c3aed; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fa-solid fa-list-check" style="font-size: 0.95rem;"></i>
+                    </div>
+                    <div style="overflow: hidden;">
+                        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #1e1b4b;" id="subtask-modal-title">Новый этап проекта</h3>
+                        <div id="subtask-modal-parent-info" style="font-size: 0.76rem; color: #6d28d9; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeSubtaskQuickModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.15rem; display: flex; flex-direction: column; gap: 0.85rem;">
+                <input type="hidden" id="quick-subtask-parent-id">
+                <input type="hidden" id="quick-subtask-edit-id">
+
+                <!-- Title -->
+                <div>
+                    <label style="display: block; font-weight: 600; font-size: 0.84rem; color: #1e293b; margin-bottom: 0.35rem;">
+                        Суть этапа / задачи <span style="color: #ef4444;">*</span>
+                    </label>
+                    <textarea id="quick-subtask-title" class="form-input" rows="2" placeholder="Что конкретно нужно сделать..." style="width: 100%; resize: vertical; min-height: 52px; font-size: 0.92rem;" onkeydown="handleQuickSubtaskModalKeydown(event)"></textarea>
+                </div>
+
+                <!-- Assignee & Date in 2 columns -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div>
+                        <label style="display: block; font-weight: 600; font-size: 0.82rem; color: #1e293b; margin-bottom: 0.35rem;">
+                            <i class="fa-solid fa-user" style="color: #6366f1;"></i> Исполнитель
+                        </label>
+                        <div class="assignee-picker-wrapper" id="quick-subtask-assignee-wrapper" style="position: relative;">
+                            <input type="hidden" id="quick-subtask-assignee-input" value="">
+                            <div class="assignee-select-modern quick-subtask-assignee-trigger" id="btn-quick-subtask-assignee-trigger" onclick="toggleQuickSubtaskAssigneePopover(event)" tabindex="0" title="Выберите исполнителя">
+                                <div style="display: flex; align-items: center; gap: 0.45rem; min-width: 0;">
+                                    <div class="author-avatar-circle" id="quick-subtask-assignee-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.65rem; width: 22px; height: 22px; flex-shrink: 0;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <span id="quick-subtask-assignee-label" style="font-size: 0.82rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Исполнитель --</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down" id="quick-subtask-assignee-chevron" style="color: #94a3b8; font-size: 0.68rem; transition: transform 0.2s ease;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; font-size: 0.82rem; color: #1e293b; margin-bottom: 0.35rem;">
+                            <i class="fa-solid fa-calendar-day" style="color: #6366f1;"></i> Срок выполнения
+                        </label>
+                        <input type="date" id="quick-subtask-due-date" class="form-input" style="width: 100%; font-size: 0.85rem;" onchange="onQuickSubtaskDateChanged()">
+                    </div>
+                </div>
+
+                <!-- Quick Date chips -->
+                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button type="button" class="btn-due-preset" onclick="setQuickSubtaskPreset('today')">Сегодня</button>
+                    <button type="button" class="btn-due-preset" onclick="setQuickSubtaskPreset('this_fri')">Пт (эта нед.)</button>
+                    <button type="button" class="btn-due-preset" onclick="setQuickSubtaskPreset('next_fri')">Пт (след. нед.)</button>
+                    <button type="button" class="btn-due-preset" onclick="setQuickSubtaskPreset('month_end')">Конец месяца</button>
+                </div>
+
+                <!-- Collapsible Extra section -->
+                <div style="margin-top: 0.2rem;">
+                    <button type="button" onclick="toggleQuickSubtaskExtra()" style="background: none; border: none; padding: 0; font-size: 0.78rem; color: #64748b; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                        <i class="fa-solid fa-chevron-right" id="quick-subtask-extra-icon" style="font-size: 0.7rem; transition: transform 0.2s;"></i>
+                        <span>Дополнительные параметры (блокер, заметка)</span>
+                    </button>
+                    <div id="quick-subtask-extra-content" style="display: none; margin-top: 0.5rem; padding: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; flex-direction: column; gap: 0.5rem;">
+                        <div id="quick-subtask-blockers-picker-container" style="margin-bottom: 0.4rem;">
+                            <input type="hidden" id="quick-subtask-depends" value="">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.76rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">
+                                Заметка / комментарий к этапу
+                            </label>
+                            <input type="text" id="quick-subtask-comment" class="form-input" placeholder="Дополнительные детали..." style="width: 100%; font-size: 0.82rem;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="modal-footer" style="padding: 0.75rem 0 0 0; margin-top: 0.4rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="closeSubtaskQuickModal()">Отмена</button>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" id="btn-save-subtask-and-more" class="btn-action btn-secondary-action" onclick="submitQuickSubtaskModal(true)" style="background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe;" title="Ctrl+Enter">
+                            <i class="fa-solid fa-plus"></i> Ещё один
+                        </button>
+                        <button type="button" id="btn-save-subtask-close" class="btn-action btn-primary-action" onclick="submitQuickSubtaskModal(false)" style="background: #7c3aed; border-color: #7c3aed;">
+                            Сохранить (Enter)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BULK CREATE TASKS MODAL -->
+    <div class="modal-overlay" id="bulk-tasks-modal" style="display: none;">
+        <div class="modal-box" style="max-width: 1040px; width: 96vw;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                    <i class="fa-solid fa-layer-group" style="color: #2563eb; font-size: 1.25rem;"></i>
+                    <h3 style="margin: 0;">Массовое добавление задач</h3>
+                    <span id="bulk-modal-horizon-badge" class="modal-horizon-badge">⚡ Недельный спринт</span>
+                </div>
+                <button class="modal-close" onclick="closeBulkTasksModal()">&times;</button>
+            </div>
+
+            <!-- Common / Default Parameters for Bulk Tasks -->
+            <div
+                style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1rem;">
+                <div
+                    style="font-size: 0.78rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-sliders" style="color: #2563eb;"></i> Общие параметры для пачки
+                        задач</span>
+                    <span id="bulk-tasks-count-badge"
+                        style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 700;">Строк:
+                        1</span>
+                </div>
+
+                <input type="hidden" id="bulk-type-input" value="weekly">
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.65rem;">
+                    <div id="bulk-department-container" style="display: none;">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Служба</label>
+                        <select class="form-select" id="bulk-department-input"
+                            onchange="onBulkDepartmentChange(this.value)"
+                            style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
+                            <option value="">-- Без привязки --</option>
+                            <option value="ОГМ">🔧 ОГМ (Механики)</option>
+                            <option value="ОГЭ">⚡ ОГЭ (Электрики)</option>
+                            <option value="Технологи">🔬 Технологи</option>
+                            <option value="ОТК">📋 ОТК / СКК</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Автор задач *</label>
+                        <div class="assignee-picker-wrapper" style="position: relative;">
+                            <input type="hidden" id="bulk-author-input" value="">
+                            <div class="assignee-select-modern bulk-select-modern" id="btn-bulk-author-trigger" onclick="toggleBulkAuthorPopover(event)" tabindex="0" title="Нажмите для выбора автора пачки">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
+                                    <div class="author-avatar-circle" id="bulk-author-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.7rem; width: 24px; height: 24px;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <span id="bulk-author-display-text" style="font-size: 0.82rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите автора --</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down" id="bulk-author-chevron" style="color: #94a3b8; font-size: 0.72rem; transition: transform 0.2s ease;"></i>
+                            </div>
+                            <div class="filter-dropdown-popover person-picker-popover bulk-author-popover" id="popover-bulk-author" style="display: none;" onclick="event.stopPropagation()">
+                                <div class="filter-popover-search-wrap">
+                                    <input type="text" class="filter-popover-search-input" id="search-bulk-author" placeholder="🔍 Поиск автора..." oninput="renderBulkAuthorPickerList(this.value)">
+                                </div>
+                                <div class="filter-popover-list" id="list-bulk-author" style="max-height: 250px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Зона по умолчанию</label>
+                        <div class="zone-picker-wrapper" style="position: relative;">
+                            <input type="hidden" id="bulk-zone-input" value="Бережливое производство">
+                            <div class="zone-select-modern bulk-select-modern" id="btn-bulk-zone-trigger" onclick="toggleBulkZonePopover(event)" tabindex="0" title="Нажмите для выбора зоны по умолчанию">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
+                                    <div class="zone-icon-circle" id="bulk-zone-icon" style="background: #eff6ff; color: #2563eb; font-size: 0.75rem; width: 24px; height: 24px;">
+                                        <i class="fa-solid fa-folder"></i>
+                                    </div>
+                                    <span id="bulk-zone-display-text" style="font-size: 0.82rem; color: #1e293b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Бережливое производство</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down" id="bulk-zone-chevron" style="color: #94a3b8; font-size: 0.72rem; transition: transform 0.2s ease;"></i>
+                            </div>
+                            <div class="filter-dropdown-popover zone-picker-popover bulk-zone-popover" id="popover-bulk-zone" style="display: none;" onclick="event.stopPropagation()">
+                                <div class="filter-popover-search-wrap">
+                                    <input type="text" class="filter-popover-search-input" id="search-bulk-zone" placeholder="🔍 Поиск зоны..." oninput="renderBulkZonePickerList(this.value)">
+                                </div>
+                                <div class="filter-popover-list" id="list-bulk-zone" style="max-height: 250px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label
+                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Срок
+                            по умолчанию</label>
+                        <input type="date" class="form-input" id="bulk-default-due-input"
+                            onchange="onBulkDefaultDueChanged(this.value)"
+                            style="font-size: 0.82rem; padding: 0.35rem 0.6rem;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paste from Clipboard & OCR Helpers -->
+            <div
+                style="margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="toggleBulkQuickPaste()"
+                        style="font-size: 0.78rem; padding: 4px 10px;">
+                        <i class="fa-solid fa-paste" style="color: #2563eb;"></i> <span>Вставить списком из Word/буфера</span>
+                    </button>
+                    <button type="button" class="btn-action" id="btn-bulk-ocr" onclick="triggerBulkOcrUpload()"
+                        style="font-size: 0.78rem; padding: 4px 11px; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-weight: 600;">
+                        <i class="fa-solid fa-camera" style="color: #16a34a;"></i> <span>📷 Распознать скриншот / фото (AI)</span>
+                    </button>
+                    <input type="file" id="bulk-ocr-file-input" accept="image/*" multiple style="display: none;" onchange="handleBulkOcrFileSelect(this)">
+                </div>
+                <div style="font-size: 0.75rem; color: #64748b;">
+                    💡 Вставьте скриншот через <b>Ctrl + V</b> или выберите сразу несколько фото
+                </div>
+            </div>
+
+            <!-- Quick Paste Textarea Container (Hidden by default) -->
+            <div id="bulk-quick-paste-box"
+                style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;">
+                <label
+                    style="font-size: 0.78rem; font-weight: 600; color: #92400e; margin-bottom: 4px; display: block;">
+                    Вставьте список задач или скопируйте строки таблицы из Word / Excel:
+                </label>
+                <textarea class="form-textarea" id="bulk-paste-textarea" rows="5"
+                    placeholder="Скопируйте строки таблицы прямо из Word / Excel и вставьте сюда.&#10;Парсер сам определит:&#10;• Текст поручения&#10;• Ответственного (Косумов, Курилова, Сазонов и др.)&#10;• Срок исполнения (например 11.09.2026)"
+                    style="font-size: 0.85rem; font-family: inherit; resize: vertical;"></textarea>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="toggleBulkQuickPaste()"
+                        style="font-size: 0.75rem; padding: 3px 8px;">Закрыть</button>
+                    <button type="button" class="btn-action btn-primary-action" onclick="parseBulkTasksFromTextarea()"
+                        style="font-size: 0.75rem; padding: 3px 10px;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Разбить на строки</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bulk Tasks Rows Container -->
+            <div
+                style="max-height: 420px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; background: #ffffff;">
+                <div id="bulk-tasks-table-header"
+                    style="display: grid; grid-template-columns: 32px 1fr 180px 135px 36px; gap: 0.5rem; padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; margin-bottom: 0.35rem;">
+                    <span>№</span>
+                    <span>Суть задачи *</span>
+                    <span id="bulk-header-assignee">Исполнитель</span>
+                    <span>Срок</span>
+                    <span></span>
+                </div>
+                <div id="bulk-tasks-rows-container" style="display: flex; flex-direction: column; gap: 0.45rem;">
+                    <!-- Rows rendered dynamically by JS -->
+                </div>
+            </div>
+
+            <!-- Add Row Button & Actions -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="addBulkTaskRow()"
+                        style="font-size: 0.82rem; padding: 5px 12px;">
+                        <i class="fa-solid fa-plus" style="color: #2563eb;"></i> <span>Добавить строку</span>
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action" onclick="clearAllBulkTaskRows()"
+                        style="font-size: 0.82rem; padding: 5px 10px; color: #ef4444; border-color: #fecaca;" title="Очистить все строки">
+                        <i class="fa-solid fa-trash-can"></i> <span>Очистить все</span>
+                    </button>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="button" class="btn-action btn-secondary-action"
+                        onclick="closeBulkTasksModal()">Отмена</button>
+                    <button type="button" class="btn-action btn-primary-action" id="btn-save-bulk-tasks"
+                        onclick="saveBulkTasksModal()" style="font-weight: 700;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> <span id="btn-save-bulk-text">Сохранить задачи
+                            (1)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPLETE TASK CONFIRMATION MODAL -->
+    <div class="modal-overlay" id="complete-task-modal">
+        <div class="modal-box" style="max-width: 520px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 1.3rem;"></i>
+                    <h3 id="complete-modal-title" style="margin: 0;">Подтверждение выполнения</h3>
+                </div>
+                <button class="modal-close" onclick="closeCompleteModal()">&times;</button>
+            </div>
+
+            <input type="hidden" id="complete-task-id" value="">
+
+            <div
+                style="background: #f8fafc; border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #2563eb; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;"
+                    id="complete-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="complete-task-title">Название задачи</div>
+            </div>
+
+            <div class="form-row">
+                <label>Что сделано / Факт выполнения <span style="color: #ef4444;">*</span></label>
+                <textarea class="form-textarea" id="complete-task-fact" rows="3"
+                    placeholder="Опишите результат выполнения задачи (например: монтаж завершен, стенд установлен)..."
+                    required></textarea>
+            </div>
+
+            <!-- Блок отображения Фото ДО (если есть у задачи) -->
+            <div id="complete-before-photo-block" style="display: none; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #1e40af;"><i class="fa-solid fa-camera"></i> Исходное фото ДО:</span>
+                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 7px;" onclick="openPhotoViewerModal(document.getElementById('complete-task-before-photo').value, document.getElementById('complete-task-photo').value, 'before')">
+                        <i class="fa-solid fa-eye"></i> Открыть ДО
+                    </button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <img id="complete-before-photo-thumb" src="" alt="Фото ДО" style="width: 48px; height: 48px; border-radius: 6px; object-fit: cover; border: 1px solid #93c5fd; cursor: pointer;" onclick="openPhotoViewerModal(document.getElementById('complete-task-before-photo').value, document.getElementById('complete-task-photo').value, 'before')">
+                    <span style="font-size: 0.75rem; color: #3b82f6;">Зафиксировано при постановке задачи</span>
+                    <input type="hidden" id="complete-task-before-photo" value="">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-circle-check" style="color: #10b981;"></i>
+                        Подтверждающее фото ПОСЛЕ <span
+                            style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(факт / результат)</span></label>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="file" id="complete-photo-gallery" accept="image/*" style="display: none;"
+                            onchange="handlePhotoFileUpload(this, 'complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn', 'complete-photo-thumb-container')">
+                        <button type="button" class="btn-action"
+                            style="background: #10b981; color: #ffffff; font-size: 0.75rem; padding: 4px 10px;"
+                            onclick="document.getElementById('complete-photo-gallery').click()"
+                            title="Выбрать фото из галереи или файлов">
+                            <i class="fa-solid fa-images"></i> <span>Выбрать фото ПОСЛЕ</span>
+                        </button>
+                    </div>
+                </div>
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="url" class="form-input" id="complete-task-photo"
+                        placeholder="Ссылка на фото ПОСЛЕ или загрузите через кнопку выше..."
+                        oninput="onPhotoInputChanged('complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn', 'complete-photo-thumb-container')" style="padding-right: 85px;">
+                    <button type="button" id="complete-photo-preview-btn" class="btn-action btn-secondary-action"
+                        style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;"
+                        onclick="openPhotoViewerModal(document.getElementById('complete-task-before-photo')?.value, document.getElementById('complete-task-photo').value, 'after')">
+                        <i class="fa-solid fa-eye"></i> Просмотр
+                    </button>
+                </div>
+                <div id="complete-photo-thumb-container" style="display: none; margin-top: 6px; align-items: center; gap: 8px;"></div>
+                <div id="complete-photo-preview-hint"
+                    style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-circle-check"></i> <span>Фото ПОСЛЕ прикреплено</span>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeCompleteModal()">Отмена</button>
+                <button type="button" class="btn-action" style="background: #10b981; color: #ffffff;"
+                    onclick="submitCompleteModal()">
+                    <i class="fa-solid fa-check"></i> Завершить задачу
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESCHEDULE TASK MODAL -->
+    <div class="modal-overlay" id="reschedule-task-modal">
+        <div class="modal-box" style="max-width: 520px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-calendar-days" style="color: #0284c7; font-size: 1.3rem;"></i>
+                    <h3 style="margin: 0;">Перенос срока задачи</h3>
+                </div>
+                <button class="modal-close" onclick="closeRescheduleModal()">&times;</button>
+            </div>
+
+            <input type="hidden" id="reschedule-task-id" value="">
+
+            <div
+                style="background: #f0f9ff; border: 1px solid #bae6fd; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #0369a1; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;"
+                    id="reschedule-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="reschedule-task-title">Название задачи</div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <div style="font-size: 0.8rem; color: #475569;">
+                        Исходный срок: <span id="reschedule-task-initial-due" style="font-weight: 700; color: #0f172a;">—</span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: #0369a1;">
+                        Текущий срок: <span id="reschedule-task-current-due" style="font-weight: 700; color: #0284c7;">—</span>
+                    </div>
+                    <span id="reschedule-task-count-badge" style="font-size: 0.72rem; padding: 2px 7px; border-radius: 4px; font-weight: 700; background: #e0f2fe; color: #0369a1;">1-й перенос</span>
+                </div>
+
+                <div id="reschedule-history-box" style="margin-top: 0.6rem; display: none; font-size: 0.75rem; background: #ffffff; border: 1px solid #bae6fd; border-radius: 6px; padding: 0.5rem 0.75rem; max-height: 110px; overflow-y: auto;"></div>
+            </div>
+
+            <div class="form-row">
+                <label>Новый срок выполнения <span style="color: #ef4444;">*</span></label>
+                <input type="date" class="form-input" id="reschedule-task-date" required
+                    onchange="onRescheduleDatePicked(this.value)">
+                <div class="date-presets-row">
+                    <button type="button" class="date-preset-btn" onclick="applyDatePreset(1)">+1 день</button>
+                    <button type="button" class="date-preset-btn" onclick="applyDatePreset(3)">+3 дня</button>
+                    <button type="button" class="date-preset-btn" onclick="applyDatePreset(7)">+1 неделя</button>
+                    <button type="button" class="date-preset-btn" onclick="applyDatePresetToFriday()">До
+                        пятницы</button>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Причина переноса <span style="color: #ef4444;">*</span></label>
+                <div class="reason-chips-grid" id="reschedule-reason-chips">
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'Ожидание ТМЦ / запчастей')">⚙️ Ожидание
+                        ТМЦ/запчастей</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'Ремонт / наладка оборудования')">🔧 Ремонт линии</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'Смещение графика смен')">📅 Сдвиг графика</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'По указанию руководства')">⚠️ Указание руководства</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'Высокая загрузка другим приоритетом')">⏳ Загрузка
+                        приоритетом</button>
+                </div>
+                <textarea class="form-textarea" id="reschedule-task-reason" rows="2"
+                    placeholder="Укажите подробную причину переноса срока..." required></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeRescheduleModal()">Отмена</button>
+                <button type="button" class="btn-action" style="background: #0284c7; color: #ffffff;"
+                    onclick="submitRescheduleModal()">
+                    <i class="fa-solid fa-calendar-check"></i> Перенести срок
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CANCEL TASK MODAL -->
+    <div class="modal-overlay" id="cancel-task-modal">
+        <div class="modal-box" style="max-width: 500px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-ban" style="color: #dc2626; font-size: 1.3rem;"></i>
+                    <h3 style="margin: 0; color: #b91c1c;">Отмена задачи</h3>
+                </div>
+                <button class="modal-close" onclick="closeCancelModal()">&times;</button>
+            </div>
+
+            <input type="hidden" id="cancel-task-id" value="">
+
+            <div
+                style="background: #fef2f2; border: 1px solid #fecaca; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #b91c1c; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;"
+                    id="cancel-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="cancel-task-title">Название задачи</div>
+                <div style="font-size: 0.78rem; color: #ef4444; margin-top: 0.35rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Отмена снимает задачу с плана и блокирует её
+                    редактирование
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Причина отмены <span style="color: #ef4444;">*</span></label>
+                <div class="reason-chips-grid" id="cancel-reason-chips">
+                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Дубликат задачи')">❌
+                        Дубликат задачи</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectCancelChip(this, 'Неактуально / снято с плана')">🛑 Неактуально</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectCancelChip(this, 'Заменено другой задачей')">🔄 Заменено другой</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectCancelChip(this, 'Отменено по согласованию')">📋 По согласованию</button>
+                </div>
+                <textarea class="form-textarea" id="cancel-task-reason" rows="2"
+                    placeholder="Опишите причину отмены задачи..." required></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeCancelModal()">Назад</button>
+                <button type="button" class="btn-action" style="background: #dc2626; color: #ffffff;"
+                    onclick="submitCancelModal()">
+                    <i class="fa-solid fa-ban"></i> Отменить задачу
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- REASSIGN TASK MODAL -->
+    <div class="modal-overlay" id="reassign-task-modal">
+        <div class="modal-box" style="max-width: 520px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-share-nodes" style="color: #6366f1; font-size: 1.3rem;"></i>
+                    <h3 style="margin: 0; color: #4338ca;">Переадресация задачи</h3>
+                </div>
+                <button class="modal-close" onclick="closeReassignModal()">&times;</button>
+            </div>
+
+            <input type="hidden" id="reassign-task-id" value="">
+
+            <div
+                style="background: #eef2ff; border: 1px solid #c7d2fe; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #4338ca; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;"
+                    id="reassign-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="reassign-task-title">Название задачи</div>
+                <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.35rem;">
+                    Текущий исполнитель: <span id="reassign-task-current-assignee"
+                        style="font-weight: 700; color: #1e1b4b;">—</span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Новый исполнитель <span style="color: #ef4444;">*</span></label>
+                <select class="form-select" id="reassign-new-assignee" required
+                    style="font-weight: 600; color: #1e1b4b;">
+                    <option value="">-- Выберите нового исполнителя --</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label>Перевести в службу / направление <span
+                        style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
+                <select class="form-select" id="reassign-new-department">
+                    <option value="">-- Оставить без изменений --</option>
+                    <option value="ОГМ">🔧 ОГМ (Механики)</option>
+                    <option value="ОГЭ">⚡ ОГЭ (Электрики)</option>
+                    <option value="Технологи">🔬 Технологи</option>
+                    <option value="ОТК">📋 ОТК / СКК</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label>Причина переадресации <span style="color: #ef4444;">*</span></label>
+                <div class="reason-chips-grid" id="reassign-reason-chips">
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'Относится к компетенции механиков (ОГМ)')">🔧 Компетенция
+                        ОГМ</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'Относится к электрической части (ОГЭ)')">⚡ Электрика /
+                        ОГЭ</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'Технологический вопрос / рецептура')">🔬 Вопрос
+                        технологов</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'Смена зоны ответственности')">🔄 Зона
+                        ответственности</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'По поручению руководителя')">👔 По поручению</button>
+                </div>
+                <textarea class="form-textarea" id="reassign-task-reason" rows="2"
+                    placeholder="Опишите почему задача передается другому коллеге..." required></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeReassignModal()">Отмена</button>
+                <button type="button" class="btn-action" id="btn-submit-reassign"
+                    style="background: #6366f1; color: #ffffff; font-weight: 700;" onclick="submitReassignModal()">
+                    <i class="fa-solid fa-share-nodes"></i> Переадресовать задачу
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TASK HISTORY & AUDIT LOG MODAL -->
+    <div class="modal-overlay" id="task-history-modal" style="z-index: 8000;">
+        <div class="modal-box" style="max-width: 580px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb; font-size: 1.3rem;"></i>
+                    <h3 style="margin: 0;">История изменений задачи</h3>
+                </div>
+                <button class="modal-close" onclick="closeTaskHistoryModal()">&times;</button>
+            </div>
+
+            <div
+                style="background: #f8fafc; border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <span style="font-size: 0.75rem; color: #2563eb; font-family: monospace; font-weight: 700;"
+                        id="history-task-code">TSK-01</span>
+                    <span id="history-task-status-badge"
+                        style="font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: #eff6ff; color: #1d4ed8;">🟡
+                        В работе</span>
+                </div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="history-task-title">Название задачи</div>
+            </div>
+
+            <div style="max-height: 52vh; overflow-y: auto; padding-right: 4px;">
+                <div class="timeline-container" id="history-timeline-list">
+                    <div style="text-align: center; color: #94a3b8; padding: 1.5rem 0;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Загрузка истории...
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeTaskHistoryModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TASK DETAIL VIEW MODAL (WITH MULTI-PHOTO GALLERY & SUBTASKS) -->
+    <div class="modal-overlay" id="task-detail-modal" style="z-index: 6500;">
+        <div class="modal-box task-detail-box">
+            <!-- Header (Strict Single Clean Row: Status on left, Actions on right) -->
+            <div class="task-detail-header-clean">
+                <div class="task-detail-header-left">
+                    <span id="detail-task-status-badge" class="task-detail-status-pill">
+                        <span class="task-detail-status-dot" style="background: #d97706; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);"></span>
+                        <span>В работе</span>
+                    </span>
+                    <!-- Hidden elements for backward compatibility -->
+                    <button type="button" id="detail-btn-back" style="display: none;" onclick="navigateBackTaskDetail()"></button>
+                    <span id="detail-task-code" style="display: none;"></span>
+                    <span id="detail-task-horizon-badge" style="display: none;"></span>
+                    <span id="detail-task-parent-wrap" style="display: none;"></span>
+                </div>
+                <div class="task-detail-header-right">
+                    <button type="button" class="btn-action detail-btn-action" id="detail-btn-complete" onclick="openCompleteTaskModalFromDetail()" style="display: none; background: #10b981; color: #fff;" title="Завершить задачу">
+                        <i class="fa-solid fa-check"></i> Завершить
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action detail-btn-action" id="detail-btn-reschedule" onclick="openRescheduleModalFromDetail()" style="display: none;" title="Перенести срок">
+                        <i class="fa-solid fa-calendar-day"></i> Перенести
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action detail-btn-action" id="detail-btn-edit" onclick="openEditTaskModalFromDetail()" style="display: none;" title="Редактировать задачу">
+                        <i class="fa-solid fa-pen"></i> Редактировать
+                    </button>
+                    <button type="button" class="detail-btn-close" onclick="closeTaskDetailModal()" title="Закрыть">&times;</button>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="task-detail-content">
+                <!-- Titles -->
+                <div>
+                    <h2 class="task-detail-title-ru" id="detail-task-title-ru" style="margin-bottom: 0;">Название задачи</h2>
+                    <div id="detail-task-title-kz" style="display: none;"></div>
+                </div>
+
+                <!-- Progress Bar (if project or has subtasks) -->
+                <div id="detail-progress-section" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
+                        <span id="detail-progress-label">Прогресс выполнения:</span>
+                        <span id="detail-progress-percent" style="color: #2563eb; font-weight: 700;">0%</span>
+                    </div>
+                    <div class="roadmap-progress-wrap" style="height: 7px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                        <div class="roadmap-progress-bar" id="detail-progress-bar" style="width: 0%; height: 100%; background: #2563eb; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+
+                <!-- 4-COLUMN PROPERTY STRIP -->
+                <div class="detail-properties-strip">
+                    <!-- Col 1: Исполнитель -->
+                    <div class="detail-property-col">
+                        <div class="detail-property-icon-wrap" id="detail-assignee-avatar-wrap">
+                            <div class="person-avatar avatar-blue" id="detail-assignee-avatar" style="width: 26px !important; height: 26px !important; font-size: 11px !important;">👤</div>
+                        </div>
+                        <div class="detail-property-info">
+                            <span class="detail-property-label">Исполнитель</span>
+                            <span class="detail-property-value" id="detail-task-assignee">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Col 2: Дедлайн -->
+                    <div class="detail-property-col">
+                        <div class="detail-property-icon-wrap">
+                            <i class="fa-regular fa-calendar" style="color: #64748b; font-size: 0.95rem;"></i>
+                        </div>
+                        <div class="detail-property-info">
+                            <span class="detail-property-label">Дедлайн</span>
+                            <span class="detail-property-value" id="detail-task-due-date">—</span>
+                            <div id="detail-task-initial-due-wrap" style="display: none; font-size: 0.72rem; color: #0284c7; margin-top: 2px; font-weight: 600;">
+                                исх. <span id="detail-task-initial-due">—</span> (<span id="detail-task-reschedule-count">0</span>-й перенос)
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Col 3: Инициатор -->
+                    <div class="detail-property-col">
+                        <div class="detail-property-icon-wrap">
+                            <i class="fa-regular fa-user" style="color: #64748b; font-size: 0.95rem;"></i>
+                        </div>
+                        <div class="detail-property-info">
+                            <span class="detail-property-label">Инициатор</span>
+                            <span class="detail-property-value" id="detail-task-author">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Col 4: Служба / Зона -->
+                    <div class="detail-property-col">
+                        <div class="detail-property-icon-wrap">
+                            <i class="fa-solid fa-industry" style="color: #64748b; font-size: 0.9rem;"></i>
+                        </div>
+                        <div class="detail-property-info">
+                            <span class="detail-property-label">Служба / Зона</span>
+                            <span class="detail-property-value" id="detail-task-zone-service">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Backward compatibility stub for period -->
+                <span id="detail-task-period" style="display: none;"></span>
+
+                <!-- Attached Document Cell (shown only when doc exists) -->
+                <div id="detail-doc-cell" style="display: none; margin-top: -6px; margin-bottom: 6px; padding: 7px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; align-items: center; gap: 8px;">
+                    <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: #1e40af;"><i class="fa-solid fa-file-lines"></i> Регламент:</span>
+                    <span id="detail-task-doc" style="font-size: 0.82rem; font-weight: 600; color: #1d4ed8;">—</span>
+                </div>
+
+                <!-- Tags & Blockers -->
+                <div id="detail-tags-blockers-row" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <div id="detail-blocker-wrap" style="display: none;"></div>
+                    <div id="detail-tags-wrap" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+                </div>
+
+                <!-- Comment / Note with One-Click Inline Editor -->
+                <div id="detail-comment-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div style="font-size: 0.76rem; text-transform: uppercase; font-weight: 700; color: #64748b; display: flex; align-items: center; gap: 5px;">
+                            <i class="fa-regular fa-comment-dots"></i> Комментарий / Факт выполнения:
+                        </div>
+                        <button type="button" class="btn-action" id="btn-edit-detail-comment" onclick="enableDetailCommentEdit()" style="display: none; font-size: 0.72rem; padding: 2px 7px; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 5px; font-weight: 600; cursor: pointer;">
+                            <i class="fa-solid fa-pen" style="font-size: 0.65rem;"></i> Изменить
+                        </button>
+                    </div>
+                    <!-- View Mode (Click to Edit only when authorized) -->
+                    <div class="task-detail-comment-box" id="detail-task-comment">
+                        Комментарий отсутствует
+                    </div>
+                    <!-- Edit Mode (Inline Textarea with Save / Cancel) -->
+                    <div id="detail-comment-edit-wrap" style="display: none; margin-top: 4px;">
+                        <textarea id="detail-comment-textarea" class="form-input" rows="3" placeholder="Введите комментарий или рабочий факт выполнения (например: замеры сняты, чертеж в раскрое)..." style="width: 100%; box-sizing: border-box; font-size: 0.85rem; padding: 8px 10px; border-radius: 8px; border: 1.5px solid #3b82f6; resize: vertical; line-height: 1.45;"></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; flex-wrap: wrap; gap: 6px;">
+                            <span style="font-size: 0.72rem; color: #94a3b8;">Нажмите <kbd style="background: #f1f5f9; padding: 1px 4px; border-radius: 3px; border: 1px solid #cbd5e1; font-size: 0.7rem;">Ctrl + Enter</kbd> для сохранения</span>
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" class="btn-action btn-secondary-action" onclick="cancelDetailCommentEdit()" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px;">Отмена</button>
+                                <button type="button" class="btn-action btn-primary-action" id="btn-save-detail-comment" onclick="saveDetailCommentEdit()" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 6px; background: #2563eb; border-color: #2563eb;">
+                                    <i class="fa-solid fa-check"></i> Сохранить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PHOTO GALLERY (ДО / ПОСЛЕ) -->
+                <div class="gallery-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                        <div class="gallery-tabs">
+                            <button type="button" class="gallery-tab-btn active" id="detail-tab-before" onclick="switchDetailPhotoTab('before')">
+                                <i class="fa-solid fa-camera" style="color: #2563eb;"></i> Фото ДО (<span id="detail-count-before">0</span>)
+                            </button>
+                            <button type="button" class="gallery-tab-btn" id="detail-tab-after" onclick="switchDetailPhotoTab('after')">
+                                <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Фото ПОСЛЕ (<span id="detail-count-after">0</span>)
+                            </button>
+                        </div>
+
+                        <!-- Multi-photo Upload Action Button -->
+                        <div>
+                            <input type="file" id="detail-photo-file-input" multiple accept="image/*" style="display: none;" onchange="handleDetailPhotoUpload(event)">
+                            <button type="button" class="btn-action" id="detail-btn-upload-photos" onclick="triggerDetailPhotoUpload()" style="display: none; background: #2563eb; color: #fff; font-size: 0.78rem; font-weight: 600; padding: 6px 12px; border-radius: 8px;">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> + Загрузить фото
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Upload progress banner -->
+                    <div id="detail-photo-uploading-banner" style="display: none; padding: 8px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 0.82rem; color: #1e40af; margin-bottom: 8px;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Загрузка и сохранение фотографий...
+                    </div>
+
+                    <!-- Grid of Photo Cards -->
+                    <div class="gallery-grid" id="detail-photos-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <!-- Empty state -->
+                    <div id="detail-photos-empty" style="text-align: center; padding: 1.5rem; color: #94a3b8; font-size: 0.85rem; border: 1px dashed #cbd5e1; border-radius: 8px; margin-top: 8px;">
+                        <i class="fa-solid fa-images" style="font-size: 1.8rem; margin-bottom: 6px; display: block; opacity: 0.6;"></i>
+                        <span id="detail-photos-empty-text">Нет загруженных фотографий ДО выполнения</span>
+                    </div>
+                </div>
+
+                <!-- SUBTASKS / MILESTONES CHECKLIST -->
+                <div id="detail-subtasks-section" style="border: 1px solid var(--tbl-border); border-radius: 12px; padding: 14px; background: #ffffff;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-size: 0.84rem; font-weight: 700; color: #0f172a; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-list-check" id="detail-subtasks-icon" style="color: #2563eb;"></i> <span id="detail-subtasks-title">Чек-лист / Подзадачи</span> (<span id="detail-subtasks-count">0</span>)
+                        </div>
+                        <button type="button" class="btn-action btn-secondary-action" id="detail-btn-add-subtask" onclick="focusDetailNewSubtaskInput()" style="display: none; font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; white-space: nowrap;">
+                            <i class="fa-solid fa-plus"></i> <span id="detail-btn-add-subtask-label">Добавить подзадачу</span>
+                        </button>
+                    </div>
+
+                    <!-- Inline quick add row -->
+                    <div id="detail-add-subtask-wrap" style="display: none; gap: 6px; margin-bottom: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="detail-new-subtask-input" class="form-input" placeholder="+ Суть подзадачи (нажмите Enter)..." style="flex: 2; min-width: 170px; font-size: 0.82rem; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff;" onkeydown="handleDetailNewSubtaskKeydown(event)">
+                        <input type="text" id="detail-new-subtask-date" class="form-input" placeholder="Срок: ДД.ММ" style="width: 105px; font-size: 0.82rem; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; text-align: center;" title="Плановый срок исполнения подзадачи (например: 28.10)">
+                        <button type="button" class="btn-action" onclick="submitDetailNewSubtask()" style="background: #2563eb; color: #fff; font-size: 0.78rem; font-weight: 600; padding: 6px 12px; border-radius: 6px; white-space: nowrap;">
+                            <i class="fa-solid fa-plus"></i> Добавить
+                        </button>
+                    </div>
+
+                    <div id="detail-subtasks-list" style="display: flex; flex-direction: column; gap: 6px;">
+                        <!-- Subtask items rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 0.85rem 1.4rem; border-top: 1px solid var(--tbl-border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; gap: 10px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="openTaskHistoryModalFromDetail()" style="font-size: 0.78rem;">
+                        <i class="fa-solid fa-clock-rotate-left"></i> История изменений
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action" id="detail-btn-delete" onclick="deleteTaskFromDetail()" style="display: none; padding: 5px 10px; font-size: 0.76rem; border-radius: 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2;" title="Удалить задачу (требуется PIN руководства)">
+                        <i class="fa-solid fa-trash-can"></i> Удалить
+                    </button>
+                </div>
+                <button type="button" class="btn-action btn-secondary-action" onclick="closeTaskDetailModal()">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POPUP PHOTO VIEWER MODAL (LIGHTBOX) WITH APPLE DESIGN TABS -->
+    <div class="modal-overlay" id="photo-viewer-modal" onclick="closePhotoViewerModal()"
+        style="z-index: 7000; background: rgba(0, 0, 0, 0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);">
+        <div class="apple-photo-viewer-box" onclick="event.stopPropagation()">
+            <button type="button" class="apple-lightbox-close-btn" onclick="closePhotoViewerModal()" title="Закрыть">&times;</button>
+            
+            <!-- BEFORE / AFTER APPLE SEGMENTED CONTROL -->
+            <div id="photo-viewer-tabs" class="apple-segmented-control" style="display: none; z-index: 10;">
+                <button type="button" id="tab-photo-before" class="btn-action photo-tab-btn active" onclick="switchLightboxTab('before')">
+                    <i class="fa-solid fa-camera"></i> Фото ДО
+                </button>
+                <button type="button" id="tab-photo-after" class="btn-action photo-tab-btn" onclick="switchLightboxTab('after')">
+                    <i class="fa-solid fa-circle-check"></i> Фото ПОСЛЕ
+                </button>
+            </div>
+
+            <!-- GALLERY NAVIGATION (PREV / NEXT) -->
+            <button type="button" id="lightbox-prev-btn" class="lightbox-nav-btn prev" onclick="navigateLightboxPhoto(-1)" title="Предыдущее фото" style="display: none;">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button type="button" id="lightbox-next-btn" class="lightbox-nav-btn next" onclick="navigateLightboxPhoto(1)" title="Следующее фото" style="display: none;">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+
+            <img id="photo-viewer-img" src="" alt="Фото задачи"
+                style="max-width: 95vw; max-height: 76vh; border-radius: 12px; object-fit: contain; box-shadow: 0 24px 48px rgba(0,0,0,0.6); transition: opacity 0.18s ease;">
+            <div style="margin-top: 12px; display: flex; gap: 8px; align-items: center; justify-content: center;">
+                <span id="photo-viewer-counter" style="color: rgba(255,255,255,0.7); font-size: 0.8rem; font-weight: 500;"></span>
+                <a id="photo-viewer-direct-link" href="#" target="_blank" class="btn-action btn-secondary-action"
+                    style="font-size: 0.8rem; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border-radius: 20px; padding: 6px 14px;">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть оригинал
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOCUMENT PICKER MODAL (From Knowledge Base) -->
+    <div class="modal-overlay" id="doc-picker-modal" style="z-index: 5500;">
+        <div class="modal-box" style="max-width: 600px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-folder-tree" style="color: #2563eb; font-size: 1.2rem;"></i>
+                    <h3 style="margin: 0; font-size: 1.05rem;">Выбрать документ из Базы Знаний</h3>
+                </div>
+                <button class="modal-close" onclick="closeDocPickerModal()">&times;</button>
+            </div>
+
+            <div style="margin-bottom: 0.85rem;">
+                <input type="text" id="doc-picker-search" class="form-input"
+                    placeholder="🔍 Быстрый поиск регламента или инструкции..."
+                    oninput="filterDocPickerList(this.value)">
+            </div>
+
+            <div style="max-height: 48vh; overflow-y: auto; border: 1px solid var(--tbl-border); border-radius: 8px; background: #ffffff;"
+                id="doc-picker-list-container">
+                <div style="text-align: center; padding: 2rem; color: #64748b;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Загрузка документов...
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeDocPickerModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN AUTHORIZATION MODAL (@canonical-pattern PersonPickerPopover & 4-Box PIN) -->
+    <div class="modal-overlay" id="planner-pin-modal" style="z-index: 7000;">
+        <div class="modal-box"
+            style="max-width: 440px; width: 100%; text-align: center; padding: 2.2rem 2rem; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); background: #ffffff; border: 1px solid #e2e8f0; animation: authModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); box-sizing: border-box;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1rem; border: 1px solid #bfdbfe;">
+                <i class="fa-solid fa-id-badge"></i>
+            </div>
+            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;" id="pin-modal-title">Вход сотрудника</h3>
+            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.4rem; line-height: 1.4;" id="pin-modal-desc">
+                Выберите своё имя и введите 4-значный PIN-код для работы с Планнером
+            </p>
+
+            <!-- PersonPickerPopover Field -->
+            <div class="form-group" style="text-align: left; margin-bottom: 1.2rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: block;">Сотрудник *</label>
+                <div class="person-picker-wrapper">
+                    <input type="hidden" id="planner-pin-user-input" value="">
+                    <select id="pin-auth-user-select" style="display: none;"></select>
+                    <div class="person-select-modern" id="planner-user-picker-trigger" onclick="togglePlannerUserPickerPopover(event)" tabindex="0" title="Нажмите для выбора сотрудника">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="author-avatar-circle" id="planner-user-picker-avatar" style="background: #eff6ff; color: #2563eb;">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <span id="planner-user-picker-display-text" style="font-size: 0.88rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите сотрудника --</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down person-picker-chevron" id="planner-user-picker-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                    </div>
+                    <div class="person-picker-popover" id="planner-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="filter-popover-search-wrap">
+                            <input type="text" class="filter-popover-search-input" id="search-planner-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderPlannerUserPickerList(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true">
+                        </div>
+                        <div class="filter-popover-list" id="list-planner-user-picker"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4-Box PIN Input -->
+            <div class="form-group" id="pin-input-group" style="text-align: left; margin-bottom: 1.6rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-key" style="color: #f59e0b; margin-right: 4px;"></i> 4-значный PIN-код *</span>
+                    <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">только цифры</span>
+                </label>
+                <input type="hidden" id="pin-auth-input" value="">
+                <div class="pin-boxes-container">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="planner-pin-box-1" maxlength="1" autocomplete="off" oninput="handlePlannerPinBoxInput(1, event)" onkeydown="handlePlannerPinBoxKeydown(1, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="planner-pin-box-2" maxlength="1" autocomplete="off" oninput="handlePlannerPinBoxInput(2, event)" onkeydown="handlePlannerPinBoxKeydown(2, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="planner-pin-box-3" maxlength="1" autocomplete="off" oninput="handlePlannerPinBoxInput(3, event)" onkeydown="handlePlannerPinBoxKeydown(3, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="planner-pin-box-4" maxlength="1" autocomplete="off" oninput="handlePlannerPinBoxInput(4, event)" onkeydown="handlePlannerPinBoxKeydown(4, event)">
+                </div>
+            </div>
+
+            <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closePinModal()" style="flex: 1; min-height: 44px; border-radius: 10px; font-weight: 600; justify-content: center;">Отмена</button>
+                <button type="button" class="btn-action" id="btn-submit-planner-pin" onclick="submitPinModal()" style="flex: 1.4; min-height: 44px; background: #2563eb; color: #fff; justify-content: center; border-radius: 10px; font-weight: 600; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERACTIVE PROJECT DEPENDENCY GRAPH MODAL -->
+    <div class="modal-overlay" id="project-graph-modal" style="z-index: 5400;">
+        <div class="modal-box graph-modal-box">
+            <!-- Sticky Header -->
+            <div class="graph-modal-header">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; min-width: 0;">
+                    <span class="badge-code" id="graph-project-code" style="font-size: 0.82rem; font-family: monospace; font-weight: 700; background: #eef2ff; color: #4338ca; padding: 3px 8px; border-radius: 6px;">TSK-01</span>
+                    <div style="min-width: 0; flex: 1;">
+                        <h3 id="graph-project-title" style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Интерактивная схема проекта</h3>
+                        <div id="graph-project-subtitle" style="font-size: 0.76rem; color: #64748b; margin-top: 2px;"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 14px; flex-shrink: 0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 0.78rem; font-weight: 600; color: #64748b;">Прогресс:</span>
+                        <div class="roadmap-progress-wrap" style="width: 110px; height: 8px; margin: 0;">
+                            <div class="roadmap-progress-bar" id="graph-project-progress-bar" style="width: 0%;"></div>
+                        </div>
+                        <span id="graph-project-progress-val" style="font-size: 0.84rem; font-weight: 700; color: #2563eb;">0%</span>
+                    </div>
+
+                    <button type="button" class="btn-action btn-secondary-action" onclick="printRoadmapProject(currentGraphProjectId)" style="padding: 5px 10px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.8rem;" title="Печать паспорта проекта">
+                        <i class="fa-solid fa-print"></i> <span>Печать</span>
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action" id="graph-fullscreen-btn" onclick="toggleGraphModalFullscreen()" style="padding: 5px 10px;" title="Развернуть на весь экран">
+                        <i class="fa-solid fa-expand" id="graph-fullscreen-icon"></i>
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action" onclick="closeProjectGraphModal()" style="padding: 5px 10px;" title="Закрыть (ESC)">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Toolbar & Controls -->
+            <div class="graph-modal-toolbar">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button type="button" class="btn-action btn-secondary-action graph-tool-btn" onclick="zoomProjectGraph(0.15)" title="Приблизить (+)">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action graph-tool-btn" onclick="zoomProjectGraph(-0.15)" title="Отдалить (-)">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action graph-tool-btn" onclick="resetProjectGraphZoom()" title="Масштаб 100%">
+                        <span id="graph-zoom-label" style="font-size: 0.75rem; font-weight: 700;">100%</span>
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action graph-tool-btn" onclick="fitProjectGraphToScreen()" title="По размеру экрана">
+                        <i class="fa-solid fa-expand"></i> Центрировать
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action graph-tool-btn" onclick="openCurrentProjectHistory()" title="История изменений и аудит проекта" style="display: inline-flex; align-items: center; gap: 5px;">
+                        <i class="fa-solid fa-clock-rotate-left" style="color: #6366f1;"></i> История проекта
+                    </button>
+                </div>
+
+                <!-- Legend -->
+                <div class="graph-legend">
+                    <span class="legend-item"><span class="legend-dot dot-done"></span> Выполнено</span>
+                    <span class="legend-item"><span class="legend-dot dot-work"></span> В работе</span>
+                    <span class="legend-item"><span class="legend-dot dot-blocked"></span> Заблокировано</span>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn-action btn-secondary-action graph-tool-btn" id="graph-btn-toggle-inspector" onclick="toggleGraphInspector()" style="padding: 4px 10px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; border-color: #c7d2fe; color: #4338ca; background: #eef2ff;" title="Показать или скрыть боковой инспектор управления">
+                        <i class="fa-solid fa-sliders"></i> Свойства этапа
+                    </button>
+                    <button type="button" class="btn-action btn-primary-action graph-tool-btn" id="graph-btn-add-stage" onclick="openGraphAddStageModal()" style="background: #4f46e5; border-color: #4f46e5; color: #fff; padding: 4px 11px; font-weight: 700; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);" title="Добавить новый этап в проект">
+                        <i class="fa-solid fa-plus"></i> Добавить этап
+                    </button>
+                    <label class="graph-toggle-label">
+                        <input type="checkbox" id="graph-toggle-hide-done" onchange="toggleGraphHideDone(this.checked)">
+                        <span>Скрыть выполненные</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Interactive Viewport -->
+            <div class="graph-viewport" id="graph-viewport" onwheel="handleGraphWheel(event)">
+                <!-- Movable Canvas Surface -->
+                <div class="graph-surface" id="graph-surface">
+                    <!-- SVG Edge Lines Layer -->
+                    <svg class="graph-svg" id="graph-svg">
+                        <defs>
+                            <marker id="arrow-done" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1 L 9 5 L 0 9 z" fill="#10b981" />
+                            </marker>
+                            <marker id="arrow-work" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1 L 9 5 L 0 9 z" fill="#2563eb" />
+                            </marker>
+                            <marker id="arrow-blocked" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1 L 9 5 L 0 9 z" fill="#ef4444" />
+                            </marker>
+                        </defs>
+                        <g id="graph-edges-group"></g>
+                    </svg>
+
+                    <!-- DOM Nodes Layer -->
+                    <div class="graph-nodes-container" id="graph-nodes-container">
+                        <!-- Rendered nodes will be placed here -->
+                    </div>
+                </div>
+
+                <!-- Floating Inspector Card (Right Drawer) -->
+                <div class="graph-inspector" id="graph-inspector" style="display: block;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
+                        <span style="font-size: 0.74rem; font-weight: 700; color: #4338ca; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fa-solid fa-circle-info"></i> Информация об этапе
+                        </span>
+                        <button type="button" class="btn-icon-cell" onclick="closeGraphInspector()" style="font-size: 0.85rem; padding: 2px 6px; cursor: pointer;" title="Скрыть инспектор">&times;</button>
+                    </div>
+
+                    <!-- Empty State Placeholder when no node is selected -->
+                    <div id="inspector-empty-state" style="display: none; padding: 2.5rem 1rem; text-align: center; color: #64748b;">
+                        <i class="fa-solid fa-hand-pointer fa-2x" style="color: #818cf8; margin-bottom: 12px; display: block;"></i>
+                        <div style="font-weight: 700; color: #334155; font-size: 0.85rem; margin-bottom: 4px;">Этап не выбран</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.4;">Кликните на карточку любого этапа на схеме, чтобы просмотреть параметры, связи или открыть паспорт.</div>
+                    </div>
+
+                    <!-- Inspector Active Body -->
+                    <div id="inspector-content-wrap">
+                        <!-- Header with Status Badge (Purely Informational, Read-Only) -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px;">
+                            <span class="badge-code" id="inspector-node-code">TSK-00</span>
+                            <span id="inspector-node-status-badge" style="font-size: 0.74rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: #fef3c7; color: #b45309; border: 1px solid #fde68a;">🟡 В работе</span>
+                        </div>
+
+                        <!-- Stage Title & Meta Info -->
+                        <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0;">
+                            <div id="inspector-node-title" style="font-size: 0.94rem; font-weight: 700; color: #0f172a; line-height: 1.35; margin-bottom: 4px; word-break: break-word;"></div>
+                            <div id="inspector-node-title-kz" style="font-size: 0.76rem; color: #64748b; font-style: italic; margin-bottom: 6px; word-break: break-word;"></div>
+                            <div style="display: flex; gap: 8px; font-size: 0.74rem; color: #64748b; flex-wrap: wrap; align-items: center; margin-top: 4px;">
+                                <div class="inspector-meta-pill" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; min-height: 34px; flex: 1;">
+                                    <div class="author-avatar-circle" id="inspector-assignee-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.65rem; width: 22px; height: 22px; flex-shrink: 0; font-weight: 700;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; min-width: 0;">
+                                        <span style="font-size: 0.64rem; color: #94a3b8; line-height: 1; text-transform: uppercase; font-weight: 600;">Исполнитель</span>
+                                        <span id="inspector-node-assignee" style="font-size: 0.76rem; color: #1e293b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">—</span>
+                                    </div>
+                                </div>
+                                <div class="inspector-meta-pill" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; min-height: 34px;">
+                                    <span style="font-size: 0.85rem;">📅</span>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-size: 0.64rem; color: #94a3b8; line-height: 1; text-transform: uppercase; font-weight: 600;">Дедлайн</span>
+                                        <span id="inspector-node-due-date" style="color: #1e293b; font-weight: 600; font-size: 0.76rem;">—</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Blocker alert if blocked -->
+                        <div id="inspector-blocker-alert" style="display: none; padding: 6px 8px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; font-size: 0.74rem; color: #991b1b; margin-bottom: 8px;">
+                            <i class="fa-solid fa-lock" style="margin-right: 4px;"></i> <strong>Блокировка:</strong> ждет завершения <span id="inspector-blocker-name" style="font-weight: 700;"></span>
+                        </div>
+
+                        <!-- Graph-Specific: Arrow Dependency (Informational Predecessors List with Click-to-Focus) -->
+                        <div style="margin-bottom: 10px;" id="inspector-blockers-picker-container">
+                            <!-- Predecessors rendered dynamically as clickable cards -->
+                        </div>
+
+                        <!-- Subtasks / Checklist section with Integrated Progress -->
+                        <div style="padding-top: 8px; border-top: 1px solid #e2e8f0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <span style="font-size: 0.72rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px;">
+                                    <i class="fa-solid fa-list-check" style="color: #6366f1; margin-right: 3px;"></i> Чек-лист этапа:
+                                </span>
+                                <span style="font-size: 0.72rem; font-weight: 700; color: #2563eb;">
+                                    <span id="inspector-subtasks-count">0/0</span> • <span id="inspector-node-progress">0%</span>
+                                </span>
+                            </div>
+                            <div class="roadmap-progress-wrap" style="height: 5px; margin-bottom: 8px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                                <div id="inspector-node-progress-bar" style="height: 100%; width: 0%; background: #2563eb; transition: width 0.3s ease;"></div>
+                            </div>
+                            <div id="inspector-subtasks-list" style="display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; margin-bottom: 6px;">
+                                <!-- subtasks rendered dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Action buttons -->
+                        <div style="display: flex; gap: 6px; flex-direction: column; margin-top: 12px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                            <button type="button" class="btn-action btn-primary-action" id="inspector-btn-open-detail" style="font-size: 0.78rem; padding: 8px 10px; width: 100%; justify-content: center; font-weight: 700; border-radius: 8px; background: #0f172a; color: #ffffff; border: none; box-shadow: 0 4px 12px rgba(15,23,42,0.15); cursor: pointer;" title="Открыть полный паспорт задачи">
+                                <i class="fa-solid fa-folder-open" style="margin-right: 6px; color: #38bdf8;"></i> Открыть полный паспорт задачи
+                            </button>
+                            <button type="button" class="btn-action btn-secondary-action" id="inspector-delete-btn" onclick="deleteStageFromGraph()" style="display: none; width: 100%; justify-content: center; font-size: 0.74rem; font-weight: 600; padding: 5px 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2; border-radius: 6px; margin-top: 4px; cursor: pointer;" title="Удалить этап (требуется PIN руководства завода)">
+                                <i class="fa-solid fa-trash-can" style="margin-right: 4px;"></i> Удалить этап (руководство)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Floating Mini-map -->
+                <div class="graph-minimap-wrap" id="graph-minimap-wrap">
+                    <canvas id="graph-minimap-canvas" width="160" height="90"></canvas>
+                    <div id="graph-minimap-viewport"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD STAGE IN GRAPH -->
+    <div class="modal-overlay" id="graph-new-stage-modal" style="z-index: 5450;">
+        <div class="modal-box" style="max-width: 460px; max-height: 85vh; overflow-y: auto; word-break: break-word; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border-bottom: 1px solid #ddd6fe; padding: 12px 16px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: #7c3aed; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.95rem;">
+                        <i class="fa-solid fa-plus"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1rem; color: #5b21b6; font-weight: 700;">Новый этап проекта</h3>
+                        <span style="font-size: 0.72rem; color: #7c3aed;">Добавление шага на интерактивную схему</span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeGraphNewStageModal()">&times;</button>
+            </div>
+            <div style="padding: 14px 16px;">
+                <div style="margin-bottom: 10px;">
+                    <label style="font-size: 0.74rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Название этапа *</label>
+                    <input type="text" id="graph-new-stage-title" class="form-input" placeholder="Например: Переселить сотрудников для разборки" style="width: 100%; box-sizing: border-box; font-size: 0.85rem; padding: 6px 8px; border-radius: 6px;" onkeydown="if(event.key==='Enter') submitGraphNewStage()">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                    <div>
+                        <label style="font-size: 0.74rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Исполнитель</label>
+                        <div class="assignee-picker-wrapper" id="graph-stage-assignee-wrapper" style="position: relative;">
+                            <input type="hidden" id="graph-new-stage-assignee-input" value="">
+                            <div class="assignee-select-modern graph-stage-assignee-trigger" id="btn-graph-stage-assignee-trigger" onclick="toggleGraphStageAssigneePopover(event)" tabindex="0" title="Выберите исполнителя этапа">
+                                <div style="display: flex; align-items: center; gap: 0.45rem; min-width: 0;">
+                                    <div class="author-avatar-circle" id="graph-stage-assignee-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.65rem; width: 22px; height: 22px; flex-shrink: 0;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <span id="graph-stage-assignee-label" style="font-size: 0.8rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Исполнитель --</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down" id="graph-stage-assignee-chevron" style="color: #94a3b8; font-size: 0.68rem; transition: transform 0.2s ease;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.74rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Срок выполнения</label>
+                        <input type="date" id="graph-new-stage-date" class="form-input" style="width: 100%; box-sizing: border-box; font-size: 0.8rem; padding: 5px 6px; border-radius: 6px;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 14px;" id="graph-new-stage-blockers-picker-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                        <label style="font-size: 0.74rem; font-weight: 700; color: #475569; margin: 0;">Зависит от этапов (предшественники / блокеры)</label>
+                        <span id="graph-new-stage-depends-count" style="font-size: 0.68rem; font-weight: 700; color: #7c3aed; background: #ede9fe; padding: 1px 6px; border-radius: 4px;">0 выбрано</span>
+                    </div>
+                    <div id="graph-new-stage-depends-list" style="max-height: 120px; overflow-y: auto; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px; display: flex; flex-direction: column; gap: 3px;">
+                        <!-- Checkboxes rendered dynamically -->
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="closeGraphNewStageModal()">Отмена</button>
+                    <button type="button" class="btn-action btn-primary-action" id="graph-new-stage-submit-btn" onclick="submitGraphNewStage()" style="background: #4f46e5; border-color: #4f46e5;">
+                        <i class="fa-solid fa-plus"></i> Создать этап
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROJECT ACCEPTANCE & SIGN-OFF MODAL -->
+    <div class="modal-overlay" id="project-accept-modal" style="z-index: 5500;">
+        <div class="modal-box" style="max-width: 520px; max-height: 85vh; overflow-y: auto; word-break: break-word; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-bottom: 1px solid #bbf7d0; padding: 1rem 1.25rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #dcfce7; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                        🏆
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.05rem; color: #166534; font-weight: 800;">Приёмка и сдача проекта</h3>
+                        <span style="font-size: 0.75rem; color: #15803d; font-weight: 500;">Подписание и официальный ввод в эксплуатацию</span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeProjectAcceptModal()">&times;</button>
+            </div>
+
+            <div style="padding: 1.25rem;">
+                <input type="hidden" id="accept-project-id" value="">
+
+                <!-- Project Summary Card -->
+                <div style="background: #f8fafc; border: 1px solid var(--tbl-border); border-radius: 10px; padding: 12px; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <span class="badge-code" id="accept-project-code" style="background: #e0f2fe; color: #0369a1; font-weight: 700;">TSK-00</span>
+                        <span class="badge-zone" id="accept-project-zone" style="background: #dcfce7; color: #15803d; font-weight: 700;">100% Выполнено</span>
+                    </div>
+                    <h4 id="accept-project-title" style="margin: 0 0 6px 0; font-size: 0.95rem; color: #0f172a; line-height: 1.35;"></h4>
+                    <div style="display: flex; align-items: center; gap: 12px; font-size: 0.78rem; color: #64748b; flex-wrap: wrap;">
+                        <span><i class="fa-solid fa-user-pen"></i> Автор: <b id="accept-project-author" style="color: #334155;">—</b></span>
+                        <span><i class="fa-solid fa-calendar-check"></i> Квартал: <b id="accept-project-quarter" style="color: #334155;">—</b></span>
+                    </div>
+                </div>
+
+                <!-- Photo Proof Status -->
+                <div id="accept-project-photo-notice" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; margin-bottom: 1rem; font-size: 0.82rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;">
+                    <i class="fa-solid fa-camera" style="font-size: 1.1rem; color: #2563eb;"></i>
+                    <span id="accept-project-photo-text">Проверка фотоотчетов «ПОСЛЕ»</span>
+                </div>
+
+                <!-- Comment / Acceptance note -->
+                <div class="form-row">
+                    <label style="font-weight: 600; font-size: 0.82rem; color: #334155; margin-bottom: 4px; display: block;">
+                        Заключение приёмки / Резолюция *
+                    </label>
+                    <textarea class="form-input" id="accept-project-comment" rows="3"
+                        placeholder="Например: Все этапы выполнены в полном объеме, узел испытан под нагрузкой и сдан в эксплуатацию..."
+                        style="width: 100%; font-size: 0.85rem; line-height: 1.4; resize: vertical;"></textarea>
+                </div>
+
+                <!-- PIN Verification -->
+                <div class="form-row" style="margin-top: 0.75rem;">
+                    <label style="font-weight: 600; font-size: 0.82rem; color: #334155; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-key" style="color: #f59e0b;"></i> PIN-код подтверждения *
+                    </label>
+                    <input type="password" class="form-input" id="accept-project-pin" maxlength="10" placeholder="••••"
+                        style="font-size: 1.25rem; letter-spacing: 6px; text-align: center; font-weight: 700; width: 100%;">
+                </div>
+            </div>
+
+            <!-- Footer with Double-Submit Guard -->
+            <div style="padding: 0.9rem 1.25rem; border-top: 1px solid var(--tbl-border); display: flex; justify-content: flex-end; gap: 0.5rem; background: #f8fafc; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closeProjectAcceptModal()">Отмена</button>
+                <button type="button" class="btn-action" id="btn-accept-project-submit" onclick="submitProjectAcceptance()"
+                    style="background: #15803d; color: #ffffff; font-weight: 700; padding: 6px 16px; border-radius: 8px; border: none; cursor: pointer;">
+                    <i class="fa-solid fa-check-double"></i> Подписать и завершить проект
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div class="toast" id="toast-msg">
+        <i class="fa-solid fa-circle-check" style="color: #34d399;"></i>
+        <span id="toast-text">Готово</span>
+    </div>
+
+<!-- SHARED BULK ROW ASSIGNEE POPOVER (Rule 7 & 27 Canonical Component) -->
+    <div class="filter-dropdown-popover person-picker-popover bulk-row-assignee-popover" id="popover-bulk-row-assignee" style="display: none;" onclick="event.stopPropagation()">
+        <div class="filter-popover-search-wrap">
+            <input type="text" class="filter-popover-search-input" id="search-bulk-row-assignee" placeholder="🔍 Поиск сотрудника..." oninput="renderBulkRowAssigneeList(this.value)">
+        </div>
+        <div class="filter-popover-list" id="list-bulk-row-assignee" style="max-height: 240px;"></div>
+    </div>
+
+    <!-- GRAPH NEW STAGE ASSIGNEE POPOVER (Rule 7 & 27 Canonical Component) -->
+    <div class="filter-dropdown-popover person-picker-popover graph-stage-assignee-popover" id="popover-graph-stage-assignee" style="display: none;" onclick="event.stopPropagation()">
+        <div class="filter-popover-search-wrap">
+            <input type="text" class="filter-popover-search-input" id="search-graph-stage-assignee" placeholder="🔍 Поиск сотрудника..." oninput="renderGraphStageAssigneeList(this.value)">
+        </div>
+        <div class="filter-popover-list" id="list-graph-stage-assignee" style="max-height: 240px;"></div>
+    </div>
+
+    <!-- QUICK SUBTASK ASSIGNEE POPOVER (Rule 7 & 27 Canonical Component) -->
+    <div class="filter-dropdown-popover person-picker-popover quick-subtask-assignee-popover" id="popover-quick-subtask-assignee" style="display: none;" onclick="event.stopPropagation()">
+        <div class="filter-popover-search-wrap">
+            <input type="text" class="filter-popover-search-input" id="search-quick-subtask-assignee" placeholder="🔍 Поиск сотрудника..." oninput="renderQuickSubtaskAssigneeList(this.value)">
+        </div>
+        <div class="filter-popover-list" id="list-quick-subtask-assignee" style="max-height: 240px;"></div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="/static/js/network_guard.js?v=20260921_bulk_fix"></script>
+    <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
+    <script src="/static/modules/tasks/tasks.js?v=20261105_v1"></script>
+    <script src="/static/modules/tasks/tasks_ui_helpers.js?v=20261105_v1"></script>
+{% endblock %}

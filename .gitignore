@@ -34,6 +34,28 @@ uploads/
 Tectum-tasks/
 birthday-app/
 
+# Temporary Office & Lock Files
+~$*.xlsx
+~$*.docx
+~$*.xlsm
+~$*.pptx
+
+# Local DB dumps
+*.db.bak
+local_shifts.db
+tectum.db.bak
+
+# Dumps & Temporary outputs
+debug*.txt
+xlsx_out.txt
+images_list.txt
+temp_*.txt
+test_out*.json
+
+# Archives & Scratch
+archive/
+scripts/archive/
+
 .kilo/
 .agents/mcp_config.json
 .agents/plugins/

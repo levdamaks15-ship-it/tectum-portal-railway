@@ -81,8 +81,23 @@ def serve_tenant_module(
 
     # 3. Проверяем наличие прогрессивного Jinja2 SSR шаблона
     clean_module = module.lower()
+
+    # Защита привилегированных кабинетов (Fail-Closed Invariant)
+    if clean_module == "admin" and not ctx.is_admin:
+        raise HTTPException(status_code=403, detail="Доступ в панель администратора запрещен")
+
     template_relative = f"modules/{clean_module}/index.html"
     template_full = os.path.join(templates_dir, "modules", clean_module, "index.html")
+
+    # Специализированные цеха (ЛКЦ - раскрой, СКК - переборка) имеют собственный сменный кабинет
+    if clean_module in ("shifts", "production") and workshop_slug.lower() in ("lkc", "skk", "qcd"):
+        target_ws = "qcd" if workshop_slug.lower() == "skk" else workshop_slug.lower()
+        special_rel = f"modules/{target_ws}/index.html"
+        special_full = os.path.join(templates_dir, "modules", target_ws, "index.html")
+        if os.path.exists(special_full):
+            template_relative = special_rel
+            template_full = special_full
+
     if os.path.exists(template_full):
         context_data = {
             "request": request,

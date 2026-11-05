@@ -1,0 +1,738 @@
+{% extends "core/base.html" %}
+
+{% block title %}Кабинет инспектора СКК (ОТК) — Разбраковка и акты | Tectum{% endblock %}
+
+{% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/modules/qcd/qcd.css?v=20261105_v1">
+{% endblock %}
+
+{% block content %}
+<div class="qcd-page-container">
+<!-- Навигационная панель -->
+        <nav class="qcd-nav-bar">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="horizon-tab-btn active" id="tab-btn-sorting" onclick="switchQcdView('sorting')">
+                    <i class="fa-solid fa-boxes-packing" style="color: var(--primary-red);"></i>
+                    <span>Переборка</span>
+                </button>
+                <button type="button" class="horizon-tab-btn" id="tab-btn-acts" onclick="openActRegistryModal()">
+                    <i class="fa-solid fa-file-contract" style="color: #2563eb;"></i>
+                    <span>Акты переборки СКК</span>
+                </button>
+                <button type="button" class="horizon-tab-btn" id="tab-btn-analytics" onclick="switchQcdView('analytics')">
+                    <i class="fa-solid fa-chart-pie" style="color: #0284c7;"></i>
+                    <span>Аналитика дефектов и Парето</span>
+                </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <a href="/api/dashboard/google_sheet_bottom_link?sheet_type=qcd_acts&redirect=true" target="_blank" class="btn-qcd-secondary" style="height: 32px; font-size: 0.78rem;" title="Открыть Google Таблицу на листе Акты переборки СКК">
+                    <i class="fa-solid fa-table" style="color: #2563eb;"></i>
+                    <span>«Акты переборки СКК» (Google)</span>
+                </a>
+                <a href="/api/dashboard/google_sheet_bottom_link?sheet_type=reports&redirect=true" target="_blank" class="btn-qcd-secondary" style="height: 32px; font-size: 0.78rem;" title="Открыть Google Таблицу на листе Переборка">
+                    <i class="fa-solid fa-table" style="color: #16a34a;"></i>
+                    <span>Лист «Переборка» (Google)</span>
+                </a>
+            </div>
+        </nav>
+
+        <div id="view-qcd-sorting" class="qcd-view-section">
+        <!-- 1. КАНОНИЧЕСКИЙ СЕЛЕКТОР ПАРТИИ (SEARCHABLE PICKER) -->
+        <div class="batch-selector-panel">
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; position: relative;">
+                <label style="font-size: 0.85rem; font-weight: 700; color: #334155; white-space: nowrap;">
+                    📦 Партия / Смена:
+                </label>
+
+                <!-- Searchable Picker Anchor -->
+                <div class="searchable-picker-anchor" id="batch-picker-anchor">
+                    <button type="button" class="searchable-picker-btn" id="btn-batch-picker-trigger" onclick="toggleBatchPickerPopover(event)">
+                        <div class="picker-btn-content">
+                            <span class="picker-badge-party mono" id="picker-trigger-batch-badge">№ —</span>
+                            <div style="display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                                <span class="picker-btn-title" id="picker-trigger-title">Загрузка партий...</span>
+                                <span class="picker-btn-sub" id="picker-trigger-sub">—</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                            <span id="picker-trigger-status" class="status-chip status-pending" style="padding: 2px 8px; font-size: 0.72rem;">
+                                Ожидает
+                            </span>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 0.75rem; color: #64748b;"></i>
+                        </div>
+                    </button>
+
+                    <!-- Выпадающий поповер со списком и живым поиском -->
+                    <div class="searchable-picker-popover" id="popover-batch-picker" onclick="event.stopPropagation()">
+                        <div class="popover-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass popover-search-icon"></i>
+                            <input type="text" class="popover-search-input" id="search-batch-input" 
+                                   placeholder="Поиск по номеру партии, дате, мастеру или продукту..." 
+                                   oninput="filterBatchList(this.value)">
+                            <button type="button" class="popover-search-clear" id="btn-clear-batch-search" onclick="clearBatchSearch()">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="popover-items-list" id="list-batch-picker-items">
+                            <!-- Заполняется динамически -->
+                        </div>
+                    </div>
+                </div>
+
+                <span id="qcd-loading-badge" style="display: none; font-size: 0.75rem; color: #64748b;">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button class="btn-qcd-secondary" style="height: 40px;" onclick="loadRecentBatches()" title="Обновить список смен">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>Обновить</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. Двухколоночный верстак -->
+        <div id="qcd-workbench-area" style="transition: opacity 0.2s ease;">
+            
+            <!-- Заголовок партии и статус верификации -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <h2 id="batch-hero-title" style="margin: 0; font-size: 1.35rem; font-weight: 800; color: #0f172a;">Партия №—</h2>
+                    <p id="batch-hero-meta" style="margin: 2px 0 0 0; font-size: 0.84rem; color: #64748b; font-weight: 500;">Загрузка данных...</p>
+                </div>
+                <div id="batch-status-badge" class="status-chip status-pending">
+                    <i class="fa-solid fa-clock"></i> Ожидает проверки СКК
+                </div>
+            </div>
+
+            <div class="workbench-grid">
+                
+                <!-- ЛЕВАЯ КАРТОЧКА: Первичный рапорт мастера (Readonly) -->
+                <div class="workbench-card">
+                    <div class="card-header-bar">
+                        <h3 class="card-title">
+                            <i class="fa-solid fa-clipboard-user" style="color: #64748b;"></i>
+                            <span>Рапорт мастера смены</span>
+                        </h3>
+                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Исходные данные цеха</span>
+                    </div>
+
+                    <div class="master-metrics-grid">
+                        <div class="metric-tile" style="grid-column: span 2;">
+                            <span class="metric-tile-label">Формовка</span>
+                            <span class="metric-tile-value mono" id="m-formed">0</span>
+                        </div>
+                        <div class="metric-tile" style="border-left: 3px solid var(--success-green);">
+                            <span class="metric-tile-label">🟢 Кондиция ГП</span>
+                            <span class="metric-tile-value mono" id="m-condition" style="color: var(--success-green);">0</span>
+                        </div>
+                        <div class="metric-tile" style="border-left: 3px solid #0284c7;">
+                            <span class="metric-tile-label">🔵 1-й сорт</span>
+                            <span class="metric-tile-value mono" id="m-first-grade" style="color: #0284c7;">0</span>
+                        </div>
+                        <div class="metric-tile" style="border-left: 3px solid var(--primary-red);">
+                            <span class="metric-tile-label">🔴 Брак</span>
+                            <span class="metric-tile-value mono" id="m-defect" style="color: var(--primary-red);">0</span>
+                        </div>
+                        <div class="metric-tile">
+                            <span class="metric-tile-label">% Брака</span>
+                            <span class="metric-tile-value mono" id="m-pct-defect">0.00%</span>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px solid var(--tbl-border); border-radius: 8px; padding: 10px 12px; font-size: 0.8rem; color: #64748b; line-height: 1.4;">
+                        <i class="fa-solid fa-circle-info" style="color: #0284c7; margin-right: 4px;"></i>
+                        Эти исходные значения мастера сохраняются на листе «Переборка». При утверждении СКК обновленный результат скорректирует итоговый сменный рапорт и склад.
+                    </div>
+                </div>
+
+                <!-- ПРАВАЯ КАРТОЧКА: Проверка и корректировка СКК (Интерактивная) -->
+                <div class="workbench-card" style="border-color: #cbd5e1;">
+                    <div class="card-header-bar">
+                        <h3 class="card-title">
+                            <i class="fa-solid fa-shield-halved" style="color: var(--primary-red);"></i>
+                            <span>Проверка и корректировка СКК</span>
+                        </h3>
+                        <span style="font-size: 0.75rem; color: var(--primary-dark-red); font-weight: 700;">Корректировка</span>
+                    </div>
+
+                    <!-- 3 Главных поля ввода -->
+                    <div class="qcd-main-inputs-grid">
+                        <div class="qcd-field-box box-gp">
+                            <div class="qcd-field-header">
+                                <span class="qcd-field-label">🟢 Кондиция ГП</span>
+                                <span id="delta-condition" class="delta-pill delta-zero">0</span>
+                            </div>
+                            <input type="text" id="qcd-condition-input" class="qcd-num-input mono" value="0" readonly title="Рассчитывается автоматически">
+                        </div>
+
+                        <div class="qcd-field-box box-fg">
+                            <div class="qcd-field-header">
+                                <span class="qcd-field-label">🔵 1-й сорт</span>
+                                <span id="delta-first-grade" class="delta-pill delta-zero">0</span>
+                            </div>
+                            <input type="text" id="qcd-first-grade-input" class="qcd-num-input mono" value="0" readonly title="Сумма дефектов 1-го сорта">
+                        </div>
+
+                        <div class="qcd-field-box box-defect">
+                            <div class="qcd-field-header">
+                                <span class="qcd-field-label">🔴 Брак</span>
+                                <span id="delta-defect" class="delta-pill delta-zero">0</span>
+                            </div>
+                            <input type="text" id="qcd-defect-input" class="qcd-num-input mono" value="0" readonly title="Сумма браковочных дефектов">
+                        </div>
+                    </div>
+
+                    <!-- Компактный динамический блок дефектов -->
+                    <div class="defects-compact-container">
+                        <div class="defects-compact-header">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-list-check" style="color: var(--primary-red);"></i>
+                                <span style="font-size: 0.82rem; font-weight: 700; color: #0f172a;">Классификация дефектов</span>
+                                <span id="badge-active-defects-count" style="font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: #f1f5f9; color: #64748b;">0</span>
+                            </div>
+                            <div style="position: relative;">
+                                <button type="button" class="btn-add-defect-trigger" id="btn-add-defect-popover-trigger" onclick="toggleDefectsPopover(event)">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>Добавить дефект</span>
+                                </button>
+                                
+                                <!-- Фирменный поповер выбора дефекта -->
+                                <div class="defects-picker-popover" id="defects-picker-popover" onclick="event.stopPropagation()">
+                                    <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; padding: 4px 8px; text-transform: uppercase;">
+                                        Выберите дефект для добавления:
+                                    </div>
+                                    <div id="defects-picker-items-list" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;">
+                                        <!-- Заполняется динамически -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Активные строки дефектов -->
+                        <div class="defects-chip-list" id="defects-active-list">
+                            <div id="defects-empty-placeholder" style="text-align: center; padding: 12px; color: #94a3b8; font-size: 0.8rem;">
+                                <i class="fa-solid fa-circle-check" style="color: #22c55e; margin-right: 4px;"></i>
+                                Отклонений не зафиксировано (партия чистая или добавьте дефект кнопкой выше)
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Замечание / предписание инспектора СКК на всю ширину -->
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #334155; margin-bottom: 4px;">
+                            📝 Замечание / предписание инспектора СКК:
+                        </label>
+                        <input type="text" id="qcd-notes-text" placeholder="Укажите замечание цеху или рекомендации по партии (например: продуть форсунки на линии №1)..." style="width: 100%; height: 38px; border: 1px solid var(--tbl-border-subtle); border-radius: 8px; padding: 0 12px; font-size: 0.84rem; font-weight: 500; color: #1e293b; box-sizing: border-box; outline: none; background: #ffffff;">
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- 3. Баннер живого баланса партии -->
+            <div class="balance-banner" id="qcd-balance-banner">
+                <div>
+                    <div style="font-size: 0.74rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px;">
+                        ⚖️ Уравнение сходимости партии:
+                    </div>
+                    <div class="balance-equation" id="balance-equation-text">
+                        Формовка 0 шт = ГП 0 + 1-й сорт 0 + Брак 0
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.72rem; color: #64748b; font-weight: 600;">% Брака СКК:</div>
+                        <div class="mono" id="qcd-pct-defect" style="font-size: 1.1rem; font-weight: 800; color: var(--primary-red);">0.00%</div>
+                    </div>
+                    <div id="balance-status-badge" class="balance-badge balance-match">
+                        <i class="fa-solid fa-circle-check"></i> Баланс сошелся
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Нижний командный бар -->
+            <div class="bottom-action-bar">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="btn-qcd-secondary" onclick="resetToMasterValues()" title="Вернуть цифры мастера">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        <span>Сбросить к значениям мастера</span>
+                    </button>
+                    <button type="button" class="btn-qcd-secondary" id="btn-print-act-a4" onclick="openPrintActModal()" title="Сформировать и распечатать официальный Акт переборки СКК на лист А4">
+                        <i class="fa-solid fa-print" style="color: #2563eb;"></i>
+                        <span>📄 Печать Акта А4</span>
+                    </button>
+                    <button type="button" class="btn-qcd-secondary" id="btn-open-acts-registry" onclick="openActRegistryModal()" title="Открыть реестр всех актов СКК">
+                        <i class="fa-solid fa-folder-open" style="color: #6366f1;"></i>
+                        <span>📑 Реестр актов СКК</span>
+                    </button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button type="button" class="btn-qcd-primary" id="btn-submit-qcd-verify" onclick="submitQcdVerification()">
+                        <i class="fa-solid fa-check-double"></i>
+                        <span>Утвердить и синхронизировать с листом «Переборка»</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+        
+        <!-- ==================== 2. ВКЛАДКА АНАЛИТИКИ ДЕФЕКТОВ, ПАРЕТО И БУФЕРА ==================== -->
+        <div id="view-qcd-analytics" class="qcd-view-section" style="display: none;">
+
+            <!-- Панель фильтров аналитики -->
+            <div class="analytics-filter-bar">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span style="font-size: 0.82rem; font-weight: 700; color: #334155;">Период:</span>
+                    <!-- Custom Date Range Button & Floating Popover (как в Планнере) -->
+                    <div style="position: relative; display: inline-block;">
+                        <button type="button" class="btn-qcd-date-range" id="btn-qcd-date-range" onclick="toggleQcdDateRangePopover(event)" title="Выбрать произвольный диапазон дат">
+                            <i class="fa-solid fa-calendar-days" style="color: #2563eb;"></i>
+                            <span id="qcd-date-range-label">Диапазон дат</span>
+                            <span id="qcd-date-range-indicator" style="display: none; width: 7px; height: 7px; background: #2563eb; border-radius: 50%; margin-left: 2px;"></span>
+                        </button>
+
+                        <!-- Floating Date Range Card Popover -->
+                        <div id="qcd-date-range-popover" class="date-range-popover" style="display: none;" onclick="event.stopPropagation()">
+                            <div class="popover-header">
+                                <span><i class="fa-solid fa-calendar-range" style="color: #2563eb; margin-right: 6px;"></i>Выбор периода дат</span>
+                                <button type="button" class="popover-close-btn" onclick="closeQcdDateRangePopover()">&times;</button>
+                            </div>
+                            <div class="popover-body">
+                                <div class="date-input-row">
+                                    <div class="date-input-group">
+                                        <label>От даты:</label>
+                                        <input type="date" id="qcd-custom-date-from" class="popover-date-input">
+                                    </div>
+                                    <div class="date-input-group">
+                                        <label>До даты:</label>
+                                        <input type="date" id="qcd-custom-date-to" class="popover-date-input">
+                                    </div>
+                                </div>
+                                
+                                <!-- Quick presets -->
+                                <div class="popover-presets">
+                                    <button type="button" class="popover-preset-chip" onclick="applyQcdQuickDatePreset('7d')">7 дней</button>
+                                    <button type="button" class="popover-preset-chip" onclick="applyQcdQuickDatePreset('30d')">30 дней</button>
+                                    <button type="button" class="popover-preset-chip" onclick="applyQcdQuickDatePreset('this_month')">Этот месяц</button>
+                                    <button type="button" class="popover-preset-chip" onclick="applyQcdQuickDatePreset('quarter')">Квартал</button>
+                                </div>
+                            </div>
+                            <div class="popover-footer">
+                                <button type="button" class="btn-popover-reset" onclick="resetQcdCustomDateRange()">Сбросить</button>
+                                <button type="button" class="btn-popover-apply" onclick="applyQcdCustomDateRange()">Применить</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
+                        <span style="font-size: 0.82rem; font-weight: 700; color: #334155;">Продукция:</span>
+                        <select id="qcd-analytics-prod-select" class="analytics-select-styled" onchange="onAnalyticsProductChange(this.value)">
+                            <option value="">Все позиции</option>
+                            <option value="Шифер 8 волн рифленый">Шифер 8 волн рифленый</option>
+                            <option value="Шифер 8 волн гладкий">Шифер 8 волн гладкий</option>
+                            <option value="Шифер 7 волн">Шифер 7 волн</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn-qcd-secondary" id="btn-refresh-analytics" onclick="loadQcdAnalyticsData()" style="height: 32px; font-size: 0.78rem;">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Обновить данные</span>
+                    </button>
+                    <span id="analytics-date-range-badge" class="picker-badge-party mono" style="font-size: 0.74rem;">—</span>
+                </div>
+            </div>
+
+            <!-- Блок 1: Сквозной материальный баланс и Буфер камеры созревания -->
+            <div class="balance-telemetry-card">
+                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);"></span>
+                        <h2 style="margin: 0; font-size: 0.96rem; font-weight: 800; color: #0f172a;">
+                            Материальный баланс буфера камер созревания <span style="font-size: 0.8rem; font-weight: 500; color: #64748b;">(ХЦИ ➔ СКК)</span>
+                        </h2>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">Синхронизация СКК:</span>
+                        <span id="analytics-sync-time" class="mono" style="font-size: 0.72rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">Сегодня</span>
+                    </div>
+                </div>
+
+                <!-- 4 телеметрических блока -->
+                <div class="balance-grid-4">
+                    <!-- 1. Сформовано -->
+                    <div class="telemetry-cell">
+                        <div class="telemetry-label">
+                            <span>Сформовано (ЛФМ)</span>
+                            <i class="fa-solid fa-industry" style="color: #94a3b8;"></i>
+                        </div>
+                        <div class="telemetry-val-row">
+                            <span class="telemetry-val" id="buf-val-formed">0 <span style="font-size: 0.8rem; font-weight: 500; color: #64748b;">шт</span></span>
+                            <span class="telemetry-badge" style="background: #f1f5f9; color: #475569;">100% базы</span>
+                        </div>
+                    </div>
+
+                    <!-- 2. Принято СКК -->
+                    <div class="telemetry-cell">
+                        <div class="telemetry-label">
+                            <span>Принято и перебрано СКК</span>
+                            <i class="fa-solid fa-clipboard-check" style="color: #2563eb;"></i>
+                        </div>
+                        <div class="telemetry-val-row">
+                            <span class="telemetry-val val-blue" id="buf-val-sorted">0 <span style="font-size: 0.8rem; font-weight: 500; color: #1d4ed8;">шт</span></span>
+                            <span class="telemetry-badge" id="buf-badge-sorted-pct" style="background: #dbeafe; color: #1d4ed8;">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. Остаток в камере (Буфер) -->
+                    <div class="telemetry-cell cell-buffer">
+                        <div class="telemetry-label" style="color: #92400e;">
+                            <span><i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> Остаток в камере (Буфер)</span>
+                            <span class="telemetry-badge" id="buf-badge-status" style="background: #fde68a; color: #78350f;">На созревании</span>
+                        </div>
+                        <div class="telemetry-val-row">
+                            <span class="telemetry-val val-amber" id="buf-val-remainder">+0 <span style="font-size: 0.8rem; font-weight: 500; color: #92400e;">шт</span></span>
+                            <span class="mono" id="buf-val-remainder-pct" style="font-size: 0.78rem; font-weight: 700; color: #b45309;">0.0%</span>
+                        </div>
+                    </div>
+
+                    <!-- 4. Структура перебранного объема -->
+                    <div class="telemetry-cell">
+                        <div class="telemetry-label">
+                            <span>Структура выхода</span>
+                            <span class="mono" id="buf-val-total-sorted-mini" style="font-size: 0.72rem; color: #64748b;">0 шт</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-top: 4px;">
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 0.65rem; color: #64748b; font-weight: 700;">ГОДНАЯ ГП</span>
+                                <span class="mono" id="buf-val-cond" style="font-size: 0.82rem; font-weight: 800; color: #15803d;">0</span>
+                            </div>
+                            <div style="height: 24px; width: 1px; background: #cbd5e1;"></div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 0.65rem; color: #64748b; font-weight: 700;">1-Й СОРТ</span>
+                                <span class="mono" id="buf-val-fg" style="font-size: 0.82rem; font-weight: 800; color: #b45309;">0</span>
+                            </div>
+                            <div style="height: 24px; width: 1px; background: #cbd5e1;"></div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 0.65rem; color: #64748b; font-weight: 700;">БРАК</span>
+                                <span class="mono" id="buf-val-def" style="font-size: 0.82rem; font-weight: 800; color: #b91c1c;">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Сегментированная полоса распределения -->
+                <div class="distribution-progress-wrap">
+                    <div class="distribution-progress-bar">
+                        <div id="prog-bar-cond" class="prog-cond" style="width: 100%;" title="Кондиция"></div>
+                        <div id="prog-bar-fg" class="prog-fg" style="width: 0%;" title="1-й сорт"></div>
+                        <div id="prog-bar-def" class="prog-def" style="width: 0%;" title="Брак"></div>
+                    </div>
+                    <div class="distribution-legend">
+                        <div style="display: flex; align-items: center;">
+                            <span class="legend-dot" style="background: #16a34a;"></span>
+                            <span>Кондиция ГП: <strong id="leg-cond-str">0 шт (0%)</strong></span>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span class="legend-dot" style="background: #f59e0b;"></span>
+                            <span>1-й сорт (уценка): <strong id="leg-fg-str">0 шт (0%)</strong></span>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span class="legend-dot" style="background: #dc2626;"></span>
+                            <span>Брак (бой/утиль): <strong id="leg-def-str">0 шт (0%)</strong> (Норматив ≤ 1.0%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 2: 4 ключевые KPI карточки качества -->
+            <div class="kpi-cards-grid">
+                <!-- KPI 1 -->
+                <div class="kpi-card kpi-vol">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">Объем переборки СКК</span>
+                        <i class="fa-solid fa-boxes-stacked" style="color: #2563eb;"></i>
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <div class="telemetry-val" id="kpi-sorted-count">0 <span style="font-size: 0.82rem; color: #64748b; font-weight: 500;">шт</span></div>
+                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">За выбранный период</div>
+                    </div>
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 6px; font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Суточный темп:</span>
+                        <strong class="mono" id="kpi-daily-rate" style="color: #0f172a;">0 шт/день</strong>
+                    </div>
+                </div>
+
+                <!-- KPI 2 -->
+                <div class="kpi-card kpi-cond">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">Кондиция ГП (Выход)</span>
+                        <i class="fa-solid fa-circle-check" style="color: #16a34a;"></i>
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <div class="telemetry-val val-green" id="kpi-cond-pct">0.0%</div>
+                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">Целевой норматив цеха: <strong>≥ 93.5%</strong></div>
+                    </div>
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 6px; font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Годной на склад:</span>
+                        <strong class="mono" id="kpi-cond-count" style="color: #15803d;">0 шт</strong>
+                    </div>
+                </div>
+
+                <!-- KPI 3 -->
+                <div class="kpi-card kpi-fg">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">1-й сорт (Уценка)</span>
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i>
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <div class="telemetry-val val-amber"><span id="kpi-fg-count">0</span> <span style="font-size: 0.82rem; color: #b45309;" id="kpi-fg-pct">(0.0%)</span></div>
+                        <div style="font-size: 0.74rem; color: #b45309; margin-top: 2px;">Главная причина: <strong id="kpi-fg-top">—</strong></div>
+                    </div>
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 6px; font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Категорий дефектов:</span>
+                        <strong class="mono" id="kpi-fg-causes-count" style="color: #0f172a;">11 видов</strong>
+                    </div>
+                </div>
+
+                <!-- KPI 4 -->
+                <div class="kpi-card kpi-def">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">% Брака СКК (Бой/Утиль)</span>
+                        <i class="fa-solid fa-circle-xmark" style="color: #dc2626;"></i>
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <div class="telemetry-val val-red"><span id="kpi-def-count">0</span> <span style="font-size: 0.82rem; color: #b91c1c;" id="kpi-def-pct">(0.0%)</span></div>
+                        <div style="font-size: 0.74rem; color: #b91c1c; margin-top: 2px;">Главная причина: <strong id="kpi-def-top">—</strong></div>
+                    </div>
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 6px; font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Порог допуска:</span>
+                        <strong class="mono" style="color: #b91c1c;">≤ 1.00%</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 3: Диаграмма Парето 80/20 и Детализация причин -->
+            <div class="pareto-split-layout">
+                <!-- Левая колонка: График Парето -->
+                <div class="pareto-chart-card">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: #0f172a;">
+                                Диаграмма Парето дефектов (Правило 80/20)
+                            </h3>
+                            <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">
+                                Столбцы — число дефектов (шт), красная линия — накопленный процент потерь.
+                            </div>
+                        </div>
+
+                        <!-- Переключатель срезов -->
+                        <div class="pareto-slice-tabs">
+                            <button type="button" class="pareto-slice-btn active" id="btn-slice-all" onclick="setParetoSlice('all')">Все потери качества</button>
+                            <button type="button" class="pareto-slice-btn" id="btn-slice-fg" onclick="setParetoSlice('first_grade')">Только 1-й сорт</button>
+                            <button type="button" class="pareto-slice-btn" id="btn-slice-def" onclick="setParetoSlice('defect')">Только Брак</button>
+                        </div>
+                    </div>
+
+                    <!-- Canvas график -->
+                    <div class="pareto-canvas-container">
+                        <canvas id="qcd-pareto-chart-canvas"></canvas>
+                    </div>
+
+                    <div style="font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                        <span><strong style="color: #dc2626;">Линия 80%</strong> — зона «Vital Few»: устранение первых 2-3 дефектов снимет 80% всех потерь.</span>
+                        <span id="pareto-stats-hint" class="mono" style="font-weight: 700; color: #0f172a;">—</span>
+                    </div>
+                </div>
+
+                <!-- Правая колонка: Детализация причин 1-го сорта и Брака -->
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Топ 1-й сорт -->
+                    <div class="defects-breakdown-card">
+                        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #fef3c7; padding-bottom: 6px;">
+                            <span style="font-size: 0.8rem; font-weight: 800; color: #92400e;">🟡 Причины 1-го сорта</span>
+                            <span id="panel-fg-total" class="mono" style="font-size: 0.76rem; font-weight: 800; color: #b45309;">0 шт</span>
+                        </div>
+                        <div id="panel-fg-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto;">
+                            <!-- Заполняется динамически -->
+                        </div>
+                    </div>
+
+                    <!-- Топ Брак -->
+                    <div class="defects-breakdown-card">
+                        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #fee2e2; padding-bottom: 6px;">
+                            <span style="font-size: 0.8rem; font-weight: 800; color: #991b1b;">🔴 Причины брака (Бой)</span>
+                            <span id="panel-def-total" class="mono" style="font-size: 0.76rem; font-weight: 800; color: #b91c1c;">0 шт</span>
+                        </div>
+                        <div id="panel-def-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto;">
+                            <!-- Заполняется динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 4: Матрица качества по мастерам и сменам ХЦИ -->
+            <div class="matrix-card">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: #0f172a;">
+                            Матрица качества по мастерам и сменам ХЦИ
+                        </h3>
+                        <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">
+                            Сквозная связка: мастер формовки ➔ объем на ЛФМ ➔ переборка СКК ➔ остаток в буфере ➔ сортность
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="matrix-rows-count" class="picker-badge-party mono" style="font-size: 0.72rem;">0 партий</span>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <table class="matrix-table">
+                        <thead>
+                            <tr>
+                                <th>Смена / Мастер</th>
+                                <th>Партия</th>
+                                <th style="text-align: right;">Формовка</th>
+                                <th style="text-align: right;">Перебрано</th>
+                                <th style="text-align: right;">Буфер камеры</th>
+                                <th style="text-align: right;">Кондиция ГП</th>
+                                <th>1-й сорт (шт / % / причина)</th>
+                                <th>Брак (шт / % / причина)</th>
+                                <th style="text-align: center;">Статус сходимости</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-table-body">
+                            <tr>
+                                <td colspan="9" style="text-align: center; color: #94a3b8; padding: 24px;">
+                                    <i class="fa-solid fa-spinner fa-spin" style="margin-right: 6px;"></i> Загрузка аналитики...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+        <!-- ==================== КОНЕЦ ВКЛАДКИ АНАЛИТИКИ ==================== -->
+
+
+        <!-- МОДАЛЬНОЕ ОКНО: ОФИЦИАЛЬНЫЙ АКТ СКК И ПЕЧАТЬ А4 -->
+    <div class="qcd-modal-overlay" id="modal-qcd-act-print" onclick="if(event.target === this) closePrintActModal()">
+        <div class="qcd-modal-container" style="max-width: 860px;" onclick="event.stopPropagation()">
+            <div class="qcd-modal-header act-modal-header-bar">
+                <div class="qcd-modal-title">
+                    <i class="fa-solid fa-file-contract" style="color: #2563eb;"></i>
+                    <span>Официальный Акт разбраковки СКК</span>
+                    <span id="act-print-modal-badge" class="picker-badge-party mono" style="font-size: 0.78rem;">№ СКК-...</span>
+                </div>
+                <div class="act-modal-actions" style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn-qcd-primary" onclick="printActDocument()" style="height: 34px; font-size: 0.82rem; background: #2563eb; border-color: #1d4ed8;">
+                        <i class="fa-solid fa-print"></i>
+                        <span>Распечатать / В PDF</span>
+                    </button>
+                    <button type="button" class="btn-qcd-secondary" onclick="closePrintActModal()" style="height: 34px; padding: 0 10px;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="qcd-modal-body" id="act-print-body-container">
+                <!-- БУМАЖНЫЙ БЛАНК АКТА (А4) -->
+                <div class="act-printable-card" id="qcd-act-printable-doc">
+                    <!-- Заполняется динамически через JS -->
+                </div>
+            </div>
+
+            <div class="qcd-modal-footer act-modal-actions">
+                <span style="font-size: 0.78rem; color: #64748b; margin-right: auto;">
+                    <i class="fa-solid fa-circle-info" style="color: #2563eb;"></i> Форма адаптирована под печать на 1 лист формата А4 (книжная ориентация).
+                </span>
+                <button type="button" class="btn-qcd-secondary" onclick="closePrintActModal()">Закрыть</button>
+                <button type="button" class="btn-qcd-primary" onclick="printActDocument()" style="background: #2563eb; border-color: #1d4ed8;">
+                    <i class="fa-solid fa-print"></i> Распечатать Акт
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: РЕЕСТР ОФИЦИАЛЬНЫХ АКТОВ СКК -->
+    <div class="qcd-modal-overlay" id="modal-qcd-act-registry" onclick="if(event.target === this) closeActRegistryModal()">
+        <div class="qcd-modal-container" style="max-width: 1050px;" onclick="event.stopPropagation()">
+            <div class="qcd-modal-header">
+                <div class="qcd-modal-title">
+                    <i class="fa-solid fa-folder-open" style="color: #6366f1;"></i>
+                    <span>Реестр официальных Актов переборки СКК</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <a href="/api/dashboard/google_sheet_bottom_link?sheet_type=qcd_acts&redirect=true" target="_blank" class="btn-qcd-secondary" style="height: 34px; font-size: 0.78rem;">
+                        <i class="fa-solid fa-table" style="color: #2563eb;"></i>
+                        <span>В Google Таблицу</span>
+                    </a>
+                    <button type="button" class="btn-qcd-secondary" onclick="closeActRegistryModal()" style="height: 34px; padding: 0 10px;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="qcd-modal-body" style="background: #ffffff; padding: 1rem 1.25rem;">
+                <div style="margin-bottom: 12px; display: flex; gap: 10px;">
+                    <div style="flex: 1; position: relative;">
+                        <input type="text" id="qcd-registry-search-input" class="popover-search-input" 
+                               placeholder="Поиск по номеру акта, дате, инспектору, партии..." 
+                               oninput="filterActRegistry(this.value)" style="width: 100%; box-sizing: border-box; height: 36px; padding: 0 12px 0 32px; border: 1px solid var(--tbl-border-subtle); border-radius: 8px; font-size: 0.82rem;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 11px; font-size: 0.8rem; color: #94a3b8;"></i>
+                    </div>
+                    <button type="button" class="btn-qcd-secondary" onclick="loadActRegistry()" style="height: 36px;" title="Обновить список актов">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                </div>
+
+                <div style="overflow-x: auto; max-height: 60vh;">
+                    <table class="qcd-registry-table" id="table-qcd-acts-registry">
+                        <thead>
+                            <tr>
+                                <th>№ Акта</th>
+                                <th>Дата</th>
+                                <th>Партия / Смена</th>
+                                <th>Мастер ХЦИ</th>
+                                <th style="text-align: right;">Формовка</th>
+                                <th style="text-align: right;">ГП</th>
+                                <th style="text-align: right;">1 сорт</th>
+                                <th style="text-align: right;">Брак (% брака)</th>
+                                <th>Инспектор</th>
+                                <th style="text-align: center;">Печать</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-qcd-acts-registry">
+                            <tr>
+                                <td colspan="10" style="text-align: center; padding: 20px; color: #94a3b8;">
+                                    <i class="fa-solid fa-spinner fa-spin"></i> Загрузка реестра актов...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="qcd-modal-footer">
+                <button type="button" class="btn-qcd-secondary" onclick="closeActRegistryModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер Toast-уведомлений -->
+    <div id="qcd-toast-container"></div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
+    <script src="/static/modules/qcd/qcd_workbench.js?v=20261105_v1"></script>
+{% endblock %}

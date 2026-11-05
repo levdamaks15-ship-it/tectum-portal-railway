@@ -1,0 +1,4776 @@
+// Prevent aggressive caching of GET requests in mobile browsers
+const originalFetch = window.fetch;
+window.fetch = function (url, options) {
+    if (typeof url === 'string' && url.startsWith('/api/') && (!options || !options.method || options.method.toUpperCase() === 'GET')) {
+        const separator = url.includes('?') ? '&' : '?';
+        url = `${url}${separator}_ts=${Date.now()}`;
+    }
+    return originalFetch(url, options);
+};
+
+// Global handler: prevent mouse wheel from changing input[type="number"] values
+document.addEventListener('wheel', function (e) {
+    if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+    }
+}, { passive: true });
+
+// Universal Click-to-Open Picker for all Date, Month and Time inputs in Admin Panel
+document.addEventListener('click', function (e) {
+    const input = e.target.closest('input');
+    if (!input) return;
+    if (input._flatpickr) {
+        if (!input._flatpickr.isOpen) input._flatpickr.open();
+        return;
+    }
+    const pickerTypes = ['date', 'month', 'time', 'datetime-local', 'week'];
+    if (pickerTypes.includes(input.type)) {
+        if (typeof input.showPicker === 'function') {
+            try { input.showPicker(); } catch (err) {}
+        }
+    }
+});
+
+let currentAdmin = null;
+let allMastersCached = [];
+window.allMastersCached = allMastersCached;
+
+async function getOrFetchMasters() {
+    if (allMastersCached && allMastersCached.length > 0) {
+        return allMastersCached;
+    }
+    try {
+        const res = await fetch('/api/masters/');
+        if (res.ok) {
+            allMastersCached = await res.json();
+            window.allMastersCached = allMastersCached;
+            return allMastersCached;
+        }
+    } catch(e) {
+        console.error("Error fetching masters:", e);
+    }
+    return [];
+}
+
+async function initAdminLogin() {
+    const pinInput = document.getElementById('admin-pin');
+    if (pinInput) {
+        pinInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') adminLogin();
+        });
+    }
+
+    // Проверяем существующую сессию сервера (/api/me/) или сохраненный вход
+    try {
+        const meRes = await fetch('/api/me/');
+        if (meRes.ok) {
+            const meData = await meRes.json();
+            if (meData.authenticated && meData.user && ['admin', 'director', 'technologist'].includes(meData.user.role)) {
+                currentAdmin = meData.user;
+                document.getElementById('admin-login-screen').style.display = 'none';
+                document.getElementById('admin-app').style.display = 'flex';
+                loadPlannerSettings();
+                loadNorms();
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn("Session check failed, falling back to login prompt:", e);
+    }
+
+    // Если нет активной серверной сессии — убираем fast-path и фокусируемся на поле ввода ПИН
+    document.documentElement.classList.remove('admin-session-cached');
+    document.getElementById('admin-login-screen').style.display = 'flex';
+    document.getElementById('admin-app').style.display = 'none';
+    if (pinInput) pinInput.focus();
+}
+
+
+function getAdminPinBoxValue() {
+    let val = '';
+    for (let i = 1; i <= 4; i++) {
+        const box = document.getElementById(`admin-pin-box-${i}`);
+        if (box) val += box.value.trim();
+    }
+    return val;
+}
+
+function clearAdminPinBoxes() {
+    for (let i = 1; i <= 4; i++) {
+        const box = document.getElementById(`admin-pin-box-${i}`);
+        if (box) box.value = '';
+    }
+    const hidden = document.getElementById('admin-pin');
+    if (hidden) hidden.value = '';
+}
+
+function handleAdminPinBoxInput(index, event) {
+    const box = document.getElementById(`admin-pin-box-${index}`);
+    if (!box) return;
+
+    box.value = box.value.replace(/[^0-9]/g, '');
+
+    if (box.value && index < 4) {
+        const nextBox = document.getElementById(`admin-pin-box-${index + 1}`);
+        if (nextBox) nextBox.focus();
+    }
+
+    const fullPin = getAdminPinBoxValue();
+    const hidden = document.getElementById('admin-pin');
+    if (hidden) hidden.value = fullPin;
+
+    if (fullPin.length === 4) {
+        adminLogin();
+    }
+}
+
+function handleAdminPinBoxKeydown(index, event) {
+    if (event.key === 'Backspace') {
+        const box = document.getElementById(`admin-pin-box-${index}`);
+        if (box && !box.value && index > 1) {
+            const prevBox = document.getElementById(`admin-pin-box-${index - 1}`);
+            if (prevBox) {
+                prevBox.focus();
+                prevBox.value = '';
+            }
+        }
+    } else if (event.key === 'Enter') {
+        adminLogin();
+    }
+}
+
+async function adminLogin() {
+    const pin = getAdminPinBoxValue() || document.getElementById('admin-pin')?.value;
+    if (!pin) {
+        const box1 = document.getElementById('admin-pin-box-1');
+        if (box1) box1.focus();
+        return;
+    }
+
+    const btn = document.getElementById('btn-admin-login-submit');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Проверка...</span>';
+    }
+
+    try {
+        const loginRes = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pin: pin })
+        });
+
+        if (loginRes.ok) {
+            const data = await loginRes.json();
+            currentAdmin = data;
+            document.getElementById('admin-login-screen').style.display = 'none';
+            document.getElementById('admin-app').style.display = 'flex';
+            loadPlannerSettings();
+            loadNorms();
+        } else {
+            throw new Error("Неверный PIN-код или нет прав");
+        }
+    } catch (e) {
+        const errEl = document.getElementById('admin-login-error');
+        if (errEl) {
+            errEl.innerText = "Неверный PIN-код или нет прав администратора.";
+            errEl.style.display = 'block';
+        }
+        clearAdminPinBoxes();
+        const box1 = document.getElementById('admin-pin-box-1');
+        if (box1) box1.focus();
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти в Админку</span>';
+        }
+    }
+}
+// Cross-Tab Auth Synchronization listener (BroadcastChannel)
+if (typeof BroadcastChannel !== 'undefined') {
+    try {
+        const tectumAuthSync = new BroadcastChannel('tectum_auth_sync');
+        tectumAuthSync.onmessage = (event) => {
+            if (event.data && event.data.type === 'AUTH_LOGOUT') {
+                try {
+                    localStorage.removeItem('tectum_auth_user');
+                    localStorage.removeItem('tectum_portal_user');
+                    localStorage.removeItem('tectum_current_user_name');
+                    localStorage.removeItem('admin_token');
+                    sessionStorage.clear();
+                } catch(e) {}
+                window.location.replace('/?unauthorized=true');
+            }
+        };
+    } catch(e) {}
+}
+
+async function adminLogout() {
+    try {
+        if (typeof BroadcastChannel !== 'undefined') {
+            const authChan = new BroadcastChannel('tectum_auth_sync');
+            authChan.postMessage({ type: 'AUTH_LOGOUT', timestamp: Date.now() });
+        }
+    } catch(e) {}
+    try {
+        await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' });
+    } catch (e) {}
+    currentAdmin = null;
+    try {
+        localStorage.removeItem('tectum_auth_user');
+        localStorage.removeItem('tectum_portal_user');
+        localStorage.removeItem('tectum_current_user_name');
+        localStorage.removeItem('admin_token');
+        sessionStorage.clear();
+    } catch (e) {}
+    window.location.replace('/?unauthorized=true');
+}
+
+// Call init on load
+window.addEventListener('DOMContentLoaded', initAdminLogin);
+
+
+
+function toggleAdminSidebar(forceState) {
+    const sidebar = document.getElementById('admin-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar) return;
+
+    if (forceState !== undefined) {
+        if (forceState) {
+            sidebar.classList.add('open');
+            if (backdrop) backdrop.classList.add('active');
+        } else {
+            sidebar.classList.remove('open');
+            if (backdrop) backdrop.classList.remove('active');
+        }
+    } else {
+        const isOpen = sidebar.classList.toggle('open');
+        if (backdrop) {
+            if (isOpen) backdrop.classList.add('active');
+            else backdrop.classList.remove('active');
+        }
+    }
+}
+
+function switchAdminTab(tabId) {
+    document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
+    const activeNav = document.getElementById('nav-' + tabId);
+    if (activeNav) activeNav.classList.add('active');
+    
+    const tabMasters = document.getElementById('tab-masters'); if (tabMasters) tabMasters.style.display = 'none';
+    const tabTasks = document.getElementById('tab-tasks'); if (tabTasks) tabTasks.style.display = 'none';
+    const tabNorms = document.getElementById('tab-norms'); if (tabNorms) tabNorms.style.display = 'none';
+    const tabPlanBoard = document.getElementById('tab-plan-board'); if (tabPlanBoard) tabPlanBoard.style.display = 'none';
+    const tabShifts = document.getElementById('tab-shifts'); if (tabShifts) tabShifts.style.display = 'none';
+    const tabReceipts = document.getElementById('tab-receipts'); if (tabReceipts) tabReceipts.style.display = 'none';
+    const tabCleanup = document.getElementById('tab-cleanup'); if (tabCleanup) tabCleanup.style.display = 'none';
+    const tabBackup = document.getElementById('tab-backup'); if (tabBackup) tabBackup.style.display = 'none';
+    const tabAuditLogs = document.getElementById('tab-audit-logs'); if (tabAuditLogs) tabAuditLogs.style.display = 'none';
+    const tabDowntimes = document.getElementById('tab-downtimes-dir'); if (tabDowntimes) tabDowntimes.style.display = 'none';
+    const tabDowntimesLog = document.getElementById('tab-downtimes-log'); if (tabDowntimesLog) tabDowntimesLog.style.display = 'none';
+    const tabPlannerSettings = document.getElementById('tab-planner-settings'); if (tabPlannerSettings) tabPlannerSettings.style.display = 'none';
+    const tabPasswords = document.getElementById('tab-passwords'); if (tabPasswords) tabPasswords.style.display = 'none';
+    const tabChecklistEmps = document.getElementById('tab-checklist-emps'); if (tabChecklistEmps) tabChecklistEmps.style.display = 'none';
+    const tabShiftSchedule = document.getElementById('tab-shift-schedule'); if (tabShiftSchedule) tabShiftSchedule.style.display = 'none';
+    const tabAiAssistant = document.getElementById('tab-ai-assistant'); if (tabAiAssistant) tabAiAssistant.style.display = 'none';
+    const tabLkc = document.getElementById('tab-lkc'); if (tabLkc) tabLkc.style.display = 'none';
+    
+    const targetTab = document.getElementById('tab-' + tabId);
+    if (targetTab) targetTab.style.display = 'block';
+
+    // Auto-close sidebar on mobile after selecting a tab
+    if (window.innerWidth <= 900) {
+        toggleAdminSidebar(false);
+    }
+
+    if (tabId === 'tasks') {
+        loadAdminTasksTab();
+    } else if (tabId === 'plan-board') {
+        loadPlanBoard();
+    } else if (tabId === 'audit-logs') {
+        loadAuditLogs();
+    } else if (tabId === 'shifts') {
+        loadShifts();
+    } else if (tabId === 'receipts') {
+        loadAdminReceipts();
+    } else if (tabId === 'downtimes-dir') {
+        loadDowntimesDir();
+    } else if (tabId === 'downtimes-log') {
+        loadDowntimesLog();
+    } else if (tabId === 'lkc') {
+        loadAdminLKCTab();
+    } else if (tabId === 'planner-settings') {
+        loadPlannerSettings();
+    } else if (tabId === 'passwords') {
+        loadPasswords();
+    } else if (tabId === 'checklist-emps') {
+        loadAdminChecklistEmployees();
+    } else if (tabId === 'shift-schedule') {
+        loadAdminShiftSchedule();
+    } else if (tabId === 'ai-assistant') {
+        if (typeof loadAiConversations === 'function') {
+            loadAiConversations();
+        }
+    }
+}
+
+function closeModals() {
+    closePlannerModals();
+    closeAdminTaskModal();
+    const lkcModal = document.getElementById('admin-lkc-details-modal');
+    if (lkcModal) lkcModal.style.display = 'none';
+    const clEmpModal = document.getElementById('checklist-emp-modal');
+    if (clEmpModal) clEmpModal.style.display = 'none';
+    const schedModal = document.getElementById('shift-schedule-modal');
+    if (schedModal) schedModal.style.display = 'none';
+    document.getElementById('master-modal').style.display = 'none';
+    document.getElementById('norm-modal').style.display = 'none';
+    const shiftModal = document.getElementById('shift-modal');
+    if (shiftModal) shiftModal.style.display = 'none';
+    const shiftDetailsModal = document.getElementById('shift-details-modal');
+    if (shiftDetailsModal) shiftDetailsModal.style.display = 'none';
+    const dtDirModal = document.getElementById('downtime-dir-modal');
+    if (dtDirModal) dtDirModal.style.display = 'none';
+    const uniModal = document.getElementById('unified-shift-modal');
+    if (uniModal) uniModal.style.display = 'none';
+    const editDtModal = document.getElementById('edit-downtime-modal');
+    if (editDtModal) editDtModal.style.display = 'none';
+    const receiptModal = document.getElementById('edit-receipt-modal');
+    if (receiptModal) receiptModal.style.display = 'none';
+    if (editDtModal) editDtModal.style.display = 'none';
+}
+
+
+
+// --- MASTERS CRUD ---
+
+async function loadMasters() {
+    const res = await fetch('/api/masters/');
+    const data = await res.json();
+    allMastersCached = Array.isArray(data) ? data : [];
+    window.allMastersCached = allMastersCached;
+    const tbody = document.getElementById('masters-table-body');
+    tbody.innerHTML = '';
+    
+    data.forEach(m => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${m.id}</td>
+                <td>${m.name}</td>
+                <td>${m.role}</td>
+                <td>${m.email || '-'}</td>
+                <td>
+                    <button class="action-btn btn-edit" onclick='editMaster(${JSON.stringify(m)})'><i class="fa-solid fa-pen"></i></button>
+                    <button class="action-btn btn-delete" onclick="deleteMaster(${m.id})"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function openMasterModal() {
+    document.getElementById('master-id').value = '';
+    document.getElementById('master-name').value = '';
+    document.getElementById('master-pin').value = '';
+    document.getElementById('master-email').value = '';
+    document.getElementById('master-role').value = 'master';
+    document.getElementById('master-modal-title').innerText = "Добавить сотрудника";
+    document.getElementById('master-modal').style.display = 'flex';
+}
+
+function editMaster(m) {
+    document.getElementById('master-id').value = m.id;
+    document.getElementById('master-name').value = m.name;
+    document.getElementById('master-pin').value = ''; // Don't show existing pin
+    document.getElementById('master-pin').placeholder = 'Оставьте пустым, чтобы не менять';
+    document.getElementById('master-email').value = m.email || '';
+    document.getElementById('master-role').value = m.role;
+    document.getElementById('master-modal-title').innerText = "Редактировать сотрудника";
+    document.getElementById('master-modal').style.display = 'flex';
+}
+
+async function saveMaster() {
+    const id = document.getElementById('master-id').value;
+    const data = {
+        name: document.getElementById('master-name').value,
+        role: document.getElementById('master-role').value,
+        email: document.getElementById('master-email').value || null
+    };
+    
+    const pin = document.getElementById('master-pin').value;
+    if (pin) data.pin = pin;
+
+    const url = id ? `/api/admin/masters/${id}` : '/api/admin/masters/';
+    const method = id ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+
+    if (res.ok) {
+        closeModals();
+        loadMasters();
+    } else {
+        alert("Ошибка при сохранении сотрудника");
+    }
+}
+
+async function deleteMaster(id) {
+    if (!confirm("Вы уверены, что хотите удалить этого сотрудника?")) return;
+    try {
+        const res = await fetch(`/api/admin/masters/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadMasters();
+        } else {
+            const err = await res.json();
+            alert(err.detail || "Ошибка при удалении");
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Ошибка сети при удалении");
+    }
+}
+
+// --- NORMS CRUD ---
+
+async function loadNorms() {
+    const res = await fetch('/api/norms/');
+    const data = await res.json();
+    allNormsCached = Array.isArray(data) ? data : [];
+    const tbody = document.getElementById('norms-table-body');
+    tbody.innerHTML = '';
+    
+    data.forEach(n => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${n.product_name}</td>
+                <td>${n.weight_kg || 0}</td>
+                <td>${n.norm_chrysotile_4_20 || 0}</td>
+                <td>${n.norm_chrysotile_5_65 || 0}</td>
+                <td>${n.norm_chrysotile_6_40 || 0}</td>
+                <td>${n.norm_cement || 0}</td>
+                <td>${n.norm_cellulose || 0}</td>
+                <td>${n.norm_crushed_slate || 0}</td>
+                <td>${n.norm_asbozurit || 0}</td>
+                <td>${n.norm_fiberglass || 0}</td>
+                <td>
+                    <button class="action-btn btn-edit" onclick='editNorm(${JSON.stringify(n)})'><i class="fa-solid fa-pen"></i></button>
+                    <button class="action-btn btn-delete" onclick="deleteNorm(${n.id})"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function openNormModal() {
+    document.getElementById('norm-id').value = '';
+    document.getElementById('norm-name').value = '';
+    document.getElementById('norm-weight').value = 0;
+    document.getElementById('norm-cement').value = 0;
+    document.getElementById('norm-chr420').value = 0;
+    document.getElementById('norm-chr565').value = 0;
+    document.getElementById('norm-chr640').value = 0;
+    document.getElementById('norm-cel').value = 0;
+    document.getElementById('norm-slate').value = 0;
+    document.getElementById('norm-asb').value = 0;
+    document.getElementById('norm-fib').value = 0;
+    document.getElementById('norm-modal-title').innerText = "Добавить норму";
+    document.getElementById('norm-modal').style.display = 'flex';
+}
+
+function editNorm(n) {
+    document.getElementById('norm-id').value = n.id;
+    document.getElementById('norm-name').value = n.product_name;
+    document.getElementById('norm-weight').value = n.weight_kg || 0;
+    document.getElementById('norm-cement').value = n.norm_cement || 0;
+    document.getElementById('norm-chr420').value = n.norm_chrysotile_4_20 || 0;
+    document.getElementById('norm-chr565').value = n.norm_chrysotile_5_65 || 0;
+    document.getElementById('norm-chr640').value = n.norm_chrysotile_6_40 || 0;
+    document.getElementById('norm-cel').value = n.norm_cellulose || 0;
+    document.getElementById('norm-slate').value = n.norm_crushed_slate || 0;
+    document.getElementById('norm-asb').value = n.norm_asbozurit || 0;
+    document.getElementById('norm-fib').value = n.norm_fiberglass || 0;
+    document.getElementById('norm-modal-title').innerText = "Редактировать норму";
+    document.getElementById('norm-modal').style.display = 'flex';
+}
+
+async function saveNorm() {
+    const id = document.getElementById('norm-id').value;
+    const data = {
+        product_name: document.getElementById('norm-name').value,
+        weight_kg: parseFloat(document.getElementById('norm-weight').value) || 0,
+        norm_cement: parseFloat(document.getElementById('norm-cement').value) || 0,
+        norm_chrysotile_4_20: parseFloat(document.getElementById('norm-chr420').value) || 0,
+        norm_chrysotile_5_65: parseFloat(document.getElementById('norm-chr565').value) || 0,
+        norm_chrysotile_6_40: parseFloat(document.getElementById('norm-chr640').value) || 0,
+        norm_cellulose: parseFloat(document.getElementById('norm-cel').value) || 0,
+        norm_crushed_slate: parseFloat(document.getElementById('norm-slate').value) || 0,
+        norm_asbozurit: parseFloat(document.getElementById('norm-asb').value) || 0,
+        norm_fiberglass: parseFloat(document.getElementById('norm-fib').value) || 0
+    };
+
+    const url = id ? `/api/admin/norms/${id}` : '/api/admin/norms/';
+    const method = id ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+
+    if (res.ok) {
+        closeModals();
+        loadNorms();
+    } else {
+        alert("Ошибка при сохранении нормы");
+    }
+}
+
+async function deleteNorm(id) {
+    if (!confirm("Вы уверены, что хотите удалить эту норму? Это может сломать расчеты для старых отчетов.")) return;
+    const res = await fetch(`/api/admin/norms/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+        loadNorms();
+    } else {
+        alert("Ошибка при удалении");
+    }
+}
+
+// --- CLEANUP ---
+
+async function clearOperationalData() {
+    if (!confirm("ВНИМАНИЕ! Вы собираетесь БЕЗВОЗВРАТНО удалить все записи о сменах, рапортах ЛФМ, простоях и партиях продукции.")) {
+        return;
+    }
+    const pwd1 = prompt("Введите пароль администратора для подтверждения сброса данных:");
+    if (!pwd1) {
+        alert("Очистка отменена: пароль не введен.");
+        return;
+    }
+    if (pwd1 !== "VjzJ,jhjyf15") {
+        alert("Неверный пароль администратора. Очистка отменена.");
+        return;
+    }
+
+    const pwd2 = prompt("ПОДТВЕРДИТЕ ЕЩЕ РАЗ: Повторите пароль для окончательного сброса базы:");
+    if (pwd2 !== "VjzJ,jhjyf15") {
+        alert("Пароли не совпадают или неверны. Очистка отменена.");
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/admin/clear_data/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pwd2 })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            alert(`Данные успешно очищены!\nУдалено смен: ${data.deleted.shifts}\nПартий: ${data.deleted.batches}\nПростоев: ${data.deleted.downtimes}\nЗаписей выработки: ${data.deleted.plan_board}`);
+            loadShifts();
+            if (typeof loadAuditLogs === 'function') loadAuditLogs();
+        } else {
+            const err = await res.json();
+            alert("Ошибка при очистке БД: " + (err.detail || "Доступ запрещен"));
+        }
+    } catch (e) {
+        alert("Сетевая ошибка при очистке БД.");
+    }
+}
+
+
+
+// --- PLAN BOARD ---
+async function loadPlanBoard() {
+    try {
+        const res = await fetch('/api/plan_board');
+        const data = await res.json();
+        const tbody = document.getElementById('plan-board-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Нет данных</td></tr>`;
+            return;
+        }
+        
+        const isAdmin = currentAdmin && currentAdmin.role === 'admin';
+        
+        data.forEach(p => {
+            const masterName = p.master ? p.master.name : 'Н/Д';
+            
+            const actionsHtml = isAdmin ? `
+                <div style="display: flex; gap: 0.25rem;">
+                    <button class="btn-edit" style="padding: 0.25rem 0.5rem; width: auto; font-size: 0.8rem; background: var(--warning-color);" onclick="editPlanBoardRow(${p.id})">
+                        <i class="fa-solid fa-edit"></i> Ред.
+                    </button>
+                    <button class="btn-danger" style="padding: 0.25rem 0.5rem; width: auto; font-size: 0.8rem;" onclick="deletePlanBoardRow(${p.id})">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            ` : `<span style="color: var(--text-secondary); font-size: 0.85rem;">Нет прав</span>`;
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>${p.date}</td>
+                    <td>${p.line || 'Н/Д'}</td>
+                    <td>${p.shift_name}</td>
+                    <td>${p.shift_number}</td>
+                    <td>${masterName}</td>
+                    <td>${p.plan_sheets}</td>
+                    <td>${p.fact_sheets}</td>
+                    <td>${p.first_grade || 0}</td>
+                    <td>${p.defect || 0}</td>
+                    <td>${actionsHtml}</td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        console.error(e);
+        const tbody = document.getElementById('plan-board-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:red;">Ошибка загрузки данных</td></tr>`;
+    }
+}
+
+function populatePlanBoardMasters(selectedId) {
+    const masterSelect = document.getElementById('edit-pb-master');
+    if (!masterSelect) return;
+    masterSelect.innerHTML = '';
+    allMastersCached.filter(m => m.role === 'master').forEach(m => {
+        const selected = m.id === selectedId ? 'selected' : '';
+        masterSelect.innerHTML += `<option value="${m.id}" ${selected}>${m.name}</option>`;
+    });
+}
+
+function showAddPlanBoardModal() {
+    document.getElementById('plan-board-modal-title').innerText = "Добавить запись выработки";
+    document.getElementById('edit-pb-id').value = '';
+    document.getElementById('edit-pb-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('edit-pb-line').value = 'ЛФМ-1';
+    document.getElementById('edit-pb-shift-name').value = 'День';
+    document.getElementById('edit-pb-shift-number').value = '1';
+    document.getElementById('edit-pb-plan-sheets').value = '0';
+    document.getElementById('edit-pb-fact-sheets').value = '0';
+    document.getElementById('edit-pb-first-grade').value = '0';
+    document.getElementById('edit-pb-defect').value = '0';
+    
+    populatePlanBoardMasters(null);
+    document.getElementById('edit-plan-board-modal').style.display = 'flex';
+}
+
+async function editPlanBoardRow(id) {
+    try {
+        const res = await fetch(`/api/plan_board/${id}`);
+        if (!res.ok) throw new Error("Не удалось загрузить запись выработки");
+        const row = await res.json();
+        
+        document.getElementById('plan-board-modal-title').innerText = "Редактировать запись выработки";
+        document.getElementById('edit-pb-id').value = row.id;
+        document.getElementById('edit-pb-date').value = row.date;
+        document.getElementById('edit-pb-line').value = row.line || 'ЛФМ-1';
+        document.getElementById('edit-pb-shift-name').value = row.shift_name;
+        document.getElementById('edit-pb-shift-number').value = row.shift_number;
+        document.getElementById('edit-pb-plan-sheets').value = row.plan_sheets;
+        document.getElementById('edit-pb-fact-sheets').value = row.fact_sheets;
+        document.getElementById('edit-pb-first-grade').value = row.first_grade || 0;
+        document.getElementById('edit-pb-defect').value = row.defect || 0;
+        
+        populatePlanBoardMasters(row.master_id);
+        document.getElementById('edit-plan-board-modal').style.display = 'flex';
+    } catch(e) {
+        console.error(e);
+        alert(e.message);
+    }
+}
+
+async function savePlanBoardEdit() {
+    const id = document.getElementById('edit-pb-id').value;
+    const data = {
+        date: document.getElementById('edit-pb-date').value,
+        line: document.getElementById('edit-pb-line').value,
+        shift_name: document.getElementById('edit-pb-shift-name').value,
+        shift_number: parseInt(document.getElementById('edit-pb-shift-number').value) || 1,
+        master_id: parseInt(document.getElementById('edit-pb-master').value),
+        plan_sheets: parseInt(document.getElementById('edit-pb-plan-sheets').value) || 0,
+        fact_sheets: parseInt(document.getElementById('edit-pb-fact-sheets').value) || 0,
+        first_grade: parseInt(document.getElementById('edit-pb-first-grade').value) || 0,
+        defect: parseInt(document.getElementById('edit-pb-defect').value) || 0
+    };
+    
+    const userNameParam = currentAdmin ? encodeURIComponent(currentAdmin.name) : '';
+    try {
+        const res = await fetch(`/api/plan_board?user_name=${userNameParam}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            document.getElementById('edit-plan-board-modal').style.display = 'none';
+            loadPlanBoard();
+        } else {
+            alert("Ошибка сохранения выработки");
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function deletePlanBoardRow(id) {
+    if (!confirm("Вы уверены, что хотите удалить эту строку из выработки?")) return;
+    try {
+        const userNameParam = currentAdmin ? encodeURIComponent(currentAdmin.name) : '';
+        const res = await fetch(`/api/plan_board/${id}?user_name=${userNameParam}`, { method: 'DELETE' });
+        if (res.ok) {
+            alert("Строка успешно удалена.");
+            loadPlanBoard();
+        } else {
+            const err = await res.json();
+            alert("Ошибка удаления: " + (err.detail || "Неизвестная ошибка"));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Сетевая ошибка при удалении.");
+    }
+}
+
+async function importPlanBoard() {
+    if (!confirm("Загрузить данные из monthly_plan_board.xlsx? Это может занять некоторое время.")) return;
+    try {
+        const res = await fetch('/api/admin/import_plan_board', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            alert(`Импорт завершен успешно!\nСоздано записей: ${data.created}\nОбновлено записей: ${data.updated}`);
+            loadPlanBoard();
+        } else {
+            alert("Ошибка импорта: " + (data.detail || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка сети при импорте");
+    }
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+let adminAuditLogsCached = [];
+let currentAuditModuleFilter = 'all';
+let currentAuditDatePreset = 'all';
+
+async function loadAuditLogs() {
+    try {
+        const tbody = document.getElementById('audit-logs-table-body');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка истории изменений...</td></tr>';
+        
+        const res = await fetch('/api/admin/audit_logs?limit=1000');
+        const data = await res.json();
+        adminAuditLogsCached = Array.isArray(data) ? data : [];
+        
+        populateAuditUserDropdown();
+        updateAuditKpis(adminAuditLogsCached);
+        renderAuditLogsTable();
+    } catch (e) {
+        console.error("Error loading audit logs:", e);
+        const tbody = document.getElementById('audit-logs-table-body');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--danger-color); padding: 2rem;">Ошибка загрузки логов</td></tr>';
+    }
+}
+
+function populateAuditUserDropdown() {
+    const userSelect = document.getElementById('filter-audit-user');
+    if (!userSelect) return;
+
+    const currentVal = userSelect.value;
+    const users = Array.from(new Set(adminAuditLogsCached.map(l => l.user_name || 'Система').filter(Boolean))).sort();
+    
+    userSelect.innerHTML = `<option value="">Все пользователи (${users.length})</option>` + 
+        users.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+
+    if (currentVal && users.includes(currentVal)) {
+        userSelect.value = currentVal;
+    }
+}
+
+function updateAuditKpis(logs) {
+    const totalEl = document.getElementById('audit-kpi-total');
+    const todayEl = document.getElementById('audit-kpi-today');
+    const tasksEl = document.getElementById('audit-kpi-tasks');
+    const shiftsEl = document.getElementById('audit-kpi-shifts');
+
+    if (!totalEl || !logs) return;
+
+    const todayStr = new Date().toISOString().substring(0, 10);
+    let todayCount = 0;
+    let tasksCount = 0;
+    let shiftsCount = 0;
+
+    logs.forEach(l => {
+        const ts = l.timestamp || '';
+        if (ts.startsWith(todayStr)) todayCount++;
+        
+        const tbl = (l.target_table || '').toLowerCase();
+        if (tbl.includes('task')) tasksCount++;
+        if (tbl.includes('shift') || tbl.includes('lfm') || tbl.includes('batch')) shiftsCount++;
+    });
+
+    totalEl.textContent = logs.length;
+    if (todayEl) todayEl.textContent = todayCount;
+    if (tasksEl) tasksEl.textContent = tasksCount;
+    if (shiftsEl) shiftsEl.textContent = shiftsCount;
+}
+
+function setAuditModuleFilter(module, chipElement) {
+    currentAuditModuleFilter = module;
+    
+    // Update chip active classes
+    const chips = document.querySelectorAll('#audit-module-chips .audit-chip');
+    chips.forEach(c => c.classList.remove('active'));
+    if (chipElement) chipElement.classList.add('active');
+
+    renderAuditLogsTable();
+}
+
+function setAuditDatePreset(preset, btnElement) {
+    currentAuditDatePreset = preset;
+
+    const buttons = document.querySelectorAll('.btn-date-preset');
+    buttons.forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'transparent';
+        b.style.color = 'var(--text-secondary)';
+    });
+
+    if (btnElement) {
+        btnElement.classList.add('active');
+        btnElement.style.background = 'rgba(59, 130, 246, 0.3)';
+        btnElement.style.color = '#fff';
+    }
+
+    const dateFromEl = document.getElementById('filter-audit-date-from');
+    const dateToEl = document.getElementById('filter-audit-date-to');
+
+    const now = new Date();
+    const todayStr = now.toISOString().substring(0, 10);
+
+    if (preset === 'today') {
+        if (dateFromEl) dateFromEl.value = todayStr;
+        if (dateToEl) dateToEl.value = todayStr;
+    } else if (preset === 'yesterday') {
+        const y = new Date();
+        y.setDate(y.getDate() - 1);
+        const yStr = y.toISOString().substring(0, 10);
+        if (dateFromEl) dateFromEl.value = yStr;
+        if (dateToEl) dateToEl.value = yStr;
+    } else if (preset === '7days') {
+        const d7 = new Date();
+        d7.setDate(d7.getDate() - 7);
+        if (dateFromEl) dateFromEl.value = d7.toISOString().substring(0, 10);
+        if (dateToEl) dateToEl.value = todayStr;
+    } else if (preset === '30days') {
+        const d30 = new Date();
+        d30.setDate(d30.getDate() - 30);
+        if (dateFromEl) dateFromEl.value = d30.toISOString().substring(0, 10);
+        if (dateToEl) dateToEl.value = todayStr;
+    } else {
+        if (dateFromEl) dateFromEl.value = '';
+        if (dateToEl) dateToEl.value = '';
+    }
+
+    renderAuditLogsTable();
+}
+
+function onAuditCustomDateChange() {
+    currentAuditDatePreset = 'custom';
+    const buttons = document.querySelectorAll('.btn-date-preset');
+    buttons.forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'transparent';
+        b.style.color = 'var(--text-secondary)';
+    });
+    renderAuditLogsTable();
+}
+
+function formatAuditModuleBadge(targetTable) {
+    const tbl = (targetTable || '').toLowerCase();
+    if (tbl.includes('task')) {
+        return `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-list-check"></i> Планнер задач</span>`;
+    }
+    if (tbl.includes('shift') || tbl.includes('lfm') || tbl.includes('batch')) {
+        return `<span style="background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-industry"></i> Смены ЛФМ</span>`;
+    }
+    if (tbl.includes('plan')) {
+        return `<span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-calendar-days"></i> План-Факт</span>`;
+    }
+    if (tbl.includes('raw')) {
+        return `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-boxes-stacked"></i> Сырьё</span>`;
+    }
+    if (tbl.includes('downtime') || tbl.includes('norm') || tbl.includes('master') || tbl.includes('director')) {
+        return `<span style="background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-book"></i> Справочники</span>`;
+    }
+    if (tbl.includes('doc')) {
+        return `<span style="background: #fdf2f8; color: #be185d; border: 1px solid #fbcfe8; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-folder-open"></i> База знаний</span>`;
+    }
+    return `<span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 3px 8px; border-radius: 6px; font-weight: 500; font-size: 0.76rem; white-space: nowrap;">${escapeHtml(targetTable || '—')}</span>`;
+}
+
+function formatAuditDetails(rawText, targetTable) {
+    if (!rawText) return '<span style="color: var(--text-secondary);">—</span>';
+
+    let text = escapeHtml(rawText);
+
+    // 1. Highlight task codes: [TSK-12]
+    text = text.replace(/\[(TSK-\d+|ID:\s*\d+[^\]]*)\]/g, '<span style="font-family: monospace; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; padding: 1px 5px; border-radius: 4px; font-size: 0.78rem;">[$1]</span>');
+
+    // 2. Format transition diffs: field: 'old' -> 'new' or field: old->new or План: 2500->2700
+    // Replace patterns with styled diff tokens
+    text = text.replace(/([a-zA-Zа-яА-Я0-9_ -]+):\s*&#39;([^&#]+)&#39;\s*-&gt;\s*&#39;([^&#]+)&#39;/g, (match, field, oldV, newV) => {
+        return `<span class="diff-tag"><span class="diff-field">${field}:</span> <span class="diff-old">${oldV}</span> <span class="diff-arrow"><i class="fa-solid fa-arrow-right"></i></span> <span class="diff-new">${newV}</span></span>`;
+    });
+
+    text = text.replace(/([a-zA-Zа-яА-Я0-9_ -]+):\s*([0-9.,]+)\s*-&gt;\s*([0-9.,]+)/g, (match, field, oldV, newV) => {
+        return `<span class="diff-tag"><span class="diff-field">${field}:</span> <span class="diff-old">${oldV}</span> <span class="diff-arrow"><i class="fa-solid fa-arrow-right"></i></span> <span class="diff-new">${newV}</span></span>`;
+    });
+
+    return `<div style="line-height: 1.45; color: #1e293b;">${text}</div>`;
+}
+
+function renderAuditLogsTable() {
+    const tbody = document.getElementById('audit-logs-table-body');
+    if (!tbody) return;
+
+    const actionFilter = (document.getElementById('filter-audit-action')?.value || '').toUpperCase().trim();
+    const userFilter = (document.getElementById('filter-audit-user')?.value || '').toLowerCase().trim();
+    const searchFilter = (document.getElementById('filter-audit-search')?.value || '').toLowerCase().trim();
+    const dateFrom = document.getElementById('filter-audit-date-from')?.value;
+    const dateTo = document.getElementById('filter-audit-date-to')?.value;
+
+    let filtered = adminAuditLogsCached.filter(log => {
+        // Module filter
+        if (currentAuditModuleFilter !== 'all') {
+            const tbl = (log.target_table || '').toLowerCase();
+            if (currentAuditModuleFilter === 'tasks' && !tbl.includes('task')) return false;
+            if (currentAuditModuleFilter === 'shifts' && !(tbl.includes('shift') || tbl.includes('lfm') || tbl.includes('batch'))) return false;
+            if (currentAuditModuleFilter === 'plan_board' && !tbl.includes('plan')) return false;
+            if (currentAuditModuleFilter === 'raw_materials' && !tbl.includes('raw')) return false;
+            if (currentAuditModuleFilter === 'directories' && !(tbl.includes('downtime') || tbl.includes('norm') || tbl.includes('master') || tbl.includes('director'))) return false;
+        }
+
+        // Action filter
+        if (actionFilter) {
+            const act = (log.action || '').toUpperCase();
+            if (act !== actionFilter && !act.includes(actionFilter)) return false;
+        }
+
+        // User filter
+        if (userFilter) {
+            const u = (log.user_name || 'система').toLowerCase();
+            if (u !== userFilter && !u.includes(userFilter)) return false;
+        }
+
+        // Date range filter
+        if (log.timestamp) {
+            const logDate = log.timestamp.substring(0, 10);
+            if (dateFrom && logDate < dateFrom) return false;
+            if (dateTo && logDate > dateTo) return false;
+        }
+
+        // Search text
+        if (searchFilter) {
+            const haystack = `${log.user_name || ''} ${log.target_table || ''} ${log.action || ''} ${log.details || ''} ${log.timestamp || ''}`.toLowerCase();
+            if (!haystack.includes(searchFilter)) return false;
+        }
+
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:center; color: #64748b; padding: 3rem 1.5rem; background: #ffffff;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.4;"><i class="fa-solid fa-filter-circle-xmark"></i></div>
+                    <div style="font-weight: 600; font-size: 0.95rem; color: #0f172a;">Записи не найдены</div>
+                    <div style="font-size: 0.8rem; margin-top: 4px;">Попробуйте сбросить фильтры или изменить поисковый запрос</div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(log => {
+        let actionBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.76rem;">${log.action || '—'}</span>`;
+        const act = (log.action || '').toUpperCase();
+        if (act === 'CREATE') {
+            actionBadge = `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-plus"></i> CREATE</span>`;
+        } else if (act === 'UPDATE') {
+            actionBadge = `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-pen"></i> UPDATE</span>`;
+        } else if (act === 'DELETE') {
+            actionBadge = `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-trash"></i> DELETE</span>`;
+        } else if (act === 'IMPORT' || act === 'SYNC') {
+            actionBadge = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrows-rotate"></i> ${act}</span>`;
+        } else if (act === 'INFO') {
+            actionBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-info"></i> INFO</span>`;
+        }
+
+        const rawDate = log.timestamp || '';
+        let datePart = '—';
+        let timePart = '';
+        if (rawDate) {
+            const clean = rawDate.replace('T', ' ');
+            datePart = clean.substring(0, 10);
+            timePart = clean.substring(11, 19);
+        }
+
+        const userDisplay = log.user_name || 'Система';
+
+        return `
+            <tr>
+                <td style="white-space: nowrap; font-size: 0.78rem;">
+                    <div style="font-weight: 600; color: #0f172a;"><i class="fa-regular fa-clock" style="color: #64748b; margin-right: 4px;"></i>${datePart}</div>
+                    <div style="color: #64748b; font-size: 0.73rem; margin-top: 2px; font-family: monospace;">${timePart}</div>
+                </td>
+                <td style="white-space: nowrap; font-size: 0.82rem;">
+                    <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #0f172a;">
+                        <span style="width: 24px; height: 24px; border-radius: 50%; background: #f1f5f9; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; color: #64748b;">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        ${escapeHtml(userDisplay)}
+                    </div>
+                </td>
+                <td style="white-space: nowrap;">${actionBadge}</td>
+                <td style="white-space: nowrap;">${formatAuditModuleBadge(log.target_table)}</td>
+                <td style="font-size: 0.82rem; color: #1e293b;">${formatAuditDetails(log.details, log.target_table)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function exportAuditLogsToCsv() {
+    if (!adminAuditLogsCached || adminAuditLogsCached.length === 0) {
+        alert("Нет данных для экспорта");
+        return;
+    }
+
+    const actionFilter = (document.getElementById('filter-audit-action')?.value || '').toUpperCase().trim();
+    const userFilter = (document.getElementById('filter-audit-user')?.value || '').toLowerCase().trim();
+    const searchFilter = (document.getElementById('filter-audit-search')?.value || '').toLowerCase().trim();
+    const dateFrom = document.getElementById('filter-audit-date-from')?.value;
+    const dateTo = document.getElementById('filter-audit-date-to')?.value;
+
+    const filtered = adminAuditLogsCached.filter(log => {
+        if (currentAuditModuleFilter !== 'all') {
+            const tbl = (log.target_table || '').toLowerCase();
+            if (currentAuditModuleFilter === 'tasks' && !tbl.includes('task')) return false;
+            if (currentAuditModuleFilter === 'shifts' && !(tbl.includes('shift') || tbl.includes('lfm') || tbl.includes('batch'))) return false;
+            if (currentAuditModuleFilter === 'plan_board' && !tbl.includes('plan')) return false;
+            if (currentAuditModuleFilter === 'raw_materials' && !tbl.includes('raw')) return false;
+            if (currentAuditModuleFilter === 'directories' && !(tbl.includes('downtime') || tbl.includes('norm') || tbl.includes('master') || tbl.includes('director'))) return false;
+        }
+        if (actionFilter) {
+            const act = (log.action || '').toUpperCase();
+            if (act !== actionFilter && !act.includes(actionFilter)) return false;
+        }
+        if (userFilter) {
+            const u = (log.user_name || 'система').toLowerCase();
+            if (u !== userFilter && !u.includes(userFilter)) return false;
+        }
+        if (log.timestamp) {
+            const logDate = log.timestamp.substring(0, 10);
+            if (dateFrom && logDate < dateFrom) return false;
+            if (dateTo && logDate > dateTo) return false;
+        }
+        if (searchFilter) {
+            const haystack = `${log.user_name || ''} ${log.target_table || ''} ${log.action || ''} ${log.details || ''} ${log.timestamp || ''}`.toLowerCase();
+            if (!haystack.includes(searchFilter)) return false;
+        }
+        return true;
+    });
+
+    const headers = ["Время", "Пользователь", "Действие", "Таблица / Модуль", "Детализация изменений"];
+    const rows = filtered.map(log => [
+        `"${(log.timestamp || '').replace('T', ' ')}"`,
+        `"${(log.user_name || 'Система').replace(/"/g, '""')}"`,
+        `"${(log.action || '').replace(/"/g, '""')}"`,
+        `"${(log.target_table || '').replace(/"/g, '""')}"`,
+        `"${(log.details || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(';'), ...rows.map(e => e.join(';'))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `audit_logs_${currentAuditModuleFilter}_${new Date().toISOString().substring(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// --- SHIFTS CRUD & UNIFIED MANAGEMENT ---
+
+let allShiftsCached = [];
+let allNormsCached = [];
+let currentShiftPeriod = 'week';
+let activeUnifiedDetails = null;
+
+async function loadShifts() {
+    try {
+        const [shiftsRes, mastersRes, normsRes] = await Promise.all([
+            fetch('/api/shifts/all'),
+            fetch('/api/masters/'),
+            fetch('/api/norms/')
+        ]);
+        allShiftsCached = await shiftsRes.json();
+        allMastersCached = await mastersRes.json();
+        if (normsRes.ok) {
+            allNormsCached = await normsRes.json();
+        }
+        
+        // Populate master filter dropdown
+        const masterSelect = document.getElementById('filter-master');
+        if (masterSelect) {
+            const currentVal = masterSelect.value;
+            masterSelect.innerHTML = '<option value="">Все мастера</option>';
+            allMastersCached.filter(m => m.role === 'master').forEach(m => {
+                masterSelect.innerHTML += `<option value="${m.id}" ${m.id == currentVal ? 'selected' : ''}>${m.name}</option>`;
+            });
+        }
+
+        // Populate product filter dropdown
+        const productSelect = document.getElementById('filter-product');
+        if (productSelect) {
+            const currentVal = productSelect.value;
+            const uniqueProducts = new Set();
+            if (Array.isArray(allNormsCached)) {
+                allNormsCached.forEach(n => { if (n.product_name) uniqueProducts.add(n.product_name); });
+            }
+            allShiftsCached.forEach(s => {
+                if (s.product_name) uniqueProducts.add(s.product_name);
+                if (s.lfm_reports) s.lfm_reports.forEach(r => { if (r.product_name) uniqueProducts.add(r.product_name); });
+                if (s.batches) s.batches.forEach(b => { if (b.product_name) uniqueProducts.add(b.product_name); });
+            });
+            productSelect.innerHTML = '<option value="">Вся продукция</option>';
+            Array.from(uniqueProducts).sort().forEach(p => {
+                productSelect.innerHTML += `<option value="${p}" ${p === currentVal ? 'selected' : ''}>${p}</option>`;
+            });
+        }
+
+        filterShifts();
+    } catch (e) {
+        console.error("Error loading shifts:", e);
+        const tbody = document.getElementById('shifts-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--danger-color);">Ошибка при загрузке смен</td></tr>`;
+    }
+}
+
+function setShiftPeriod(period) {
+    currentShiftPeriod = period;
+    document.querySelectorAll('[id^="filter-period-"]').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = '#f8fafc';
+        btn.style.color = '#475569';
+        btn.style.border = '1px solid #cbd5e1';
+    });
+    const activeBtn = document.getElementById('filter-period-' + period);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.background = 'var(--accent-color)';
+        activeBtn.style.color = '#ffffff';
+        activeBtn.style.border = '1px solid var(--accent-color)';
+    }
+    filterShifts();
+}
+
+function resetShiftFilters() {
+    const lineEl = document.getElementById('filter-line'); if (lineEl) lineEl.value = '';
+    const masterEl = document.getElementById('filter-master'); if (masterEl) masterEl.value = '';
+    const prodEl = document.getElementById('filter-product'); if (prodEl) prodEl.value = '';
+    const expEl = document.getElementById('filter-export-type'); if (expEl) expEl.value = '';
+    const searchEl = document.getElementById('filter-search'); if (searchEl) searchEl.value = '';
+    setShiftPeriod('week');
+}
+
+function filterShifts() {
+    const lineFilter = document.getElementById('filter-line')?.value || '';
+    const masterFilter = document.getElementById('filter-master')?.value || '';
+    const prodFilter = document.getElementById('filter-product')?.value || '';
+    const expFilter = document.getElementById('filter-export-type')?.value || '';
+    const searchFilter = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
+    
+    const now = new Date();
+    let cutoffDate = null;
+    if (currentShiftPeriod === 'week') {
+        cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (currentShiftPeriod === 'month') {
+        cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const filtered = allShiftsCached.filter(s => {
+        if (cutoffDate) {
+            const sDate = new Date(s.date);
+            if (sDate < cutoffDate) return false;
+        }
+        if (lineFilter && !s.line.includes(lineFilter)) return false;
+        if (masterFilter && s.master_id != masterFilter) return false;
+        
+        // Export matching
+        const sExp = s.export_type || 'Эталон';
+        if (expFilter && sExp !== expFilter) return false;
+
+        // Product matching
+        const sProd = s.product_name || (s.lfm_reports?.[0]?.product_name) || (s.batches?.[0]?.product_name) || '';
+        if (prodFilter && sProd !== prodFilter) {
+            const hasProd = (s.lfm_reports || []).some(r => r.product_name === prodFilter) ||
+                            (s.batches || []).some(b => b.product_name === prodFilter);
+            if (!hasProd) return false;
+        }
+
+        // Search matching
+        if (searchFilter) {
+            const batchNum = s.batch_number || (s.batches?.[0]?.batch_number) || '';
+            const masterObj = allMastersCached.find(m => m.id === s.master_id);
+            const mName = masterObj ? masterObj.name.toLowerCase() : '';
+            const matchId = s.id.toString().includes(searchFilter);
+            const matchBatch = batchNum.toLowerCase().includes(searchFilter);
+            const matchDate = s.date.includes(searchFilter);
+            const matchMaster = mName.includes(searchFilter);
+            const matchExp = sExp.toLowerCase().includes(searchFilter);
+            if (!matchId && !matchBatch && !matchDate && !matchMaster && !matchExp) return false;
+        }
+        return true;
+    });
+
+    const tbody = document.getElementById('shifts-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Смен по выбранным фильтрам не найдено</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(s => {
+        const master = allMastersCached.find(m => m.id === s.master_id);
+        const masterName = master ? master.name : `ID: ${s.master_id}`;
+        
+        const lfmSheets = (s.lfm_reports || []).reduce((acc, r) => acc + (r.lfm_sheets || 0), 0);
+        const ownWarehouseGp = (s.batches || []).reduce((acc, b) => acc + (b.ds_condition || 0), 0);
+        const prevWarehouseGp = (s.batches || []).reduce((acc, b) => acc + (b.prev_condition || 0), 0);
+        const warehouseGp = ownWarehouseGp + prevWarehouseGp;
+
+        const ownFirstGrade = (s.batches || []).reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) ||
+                              (s.lfm_reports || []).reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
+        const prevFirstGrade = (s.batches || []).reduce((acc, b) => acc + (b.prev_first_grade || 0), 0);
+        const firstGrade = ownFirstGrade + prevFirstGrade;
+
+        const destackerDefect = (s.batches || []).reduce((acc, b) => acc + (b.ds_defect || 0), 0);
+        const qcdDefect = (s.batches || []).reduce((acc, b) => acc + (b.qcd_defect || 0), 0);
+
+        const prodName = s.product_name || (s.lfm_reports?.[0]?.product_name) || (s.batches?.[0]?.product_name) || 'Шифер 8 волн рифленый';
+        const batchNum = s.batch_number || (s.batches?.[0]?.batch_number) || '-';
+        const exportType = s.export_type || 'Эталон';
+
+        let expBadge = `<span style="padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; margin-left: 4px;">${exportType}</span>`;
+        if (exportType === 'Оренбург') {
+            expBadge = `<span style="padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; background: #e0f2fe; color: #0284c7; font-weight: bold; border: 1px solid #bae6fd; margin-left: 4px;">Оренбург</span>`;
+        } else if (exportType === 'Шымкент') {
+            expBadge = `<span style="padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; background: #f3e8ff; color: #7e22ce; font-weight: bold; border: 1px solid #e9d5ff; margin-left: 4px;">Шымкент</span>`;
+        }
+
+        const shiftBadgeColor = s.shift_name === 'День' ? 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;' : 'background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;';
+        const statusBadge = s.status === 'active' 
+            ? `<span style="color: var(--success-color); font-size: 0.8rem;"><i class="fa-solid fa-circle-check"></i> active</span>`
+            : `<span style="color: var(--text-secondary); font-size: 0.8rem;"><i class="fa-solid fa-lock"></i> closed</span>`;
+
+        let warehouseDisplay = `Склад: <b style="color: var(--success-color);">${warehouseGp}</b>`;
+        if (prevWarehouseGp > 0) {
+            warehouseDisplay += ` <span style="background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.12); padding: 1px 5px; border-radius: 4px; font-size: 0.72rem;" title="Своя: ${ownWarehouseGp}, Прошлая: ${prevWarehouseGp}">(${ownWarehouseGp}+${prevWarehouseGp})</span>`;
+        }
+
+        let firstGradeDisplay = `1 сорт: <b>${firstGrade}</b>`;
+        if (prevFirstGrade > 0) {
+            firstGradeDisplay += ` <span style="background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.12); padding: 1px 5px; border-radius: 4px; font-size: 0.72rem;" title="Своя: ${ownFirstGrade}, Прошлая: ${prevFirstGrade}">(${ownFirstGrade}+${prevFirstGrade})</span>`;
+        }
+
+        tbody.innerHTML += `
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">
+                <td style="font-weight: bold; color: var(--text-secondary);">#${s.id}</td>
+                <td>
+                    <div style="font-weight: 500;">${s.date}</div>
+                    <div style="margin-top: 0.2rem; display: flex; gap: 0.5rem; align-items: center;">
+                        <span style="padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold; ${shiftBadgeColor}">${s.shift_name}</span>
+                        ${statusBadge}
+                    </div>
+                </td>
+                <td>
+                    <div style="font-weight: 500;">${s.line}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">${masterName}</div>
+                </td>
+                <td>
+                    <div style="font-weight: 500; color: white; display: flex; align-items: center; flex-wrap: wrap; gap: 2px;">
+                        <span>${prodName}</span> ${expBadge}
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--accent-color);">Партия: <b>${batchNum}</b></div>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.8rem; font-size: 0.85rem; align-items: center; flex-wrap: wrap;">
+                        <div>ЛФМ: <b style="color: var(--primary-color);">${lfmSheets}</b></div>
+                        <div>${warehouseDisplay}</div>
+                        <div>${firstGradeDisplay}</div>
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.8rem; font-size: 0.85rem;">
+                        <div>Дест: <b style="color: ${destackerDefect > 0 ? 'var(--danger-color)' : 'var(--text-secondary)'};">${destackerDefect}</b></div>
+                        <div>ОТК: <b style="color: ${qcdDefect > 0 ? 'var(--danger-color)' : 'var(--text-secondary)'};">${qcdDefect}</b></div>
+                    </div>
+                </td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button class="action-btn btn-edit" title="Редактировать рапорт и сырье" onclick="openUnifiedShiftModal(${s.id})"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button class="action-btn btn-delete" title="Удалить рапорт" onclick="deleteShift(${s.id})"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function updateAdminLineSiloHeaders() {
+    const lineVal = document.getElementById('uni-line')?.value || "1";
+    const siloAHeader = document.getElementById('uni-rm-header-siloA');
+    const siloBHeader = document.getElementById('uni-rm-header-siloB');
+    if (siloAHeader && siloBHeader) {
+        if (lineVal === '1' || lineVal.includes('1')) {
+            siloAHeader.innerText = 'Силос 1';
+            siloBHeader.innerText = 'Силос 2';
+        } else {
+            siloAHeader.innerText = 'Силос 3';
+            siloBHeader.innerText = 'Силос 4';
+        }
+    }
+    calcAdminCem();
+}
+
+function calcAdminWarehouseTotals() {
+    const ownWh = parseInt(document.getElementById('uni-warehouse-gp')?.value) || 0;
+    const prevWh = parseInt(document.getElementById('uni-prev-warehouse-gp')?.value) || 0;
+    const totWhEl = document.getElementById('uni-warehouse-gp-total-readonly');
+    if (totWhEl) totWhEl.value = (ownWh + prevWh) > 0 ? (ownWh + prevWh) : '0';
+
+    const ownF = parseInt(document.getElementById('uni-first-grade')?.value) || 0;
+    const prevF = parseInt(document.getElementById('uni-prev-first-grade')?.value) || 0;
+    const totFEl = document.getElementById('uni-first-grade-total-readonly');
+    if (totFEl) totFEl.value = (ownF + prevF) > 0 ? (ownF + prevF) : '0';
+}
+
+function calcAdminSumRM(key) {
+    const s1 = parseFloat(document.getElementById('uni-calc-' + key + '-1')?.value) || 0;
+    const s2 = parseFloat(document.getElementById('uni-calc-' + key + '-2')?.value) || 0;
+    const s3 = parseFloat(document.getElementById('uni-calc-' + key + '-3')?.value) || 0;
+    const s4 = parseFloat(document.getElementById('uni-calc-' + key + '-4')?.value) || 0;
+    const total = s1 + s2 + s3 + s4;
+    const target = document.getElementById('uni-zo-' + key);
+    if (target) target.value = total > 0 ? total : '';
+    
+    const hiddenKey = key === 'cellulose' ? 'uni-zo-cel' : 
+                      key === 'crushed-slate' ? 'uni-zo-csl' : 
+                      key === 'asbozurit' ? 'uni-zo-asb' :
+                      key === 'fiberglass' ? 'uni-zo-fib' :
+                      key === 'laprol' ? 'uni-zo-lap' :
+                      key === 'asbocarton' ? 'uni-zo-car' : 
+                      'uni-zo-' + key;
+                      
+    if (document.getElementById(hiddenKey + '-1')) {
+        document.getElementById(hiddenKey + '-1').value = s1 > 0 ? s1 : '0';
+        document.getElementById(hiddenKey + '-2').value = s2 > 0 ? s2 : '0';
+        document.getElementById(hiddenKey + '-3').value = s3 > 0 ? s3 : '0';
+        document.getElementById(hiddenKey + '-4').value = s4 > 0 ? s4 : '0';
+    }
+}
+
+function calcAdminLaprol() {
+    const s1 = parseFloat(document.getElementById('uni-calc-laprol-machine')?.value) || 0;
+    const s2 = parseFloat(document.getElementById('uni-calc-laprol-pushitel')?.value) || 0;
+    const total = s1 + s2;
+    const target = document.getElementById('uni-zo-laprol');
+    if (target) target.value = total > 0 ? (Number.isInteger(total) ? total : total.toFixed(1)) : '';
+
+    if (document.getElementById('uni-zo-lap-1')) document.getElementById('uni-zo-lap-1').value = s1 > 0 ? s1 : '0';
+    if (document.getElementById('uni-zo-lap-2')) document.getElementById('uni-zo-lap-2').value = s2 > 0 ? s2 : '0';
+}
+
+function calcAdminCem() {
+    const s1 = parseFloat(document.getElementById('uni-calc-cem-1')?.value) || 0;
+    const s2 = parseFloat(document.getElementById('uni-calc-cem-2')?.value) || 0;
+    const s3 = parseFloat(document.getElementById('uni-calc-cem-3')?.value) || 0;
+    const s4 = parseFloat(document.getElementById('uni-calc-cem-4')?.value) || 0;
+    const total = s1 + s2 + s3 + s4;
+    const target = document.getElementById('uni-zo-cem-total-readonly');
+    if (target) target.value = total > 0 ? total : '';
+
+    if (document.getElementById('uni-zo-cem-1')) {
+        document.getElementById('uni-zo-cem-1').value = s1 > 0 ? s1 : '0';
+        document.getElementById('uni-zo-cem-2').value = s2 > 0 ? s2 : '0';
+        document.getElementById('uni-zo-cem-3').value = s3 > 0 ? s3 : '0';
+        document.getElementById('uni-zo-cem-4').value = s4 > 0 ? s4 : '0';
+    }
+}
+
+async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
+    try {
+        const res = await fetch(`/api/admin/shifts/${shiftId}/details`);
+        if (!res.ok) throw new Error("Не удалось загрузить данные рапорта смены");
+        activeUnifiedDetails = await res.json();
+        const shift = activeUnifiedDetails.shift;
+        const lfm = activeUnifiedDetails.lfm_reports || [];
+        const batches = activeUnifiedDetails.batches || [];
+        const downtimes = activeUnifiedDetails.downtimes || [];
+
+        document.getElementById('unified-shift-id').value = shift.id;
+        document.getElementById('unified-modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Редактирование рапорта № ${shift.id}`;
+        document.getElementById('unified-modal-subtitle').innerText = `${shift.date} • ${shift.shift_name} • ${shift.line}`;
+
+        // Tab 1: Metadata
+        document.getElementById('uni-date').value = shift.date;
+        document.getElementById('uni-shift-name').value = shift.shift_name;
+        document.getElementById('uni-line').value = shift.line.replace('Линия ', '').trim() || "1";
+        document.getElementById('uni-status').value = shift.status || 'active';
+
+        // Bind onchange to uni-line to update headers
+        document.getElementById('uni-line').onchange = updateAdminLineSiloHeaders;
+
+        const masterSelect = document.getElementById('uni-master');
+        masterSelect.innerHTML = '';
+        const mastersList = await getOrFetchMasters();
+        const activeMasters = mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены');
+        (activeMasters.length > 0 ? activeMasters : mastersList).forEach(m => {
+            masterSelect.innerHTML += `<option value="${m.id}" ${m.id === shift.master_id ? 'selected' : ''}>${m.name}</option>`;
+        });
+
+        const prodSelect = document.getElementById('uni-product');
+        prodSelect.innerHTML = '';
+        const currentProd = shift.product_name || (lfm[0]?.product_name) || (batches[0]?.product_name) || 'Шифер 8 волн рифленый';
+        
+        let availableProds = allNormsCached.map(n => n.product_name).filter(Boolean);
+        if (availableProds.length === 0) {
+            availableProds = [
+                'Шифер 7 волн', 'Шифер 7 волн глад', 'Шифер 7 волн рифленый', 'Шифер 7 волн 3500*980',
+                'Шифер 8 волн', 'Шифер 8 волн глад', 'Шифер 8 волн рифленый',
+                'Шифер плоский 10 мм', 'Шифер плоский 8 мм', 'Шифер плоский 6 мм', 'Шифер РП 1750*930'
+            ];
+        }
+        if (currentProd && !availableProds.includes(currentProd)) {
+            availableProds.push(currentProd);
+        }
+        availableProds.forEach(p => {
+            prodSelect.innerHTML += `<option value="${p}" ${p === currentProd ? 'selected' : ''}>${p}</option>`;
+        });
+
+        const expSelect = document.getElementById('uni-export-type');
+        if (expSelect) {
+            expSelect.value = shift.export_type || (lfm[0]?.export_type) || (batches[0]?.export_type) || 'Эталон';
+        }
+
+        document.getElementById('uni-batch-number').value = shift.batch_number || (batches[0]?.batch_number) || '';
+
+        // Tab 2: Production
+        const lfmSheetsVal = lfm.reduce((acc, r) => acc + (r.lfm_sheets || 0), 0);
+        const lfmWindVal = lfm.reduce((acc, r) => acc + (r.lfm_wind_resets || 0), 0);
+        const lfmCartVal = lfm.reduce((acc, r) => acc + (r.lfm_cart_resets || 0), 0);
+        const ownWhGpVal = batches.reduce((acc, b) => acc + (b.ds_condition || 0), 0);
+        const prevWhGpVal = batches.reduce((acc, b) => acc + (b.prev_condition || 0), 0);
+        const ownFirstGradeVal = batches.reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) || lfm.reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
+        const prevFirstGradeVal = batches.reduce((acc, b) => acc + (b.prev_first_grade || 0), 0);
+        const qcdDefectVal = batches.reduce((acc, b) => acc + (b.qcd_defect || 0), 0);
+
+        document.getElementById('uni-lfm-sheets').value = lfmSheetsVal;
+        document.getElementById('uni-lfm-wind-resets').value = lfmWindVal;
+        const uniCartEl = document.getElementById('uni-lfm-cart-resets');
+        if (uniCartEl) uniCartEl.value = lfmCartVal;
+        document.getElementById('uni-zo-batches').value = shift.zo_batches || 0;
+        document.getElementById('uni-warehouse-gp').value = ownWhGpVal;
+        document.getElementById('uni-prev-warehouse-gp').value = prevWhGpVal;
+        document.getElementById('uni-first-grade').value = ownFirstGradeVal;
+        document.getElementById('uni-prev-first-grade').value = prevFirstGradeVal;
+        document.getElementById('uni-qcd-defect').value = qcdDefectVal;
+        calcAdminWarehouseTotals();
+
+        // Tab 3: Raw Materials & Silos Prefill
+        updateAdminLineSiloHeaders();
+        const isLine1 = shift.line.includes('1') || shift.line === '1';
+
+        const materials = [
+            {dbKey: 'zo_chrysotile_4_20', uiKey: 'chr-4-20', hiddenKey: 'uni-zo-chr-4-20'},
+            {dbKey: 'zo_chrysotile_5_65', uiKey: 'chr-5-65', hiddenKey: 'uni-zo-chr-5-65'},
+            {dbKey: 'zo_chrysotile_6_40', uiKey: 'chr-6-40', hiddenKey: 'uni-zo-chr-6-40'},
+            {dbKey: 'zo_cement', uiKey: 'cem', hiddenKey: 'uni-zo-cem'},
+            {dbKey: 'zo_cellulose', uiKey: 'cellulose', hiddenKey: 'uni-zo-cel'},
+            {dbKey: 'zo_crushed_slate', uiKey: 'crushed-slate', hiddenKey: 'uni-zo-csl'},
+            {dbKey: 'zo_asbozurit', uiKey: 'asbozurit', hiddenKey: 'uni-zo-asb'},
+            {dbKey: 'zo_fiberglass', uiKey: 'fiberglass', hiddenKey: 'uni-zo-fib'},
+            {dbKey: 'zo_asbocarton', uiKey: 'asbocarton', hiddenKey: 'uni-zo-car'}
+        ];
+
+        materials.forEach(mat => {
+            const s1 = shift[`${mat.dbKey}_silo1`] || 0;
+            const s2 = shift[`${mat.dbKey}_silo2`] || 0;
+            const s3 = shift[`${mat.dbKey}_silo3`] || 0;
+            const s4 = shift[`${mat.dbKey}_silo4`] || 0;
+            const total = shift[mat.dbKey] || (s1 + s2 + s3 + s4) || 0;
+
+            // Prefill total field
+            const totalEl = mat.uiKey === 'cem' ? document.getElementById('uni-zo-cem-total-readonly') : document.getElementById(`uni-zo-${mat.uiKey}`);
+            if (totalEl) totalEl.value = total > 0 ? total : '';
+
+            // Prefill hidden fields 1..4
+            if (document.getElementById(`${mat.hiddenKey}-1`)) document.getElementById(`${mat.hiddenKey}-1`).value = s1;
+            if (document.getElementById(`${mat.hiddenKey}-2`)) document.getElementById(`${mat.hiddenKey}-2`).value = s2;
+            if (document.getElementById(`${mat.hiddenKey}-3`)) document.getElementById(`${mat.hiddenKey}-3`).value = s3;
+            if (document.getElementById(`${mat.hiddenKey}-4`)) document.getElementById(`${mat.hiddenKey}-4`).value = s4;
+
+            // Prefill Silo 1..4 inputs directly
+            for (let s = 1; s <= 4; s++) {
+                const calcInp = document.getElementById(`uni-calc-${mat.uiKey}-${s}`);
+                if (calcInp) {
+                    const sVal = shift[`${mat.dbKey}_silo${s}`];
+                    calcInp.value = (sVal !== undefined && sVal !== null && sVal > 0) ? sVal : '';
+                }
+            }
+        });
+
+        // Специальная обработка Лапрола (Под машину + В Г/Пушитель)
+        let lapMachineVal = shift.zo_laprol_under_machine !== undefined && shift.zo_laprol_under_machine !== null && shift.zo_laprol_under_machine > 0
+            ? shift.zo_laprol_under_machine
+            : (shift.zo_laprol_silo1 > 0 ? shift.zo_laprol_silo1 : '');
+        let lapPushitelVal = shift.zo_laprol_pushitel !== undefined && shift.zo_laprol_pushitel !== null && shift.zo_laprol_pushitel > 0
+            ? shift.zo_laprol_pushitel
+            : (shift.zo_laprol_silo2 > 0 ? shift.zo_laprol_silo2 : '');
+
+        // Если оба поля пустые, но есть общий исторический расход zo_laprol -> направляем всё в Г/Пушитель
+        if (!lapMachineVal && !lapPushitelVal && (shift.zo_laprol > 0)) {
+            lapPushitelVal = shift.zo_laprol;
+        }
+
+        const lapMachineInput = document.getElementById('uni-calc-laprol-machine');
+        if (lapMachineInput) lapMachineInput.value = lapMachineVal;
+
+        const lapPushitelInput = document.getElementById('uni-calc-laprol-pushitel');
+        if (lapPushitelInput) lapPushitelInput.value = lapPushitelVal;
+
+        const lapTotalTarget = document.getElementById('uni-zo-laprol');
+        if (lapTotalTarget) {
+            const mVal = parseFloat(lapMachineVal) || 0;
+            const pVal = parseFloat(lapPushitelVal) || 0;
+            const totalLap = (mVal > 0 || pVal > 0) ? (mVal + pVal) : (parseFloat(shift.zo_laprol) || 0);
+            lapTotalTarget.value = totalLap > 0 ? (Number.isInteger(totalLap) ? totalLap : totalLap.toFixed(1)) : '';
+        }
+        if (document.getElementById('uni-zo-lap-1')) document.getElementById('uni-zo-lap-1').value = lapMachineVal || '0';
+        if (document.getElementById('uni-zo-lap-2')) document.getElementById('uni-zo-lap-2').value = lapPushitelVal || '0';
+
+        // Simple drains
+        document.getElementById('uni-zo-asb-drain').value = shift.zo_asb_drain || 0;
+        document.getElementById('uni-zo-cem-drain').value = shift.zo_cem_drain || 0;
+        document.getElementById('uni-lfm-asb-drain').value = shift.lfm_asb_drain || 0;
+        document.getElementById('uni-lfm-cem-drain').value = shift.lfm_cem_drain || 0;
+
+        // Tab 4: Destacker Defects (Own shift and Previous shift)
+        document.getElementById('uni-def-scratch').value = batches.reduce((acc, b) => acc + (b.ds_defect_scratch || 0), 0) || '';
+        document.getElementById('uni-def-bad-cut').value = batches.reduce((acc, b) => acc + (b.ds_defect_bad_cut || 0), 0) || '';
+        document.getElementById('uni-def-stick-top').value = batches.reduce((acc, b) => acc + (b.ds_defect_stick_top || 0), 0) || '';
+        document.getElementById('uni-def-broken').value = batches.reduce((acc, b) => acc + (b.ds_defect_broken || 0), 0) || '';
+        document.getElementById('uni-def-fell-box').value = batches.reduce((acc, b) => acc + (b.ds_defect_fell_box || 0), 0) || '';
+        document.getElementById('uni-def-thickness').value = batches.reduce((acc, b) => acc + (b.ds_defect_thickness || 0), 0) || '';
+        document.getElementById('uni-def-edge').value = batches.reduce((acc, b) => acc + (b.ds_defect_edge || 0), 0) || '';
+
+        // Previous shift defects
+        document.getElementById('uni-prev-def-scratch').value = batches.reduce((acc, b) => acc + (b.prev_defect_scratch || 0), 0) || '';
+        document.getElementById('uni-prev-def-bad-cut').value = batches.reduce((acc, b) => acc + (b.prev_defect_bad_cut || 0), 0) || '';
+        document.getElementById('uni-prev-def-stick-top').value = batches.reduce((acc, b) => acc + (b.prev_defect_stick_top || 0), 0) || '';
+        document.getElementById('uni-prev-def-broken').value = batches.reduce((acc, b) => acc + (b.prev_defect_broken || 0), 0) || '';
+        document.getElementById('uni-prev-def-fell-box').value = batches.reduce((acc, b) => acc + (b.prev_defect_fell_box || 0), 0) || '';
+        document.getElementById('uni-prev-def-thickness').value = batches.reduce((acc, b) => acc + (b.prev_defect_thickness || 0), 0) || '';
+        document.getElementById('uni-prev-def-edge').value = batches.reduce((acc, b) => acc + (b.prev_defect_edge || 0), 0) || '';
+
+        calcAdminWarehouseTotals();
+        calcAdminDefects();
+
+        // Tab 5: Downtimes
+        const dtTbody = document.getElementById('uni-downtimes-body');
+        dtTbody.innerHTML = '';
+        if (downtimes.length === 0) {
+            dtTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 1.5rem; color: var(--text-secondary);">Нет зафиксированных простоев за смену</td></tr>`;
+        } else {
+            downtimes.forEach(d => {
+                let displayReason = d.description || '-';
+                if (d.breakdowns) {
+                    try {
+                        const bkList = JSON.parse(d.breakdowns);
+                        if (bkList && bkList.length > 0) {
+                            displayReason = bkList.map(b => `${b.node || ''} / ${b.description || ''}`).join('<br>');
+                        }
+                    } catch(e) {}
+                }
+                
+                dtTbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight: 500;">${d.start_time || '-'}</td>
+                        <td><b style="color: var(--warning-color);">${d.duration}</b> мин</td>
+                        <td>${displayReason}</td>
+                        <td><span style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">${d.category || 'Не указана'}</span></td>
+                        <td style="white-space: nowrap;">
+                            <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})' style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-pen"></i></button>
+                            <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})" style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        switchUnifiedTab(targetTab);
+        document.getElementById('unified-shift-modal').style.display = 'flex';
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка при открытии рапорта: " + e.message);
+    }
+}
+
+function calcAdminDefects() {
+    const scratch = parseInt(document.getElementById('uni-def-scratch')?.value) || 0;
+    const badCut = parseInt(document.getElementById('uni-def-bad-cut')?.value) || 0;
+    const stickTop = parseInt(document.getElementById('uni-def-stick-top')?.value) || 0;
+    const broken = parseInt(document.getElementById('uni-def-broken')?.value) || 0;
+    const fellBox = parseInt(document.getElementById('uni-def-fell-box')?.value) || 0;
+    const thick = parseInt(document.getElementById('uni-def-thickness')?.value) || 0;
+    const edge = parseInt(document.getElementById('uni-def-edge')?.value) || 0;
+
+    const totalOwn = scratch + badCut + stickTop + broken + fellBox + thick + edge;
+    const ownTotEl = document.getElementById('uni-defect-total-readonly');
+    if (ownTotEl) ownTotEl.value = totalOwn > 0 ? totalOwn : '';
+
+    const pScratch = parseInt(document.getElementById('uni-prev-def-scratch')?.value) || 0;
+    const pBadCut = parseInt(document.getElementById('uni-prev-def-bad-cut')?.value) || 0;
+    const pStickTop = parseInt(document.getElementById('uni-prev-def-stick-top')?.value) || 0;
+    const pBroken = parseInt(document.getElementById('uni-prev-def-broken')?.value) || 0;
+    const pFellBox = parseInt(document.getElementById('uni-prev-def-fell-box')?.value) || 0;
+    const pThick = parseInt(document.getElementById('uni-prev-def-thickness')?.value) || 0;
+    const pEdge = parseInt(document.getElementById('uni-prev-def-edge')?.value) || 0;
+
+    const totalPrev = pScratch + pBadCut + pStickTop + pBroken + pFellBox + pThick + pEdge;
+    const prevTotEl = document.getElementById('uni-prev-defect-total-readonly');
+    if (prevTotEl) prevTotEl.value = totalPrev > 0 ? totalPrev : '';
+}
+
+async function rollbackCurrentUnifiedShift() {
+    const shiftId = document.getElementById('unified-shift-id').value;
+    if (!shiftId) return;
+    await rollbackShiftReport(shiftId);
+}
+
+async function rollbackShiftReport(shiftId) {
+    if (!confirm(`Вы действительно хотите откатить рапорт смены ID ${shiftId} к предыдущему сохраненному снимку?\nВсе последние правки будут отменены.`)) return;
+
+    try {
+        const res = await fetch(`/api/admin/shifts/${shiftId}/rollback`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Откат смены успешно выполнен!");
+            openUnifiedShiftModal(shiftId);
+            loadShifts();
+        } else {
+            alert("Ошибка при откате: " + (data.detail || res.statusText));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Сетевая ошибка при выполнении отката");
+    }
+}
+
+function switchUnifiedTab(tabName) {
+    document.querySelectorAll('.unified-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('[id^="btn-tab-"]').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = '#f1f5f9';
+        btn.style.color = '#475569';
+        btn.style.border = '1px solid #cbd5e1';
+    });
+    
+    const targetEl = document.getElementById('unified-tab-' + tabName);
+    if (targetEl) targetEl.style.display = 'block';
+    
+    const targetBtn = document.getElementById('btn-tab-' + tabName);
+    if (targetBtn) {
+        targetBtn.classList.add('active');
+        targetBtn.style.background = 'var(--accent-color)';
+        targetBtn.style.color = '#ffffff';
+        targetBtn.style.border = '1px solid var(--accent-color)';
+    }
+}
+
+async function saveUnifiedShiftReport() {
+    const shiftId = document.getElementById('unified-shift-id').value;
+    const lineVal = document.getElementById('uni-line').value;
+    const lineFormatted = lineVal.toLowerCase().includes('линия') ? lineVal : `Линия ${lineVal}`;
+
+    const saveBtn = document.getElementById('btn-save-unified-shift');
+    let originalBtnHtml = '';
+    if (saveBtn) {
+        originalBtnHtml = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...';
+    }
+
+    // Force sync all raw material calculation fields before collecting data
+    const rmKeys = ['chr-4-20', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
+    rmKeys.forEach(k => {
+        if (typeof calcAdminSumRM === 'function') calcAdminSumRM(k);
+    });
+    if (typeof calcAdminCem === 'function') calcAdminCem();
+    if (typeof calcAdminLaprol === 'function') calcAdminLaprol();
+
+    const payload = {
+        date: document.getElementById('uni-date').value,
+        shift_name: document.getElementById('uni-shift-name').value,
+        line: lineFormatted,
+        master_id: parseInt(document.getElementById('uni-master').value),
+        status: document.getElementById('uni-status').value,
+        product_name: document.getElementById('uni-product').value,
+        export_type: document.getElementById('uni-export-type')?.value || 'Эталон',
+        batch_number: document.getElementById('uni-batch-number').value.trim().replace(/^0+/, ''),
+
+        lfm_sheets: parseInt(document.getElementById('uni-lfm-sheets').value) || 0,
+        lfm_wind_resets: parseInt(document.getElementById('uni-lfm-wind-resets').value) || 0,
+        lfm_cart_resets: parseInt(document.getElementById('uni-lfm-cart-resets')?.value) || 0,
+        zo_batches: parseInt(document.getElementById('uni-zo-batches').value) || 0,
+        warehouse_gp: parseInt(document.getElementById('uni-warehouse-gp').value) || 0,
+        prev_condition: parseInt(document.getElementById('uni-prev-warehouse-gp')?.value) || 0,
+        first_grade: parseInt(document.getElementById('uni-first-grade').value) || 0,
+        prev_first_grade: parseInt(document.getElementById('uni-prev-first-grade')?.value) || 0,
+        qcd_defect: parseInt(document.getElementById('uni-qcd-defect').value) || 0,
+
+        // Chrysotile Silos & Totals
+        zo_chrysotile_4_20_silo1: parseFloat(document.getElementById('uni-calc-chr-4-20-1')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-1')?.value) || 0,
+        zo_chrysotile_4_20_silo2: parseFloat(document.getElementById('uni-calc-chr-4-20-2')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-2')?.value) || 0,
+        zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('uni-calc-chr-4-20-3')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-3')?.value) || 0,
+        zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('uni-calc-chr-4-20-4')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-4')?.value) || 0,
+        zo_chrysotile_4_20: parseFloat(document.getElementById('uni-zo-chr-4-20')?.value) || 0,
+
+        zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('uni-calc-chr-5-65-1')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-1')?.value) || 0,
+        zo_chrysotile_5_65_silo2: parseFloat(document.getElementById('uni-calc-chr-5-65-2')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-2')?.value) || 0,
+        zo_chrysotile_5_65_silo3: parseFloat(document.getElementById('uni-calc-chr-5-65-3')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-3')?.value) || 0,
+        zo_chrysotile_5_65_silo4: parseFloat(document.getElementById('uni-calc-chr-5-65-4')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-4')?.value) || 0,
+        zo_chrysotile_5_65: parseFloat(document.getElementById('uni-zo-chr-5-65')?.value) || 0,
+
+        zo_chrysotile_6_40_silo1: parseFloat(document.getElementById('uni-calc-chr-6-40-1')?.value) || parseFloat(document.getElementById('uni-zo-chr-6-40-1')?.value) || 0,
+        zo_chrysotile_6_40_silo2: parseFloat(document.getElementById('uni-calc-chr-6-40-2')?.value) || parseFloat(document.getElementById('uni-zo-chr-6-40-2')?.value) || 0,
+        zo_chrysotile_6_40_silo3: parseFloat(document.getElementById('uni-calc-chr-6-40-3')?.value) || parseFloat(document.getElementById('uni-zo-chr-6-40-3')?.value) || 0,
+        zo_chrysotile_6_40_silo4: parseFloat(document.getElementById('uni-calc-chr-6-40-4')?.value) || parseFloat(document.getElementById('uni-zo-chr-6-40-4')?.value) || 0,
+        zo_chrysotile_6_40: parseFloat(document.getElementById('uni-zo-chr-6-40')?.value) || 0,
+
+        // Cement Silos & Total
+        zo_cement_silo1: parseFloat(document.getElementById('uni-calc-cem-1')?.value) || parseFloat(document.getElementById('uni-zo-cem-1')?.value) || 0,
+        zo_cement_silo2: parseFloat(document.getElementById('uni-calc-cem-2')?.value) || parseFloat(document.getElementById('uni-zo-cem-2')?.value) || 0,
+        zo_cement_silo3: parseFloat(document.getElementById('uni-calc-cem-3')?.value) || parseFloat(document.getElementById('uni-zo-cem-3')?.value) || 0,
+        zo_cement_silo4: parseFloat(document.getElementById('uni-calc-cem-4')?.value) || parseFloat(document.getElementById('uni-zo-cem-4')?.value) || 0,
+        zo_cement: parseFloat(document.getElementById('uni-zo-cem-total-readonly')?.value) || 0,
+
+        // Cellulose
+        zo_cellulose_silo1: parseFloat(document.getElementById('uni-calc-cellulose-1')?.value) || parseFloat(document.getElementById('uni-zo-cel-1')?.value) || 0,
+        zo_cellulose_silo2: parseFloat(document.getElementById('uni-calc-cellulose-2')?.value) || parseFloat(document.getElementById('uni-zo-cel-2')?.value) || 0,
+        zo_cellulose_silo3: parseFloat(document.getElementById('uni-calc-cellulose-3')?.value) || parseFloat(document.getElementById('uni-zo-cel-3')?.value) || 0,
+        zo_cellulose_silo4: parseFloat(document.getElementById('uni-calc-cellulose-4')?.value) || parseFloat(document.getElementById('uni-zo-cel-4')?.value) || 0,
+        zo_cellulose: parseFloat(document.getElementById('uni-zo-cellulose')?.value) || 0,
+
+        // Crushed slate
+        zo_crushed_slate_silo1: parseFloat(document.getElementById('uni-calc-crushed-slate-1')?.value) || parseFloat(document.getElementById('uni-zo-csl-1')?.value) || 0,
+        zo_crushed_slate_silo2: parseFloat(document.getElementById('uni-calc-crushed-slate-2')?.value) || parseFloat(document.getElementById('uni-zo-csl-2')?.value) || 0,
+        zo_crushed_slate_silo3: parseFloat(document.getElementById('uni-calc-crushed-slate-3')?.value) || parseFloat(document.getElementById('uni-zo-csl-3')?.value) || 0,
+        zo_crushed_slate_silo4: parseFloat(document.getElementById('uni-calc-crushed-slate-4')?.value) || parseFloat(document.getElementById('uni-zo-csl-4')?.value) || 0,
+        zo_crushed_slate: parseFloat(document.getElementById('uni-zo-crushed-slate')?.value) || 0,
+
+        // Asbozurit
+        zo_asbozurit_silo1: parseFloat(document.getElementById('uni-calc-asbozurit-1')?.value) || parseFloat(document.getElementById('uni-zo-asb-1')?.value) || 0,
+        zo_asbozurit_silo2: parseFloat(document.getElementById('uni-calc-asbozurit-2')?.value) || parseFloat(document.getElementById('uni-zo-asb-2')?.value) || 0,
+        zo_asbozurit_silo3: parseFloat(document.getElementById('uni-calc-asbozurit-3')?.value) || parseFloat(document.getElementById('uni-zo-asb-3')?.value) || 0,
+        zo_asbozurit_silo4: parseFloat(document.getElementById('uni-calc-asbozurit-4')?.value) || parseFloat(document.getElementById('uni-zo-asb-4')?.value) || 0,
+        zo_asbozurit: parseFloat(document.getElementById('uni-zo-asbozurit')?.value) || 0,
+
+        // Fiberglass
+        zo_fiberglass_silo1: parseFloat(document.getElementById('uni-calc-fiberglass-1')?.value) || parseFloat(document.getElementById('uni-zo-fib-1')?.value) || 0,
+        zo_fiberglass_silo2: parseFloat(document.getElementById('uni-calc-fiberglass-2')?.value) || parseFloat(document.getElementById('uni-zo-fib-2')?.value) || 0,
+        zo_fiberglass_silo3: parseFloat(document.getElementById('uni-calc-fiberglass-3')?.value) || parseFloat(document.getElementById('uni-zo-fib-3')?.value) || 0,
+        zo_fiberglass_silo4: parseFloat(document.getElementById('uni-calc-fiberglass-4')?.value) || parseFloat(document.getElementById('uni-zo-fib-4')?.value) || 0,
+        zo_fiberglass: parseFloat(document.getElementById('uni-zo-fiberglass')?.value) || 0,
+
+        // Laprol
+        zo_laprol_under_machine: parseFloat(document.getElementById('uni-calc-laprol-machine')?.value) || parseFloat(document.getElementById('uni-zo-lap-1')?.value) || 0,
+        zo_laprol_pushitel: parseFloat(document.getElementById('uni-calc-laprol-pushitel')?.value) || parseFloat(document.getElementById('uni-zo-lap-2')?.value) || 0,
+        zo_laprol_silo1: parseFloat(document.getElementById('uni-calc-laprol-machine')?.value) || parseFloat(document.getElementById('uni-zo-lap-1')?.value) || 0,
+        zo_laprol_silo2: parseFloat(document.getElementById('uni-calc-laprol-pushitel')?.value) || parseFloat(document.getElementById('uni-zo-lap-2')?.value) || 0,
+        zo_laprol_silo3: 0,
+        zo_laprol_silo4: 0,
+        zo_laprol: parseFloat(document.getElementById('uni-zo-laprol')?.value) || 0,
+
+        // Asbocarton
+        zo_asbocarton_silo1: parseFloat(document.getElementById('uni-calc-asbocarton-1')?.value) || parseFloat(document.getElementById('uni-zo-car-1')?.value) || 0,
+        zo_asbocarton_silo2: parseFloat(document.getElementById('uni-calc-asbocarton-2')?.value) || parseFloat(document.getElementById('uni-zo-car-2')?.value) || 0,
+        zo_asbocarton_silo3: parseFloat(document.getElementById('uni-calc-asbocarton-3')?.value) || parseFloat(document.getElementById('uni-zo-car-3')?.value) || 0,
+        zo_asbocarton_silo4: parseFloat(document.getElementById('uni-calc-asbocarton-4')?.value) || parseFloat(document.getElementById('uni-zo-car-4')?.value) || 0,
+        zo_asbocarton: parseFloat(document.getElementById('uni-zo-asbocarton')?.value) || 0,
+
+        // Drains
+        lfm_asb_drain: parseFloat(document.getElementById('uni-lfm-asb-drain')?.value) || 0,
+        lfm_cem_drain: parseFloat(document.getElementById('uni-lfm-cem-drain')?.value) || 0,
+        zo_asb_drain: parseFloat(document.getElementById('uni-zo-asb-drain')?.value) || 0,
+        zo_cem_drain: parseFloat(document.getElementById('uni-zo-cem-drain')?.value) || 0,
+
+        // Destacker defect breakdown (Own shift)
+        ds_defect_scratch: parseInt(document.getElementById('uni-def-scratch')?.value) || 0,
+        ds_defect_bad_cut: parseInt(document.getElementById('uni-def-bad-cut')?.value) || 0,
+        ds_defect_stick_top: parseInt(document.getElementById('uni-def-stick-top')?.value) || 0,
+        ds_defect_broken: parseInt(document.getElementById('uni-def-broken')?.value) || 0,
+        ds_defect_fell_box: parseInt(document.getElementById('uni-def-fell-box')?.value) || 0,
+        ds_defect_thickness: parseInt(document.getElementById('uni-def-thickness')?.value) || 0,
+        ds_defect_edge: parseInt(document.getElementById('uni-def-edge')?.value) || 0,
+
+        // Destacker defect breakdown (Previous shift)
+        prev_defect_scratch: parseInt(document.getElementById('uni-prev-def-scratch')?.value) || 0,
+        prev_defect_bad_cut: parseInt(document.getElementById('uni-prev-def-bad-cut')?.value) || 0,
+        prev_defect_stick_top: parseInt(document.getElementById('uni-prev-def-stick-top')?.value) || 0,
+        prev_defect_broken: parseInt(document.getElementById('uni-prev-def-broken')?.value) || 0,
+        prev_defect_fell_box: parseInt(document.getElementById('uni-prev-def-fell-box')?.value) || 0,
+        prev_defect_thickness: parseInt(document.getElementById('uni-prev-def-thickness')?.value) || 0,
+        prev_defect_edge: parseInt(document.getElementById('uni-prev-def-edge')?.value) || 0
+    };
+
+    try {
+        const res = await fetch(`/api/admin/shift_report/${shiftId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            closeModals();
+            loadShifts();
+            alert("Рапорт смены успешно обновлен и синхронизирован!");
+        } else {
+            const err = await res.json();
+            alert("Ошибка при сохранении рапорта: " + (err.detail || res.statusText));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка сети при сохранении рапорта");
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalBtnHtml;
+        }
+    }
+}
+
+async function deleteShift(id) {
+    if (!confirm("ВНИМАНИЕ! Удаление рапорта смены удалит все связанные отчеты ЛФМ, партии и простои.\nВы уверены, что хотите удалить эту смену полностью?")) return;
+    try {
+        const res = await fetch(`/api/admin/shifts/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadShifts();
+        } else {
+            alert("Ошибка при удалении смены");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка сети при удалении");
+    }
+}
+
+async function editDowntimeRow(d) {
+    document.getElementById('edit-downtime-id').value = d.id;
+    
+    // Autonomous fields
+    document.getElementById('edit-downtime-date').value = d.shift_date || d.date || '';
+    document.getElementById('edit-downtime-shift').value = d.shift_name || 'День';
+    const lineNum = (d.line || d.shift_line || '1').replace(/\D/g, '') || '1';
+    document.getElementById('edit-downtime-line').value = lineNum;
+
+    // Populate masters select
+    const masterSel = document.getElementById('edit-downtime-master');
+    if (masterSel) {
+        masterSel.innerHTML = '';
+        const masters = await getOrFetchMasters();
+        const activeMasters = masters.filter(m => m.role === 'master');
+        (activeMasters.length > 0 ? activeMasters : masters).forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.name;
+            if (m.id === d.master_id || m.name === d.master_name) opt.selected = true;
+            masterSel.appendChild(opt);
+        });
+    }
+
+    // Free text description (matching portal UX)
+    let desc = d.description || d.comment || '';
+    if (!desc && d.breakdowns) {
+        try {
+            const bkList = JSON.parse(d.breakdowns);
+            if (bkList && bkList.length > 0) {
+                desc = bkList.map(b => b.description || b.node || '').filter(Boolean).join(', ');
+            }
+        } catch(e) {}
+    }
+    if (!desc && d.node && d.node !== 'Основное оборудование' && d.node !== 'Общее') {
+        desc = d.node;
+    }
+    const descEl = document.getElementById('edit-downtime-desc');
+    if (descEl) descEl.value = desc;
+
+    document.getElementById('edit-downtime-time').value = d.start_time || '';
+    document.getElementById('edit-downtime-end-time').value = d.end_time || '';
+    document.getElementById('edit-downtime-duration').value = d.duration || 0;
+    
+    document.getElementById('edit-downtime-lost-tons').value = d.lost_tons || 0;
+    document.getElementById('edit-downtime-lost-tenge').value = d.lost_tenge || 0;
+    document.getElementById('edit-downtime-status').value = d.status || 'pending';
+    document.getElementById('edit-downtime-category').value = d.category || 'Механические';
+    document.getElementById('edit-downtime-is-equipment-stop').checked = d.is_equipment_downtime !== false;
+    
+    calcAdminDowntimeDuration();
+    document.getElementById('edit-downtime-modal').style.display = 'flex';
+}
+
+async function saveDowntimeEdit() {
+    const id = document.getElementById('edit-downtime-id').value;
+    if (!id) return;
+
+    const desc = (document.getElementById('edit-downtime-desc')?.value || '').trim();
+    const startTime = (document.getElementById('edit-downtime-time')?.value || '').trim();
+    const endTime = (document.getElementById('edit-downtime-end-time')?.value || '').trim();
+    const durationVal = parseInt(document.getElementById('edit-downtime-duration')?.value) || 0;
+
+    if (!desc) {
+        alert("Введите описание того, что произошло или какие работы проводились!");
+        document.getElementById('edit-downtime-desc')?.focus();
+        return;
+    }
+    if (!startTime) {
+        alert("Укажите время начала простоя!");
+        document.getElementById('edit-downtime-time')?.focus();
+        return;
+    }
+
+    const saveBtn = document.getElementById('btn-save-downtime');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...';
+    }
+
+    const lineVal = document.getElementById('edit-downtime-line').value;
+    const lineFormatted = lineVal.includes('Линия') ? lineVal : `Линия ${lineVal}`;
+
+    const data = {
+        date: document.getElementById('edit-downtime-date').value || null,
+        shift_name: document.getElementById('edit-downtime-shift').value || 'День',
+        line: lineFormatted,
+        master_id: parseInt(document.getElementById('edit-downtime-master').value) || null,
+        start_time: startTime,
+        end_time: endTime || null,
+        duration: durationVal,
+        description: desc,
+        comment: desc,
+        node: "Основное оборудование",
+        department: "",
+        lost_tons: parseFloat(document.getElementById('edit-downtime-lost-tons').value) || 0.0,
+        lost_tenge: parseFloat(document.getElementById('edit-downtime-lost-tenge').value) || 0.0,
+        status: document.getElementById('edit-downtime-status').value || 'pending',
+        category: document.getElementById('edit-downtime-category').value,
+        is_equipment_downtime: document.getElementById('edit-downtime-is-equipment-stop').checked,
+        breakdowns: null
+    };
+
+    try {
+        const res = await fetch(`/api/admin/downtimes/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            document.getElementById('edit-downtime-modal').style.display = 'none';
+            if (typeof activeUnifiedDetails !== 'undefined' && activeUnifiedDetails?.shift?.id) {
+                openUnifiedShiftModal(activeUnifiedDetails.shift.id, 'downtimes');
+            }
+            if (document.getElementById('tab-downtimes-log') && document.getElementById('tab-downtimes-log').style.display === 'block') {
+                loadDowntimesLog();
+            }
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert("Ошибка сохранения простоя: " + (err.detail || res.statusText));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Ошибка сети при сохранении: " + e.message);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> Сохранить';
+        }
+    }
+}
+
+async function deleteDowntimeRow(id) {
+    if (!confirm("Удалить эту запись о простое?")) return;
+    try {
+        const res = await fetch(`/api/admin/downtimes/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            if (typeof activeUnifiedDetails !== 'undefined' && activeUnifiedDetails?.shift?.id) {
+                openUnifiedShiftModal(activeUnifiedDetails.shift.id, 'downtimes');
+            }
+            if (document.getElementById('tab-downtimes-log') && document.getElementById('tab-downtimes-log').style.display === 'block') {
+                loadDowntimesLog();
+            }
+        } else {
+            alert("Ошибка удаления");
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+// --- DOWNTIME DIRECTORY CRUD ---
+let downtimesDirList = [];
+
+async function loadDowntimesDir() {
+    try {
+        const res = await fetch('/api/downtimes/directory');
+        if (!res.ok) return;
+        downtimesDirList = await res.json();
+        renderDowntimesDirTable(downtimesDirList);
+    } catch (e) {
+        console.error("Failed to load downtime directory", e);
+    }
+}
+
+function renderDowntimesDirTable(list) {
+    const tbody = document.getElementById('downtimes-dir-table-body');
+    if (!tbody) return;
+    
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-secondary);">Записи отсутствуют</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = list.map(item => `
+        <tr>
+            <td>${item.department}</td>
+            <td>${item.node}</td>
+            <td>${item.breakdown}</td>
+            <td><span class="badge" style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${item.category || 'Не указана'}</span></td>
+            <td>${item.comment || '-'}</td>
+            <td>
+                <button class="action-btn btn-edit" onclick='openDowntimeDirModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
+                <button class="action-btn btn-delete" onclick="deleteDowntimeDirEntry(${item.id})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterDowntimesDirTable() {
+    const query = document.getElementById('downtimes-dir-search').value.toLowerCase();
+    const filtered = downtimesDirList.filter(item => {
+        return (item.department && item.department.toLowerCase().includes(query)) ||
+               (item.node && item.node.toLowerCase().includes(query)) ||
+               (item.breakdown && item.breakdown.toLowerCase().includes(query)) ||
+               (item.category && item.category.toLowerCase().includes(query)) ||
+               (item.comment && item.comment.toLowerCase().includes(query));
+    });
+    renderDowntimesDirTable(filtered);
+}
+
+function openDowntimeDirModal(item = null) {
+    const modal = document.getElementById('downtime-dir-modal');
+    const title = document.getElementById('downtime-dir-modal-title');
+    const idInput = document.getElementById('downtime-dir-id');
+    const deptInput = document.getElementById('downtime-dir-dept');
+    const nodeInput = document.getElementById('downtime-dir-node');
+    const breakdownInput = document.getElementById('downtime-dir-breakdown');
+    const catSelect = document.getElementById('downtime-dir-category');
+    const commentInput = document.getElementById('downtime-dir-comment');
+    
+    if (item) {
+        title.innerText = "Редактировать запись справочника";
+        idInput.value = item.id;
+        deptInput.value = item.department || '';
+        nodeInput.value = item.node || '';
+        breakdownInput.value = item.breakdown || '';
+        catSelect.value = item.category || 'Механические';
+        commentInput.value = item.comment || '';
+    } else {
+        title.innerText = "Добавить запись в справочник";
+        idInput.value = '';
+        deptInput.value = '';
+        nodeInput.value = '';
+        breakdownInput.value = '';
+        catSelect.value = 'Механические';
+        commentInput.value = '';
+    }
+    modal.style.display = 'flex';
+}
+
+async function saveDowntimeDirEntry() {
+    const id = document.getElementById('downtime-dir-id').value;
+    const data = {
+        department: document.getElementById('downtime-dir-dept').value.strip ? document.getElementById('downtime-dir-dept').value.strip() : document.getElementById('downtime-dir-dept').value.trim(),
+        node: document.getElementById('downtime-dir-node').value.strip ? document.getElementById('downtime-dir-node').value.strip() : document.getElementById('downtime-dir-node').value.trim(),
+        breakdown: document.getElementById('downtime-dir-breakdown').value.strip ? document.getElementById('downtime-dir-breakdown').value.strip() : document.getElementById('downtime-dir-breakdown').value.trim(),
+        category: document.getElementById('downtime-dir-category').value,
+        comment: document.getElementById('downtime-dir-comment').value.trim() || null
+    };
+    
+    if (!data.department || !data.node || !data.breakdown) {
+        alert("Заполните обязательные поля: Участок, Узел, Поломка");
+        return;
+    }
+    
+    const url = id ? `/api/downtimes/directory/${id}` : '/api/downtimes/directory';
+    const method = id ? 'PUT' : 'POST';
+    
+    try {
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            closeModals();
+            loadDowntimesDir();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения: " + (err.detail || "неизвестно"));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка сети");
+    }
+}
+
+async function deleteDowntimeDirEntry(id) {
+    if (!confirm("Удалить эту запись из справочника?")) return;
+    try {
+        const res = await fetch(`/api/downtimes/directory/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadDowntimesDir();
+        } else {
+            const err = await res.json();
+            alert("Ошибка удаления: " + (err.detail || "неизвестно"));
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function exportNormsToGoogle() {
+    const btn = document.getElementById('btn-export-norms-google');
+    const originalText = btn ? btn.innerHTML : '';
+    
+    if (!confirm("Выгрузить все нормы продукции из Админки в Google Таблицу на лист 'Нормативы'? Это обновит таблицу Google актуальными данными.")) {
+        return;
+    }
+    
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка...';
+        }
+        
+        const res = await fetch('/api/norms/export_to_google', {
+            method: 'POST'
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Нормативы успешно выгружены в Google Таблицу!");
+        } else {
+            alert("Ошибка выгрузки: " + (data.detail || "Неизвестная ошибка"));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Сетевая ошибка при выгрузке: " + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
+async function syncNormsFromGoogle() {
+    const btn = document.getElementById('btn-sync-norms-google');
+    const originalText = btn ? btn.innerHTML : '';
+    
+    if (!confirm("Синхронизировать нормы продукции из Google Таблицы? Это обновит технологические рецептуры найденных продуктов (существующие в админке нормы удалены НЕ будут).")) {
+        return;
+    }
+    
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Обновление...';
+        }
+        
+        const res = await fetch('/api/norms/sync_from_google', {
+            method: 'POST'
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Нормы продукции успешно обновлены из Google Таблицы!");
+            loadNorms();
+        } else {
+            alert("Ошибка синхронизации норм: " + (data.detail || "Неизвестная ошибка"));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Сетевая ошибка при синхронизации норм: " + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
+async function syncDowntimesDirFromGoogle() {
+    const btn = document.getElementById('btn-sync-downtimes-google');
+    const originalText = btn ? btn.innerHTML : '';
+    
+    if (!confirm("Синхронизировать справочник простоев из Google Таблицы?")) {
+        return;
+    }
+    
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Обновление...';
+        }
+        
+        const res = await fetch('/api/downtimes/directory/sync_from_google', {
+            method: 'POST'
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Справочник простоев успешно обновлен из Google Таблицы!");
+            loadDowntimesDir();
+        } else {
+            alert("Ошибка синхронизации справочника: " + (data.detail || "Неизвестная ошибка"));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Сетевая ошибка при синхронизации справочника: " + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
+
+
+
+// --- DOWNTIMES LOG ---
+let allDowntimesLogData = [];
+
+async function loadDowntimesLog() {
+    try {
+        const tbody = document.getElementById('downtimes-log-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Загрузка данных...</td></tr>`;
+
+        const res = await fetch('/api/admin/downtimes/all');
+        if (!res.ok) throw new Error('Не удалось загрузить простои');
+        allDowntimesLogData = await res.json();
+        
+        applyDowntimeFilters();
+    } catch (e) {
+        console.error(e);
+        const tbody = document.getElementById('downtimes-log-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:red;">Ошибка загрузки данных</td></tr>`;
+    }
+}
+
+function applyDowntimeFilters() {
+    const tbody = document.getElementById('downtimes-log-table-body');
+    if (!tbody) return;
+
+    const searchVal = (document.getElementById('filter-downtime-search')?.value || '').trim().toLowerCase();
+    const catVal = document.getElementById('filter-downtime-category')?.value || '';
+    const lineVal = document.getElementById('filter-downtime-line')?.value || '';
+
+    const filtered = allDowntimesLogData.filter(d => {
+        // Line filter
+        if (lineVal) {
+            const dLine = String(d.shift_line || '');
+            if (!dLine.includes(lineVal)) return false;
+        }
+
+        // Category filter
+        const category = (d.category || '').trim();
+        if (catVal) {
+            if (catVal === 'Без категории') {
+                if (category && category !== '-' && category !== 'None' && category !== 'Не классифицировано') return false;
+            } else if (!category.toLowerCase().includes(catVal.toLowerCase())) {
+                return false;
+            }
+        }
+
+        // Search text
+        if (searchVal) {
+            const fullText = `${d.node || ''} ${d.description || ''} ${d.breakdowns || ''} ${d.shift_date || ''}`.toLowerCase();
+            if (!fullText.includes(searchVal)) return false;
+        }
+
+        return true;
+    });
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Записи не найдены</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(d => {
+        const shiftDate = d.shift_date || 'Н/Д';
+        const shiftName = d.shift_name || 'Н/Д';
+        let line = d.shift_line ? `${d.shift_line}` : 'Н/Д';
+        line = line.replace(/Линия\s*Линия/gi, 'Линия').trim();
+        if (line !== 'Н/Д' && !line.toLowerCase().startsWith('линия')) {
+            line = `Линия ${line}`;
+        }
+        const startTime = d.start_time || '-';
+        const endTime = d.end_time || '-';
+        const duration = d.duration || 0;
+        const category = (d.category || '').trim();
+        
+        // Category badge styling
+        let catBadge = `<span class="downtime-category-badge cat-badge-none">Без категории</span>`;
+        if (category && category !== '-' && category !== 'None') {
+            const catLower = category.toLowerCase();
+            if (catLower.includes('механ')) {
+                catBadge = `<span class="downtime-category-badge cat-badge-mech"><i class="fa-solid fa-wrench"></i> ${category}</span>`;
+            } else if (catLower.includes('энерг') || catLower.includes('электр')) {
+                catBadge = `<span class="downtime-category-badge cat-badge-energy"><i class="fa-solid fa-bolt"></i> ${category}</span>`;
+            } else if (catLower.includes('технолог')) {
+                catBadge = `<span class="downtime-category-badge cat-badge-tech"><i class="fa-solid fa-flask"></i> ${category}</span>`;
+            } else if (catLower.includes('организ')) {
+                catBadge = `<span class="downtime-category-badge cat-badge-org"><i class="fa-solid fa-users"></i> ${category}</span>`;
+            } else {
+                catBadge = `<span class="downtime-category-badge cat-badge-none">${category}</span>`;
+            }
+        }
+
+        // Reason formatting with word wrapping
+        let displayReason = d.description || d.comment || '-';
+        if (d.node && d.node !== 'Основное оборудование' && d.node !== 'Общее' && !displayReason.includes(d.node)) {
+            displayReason = `<b>${d.node}</b>: ${displayReason}`;
+        }
+        if (d.breakdowns) {
+            try {
+                const bkList = JSON.parse(d.breakdowns);
+                if (bkList && bkList.length > 0) {
+                    displayReason = bkList.map(b => `<b>${b.node || 'Узел'}</b>: ${b.description || '-'}`).join('<br>');
+                }
+            } catch(e) {}
+        }
+        
+        tbody.innerHTML += `
+            <tr>
+                <td><b>${shiftDate}</b><br><small style="color:var(--text-secondary)">${shiftName}</small></td>
+                <td><b>${line}</b></td>
+                <td><small>${startTime} - ${endTime}</small></td>
+                <td><b>${duration}</b> мин</td>
+                <td class="downtime-reason-cell">${displayReason}</td>
+                <td>${catBadge}</td>
+                <td style="white-space: nowrap; text-align: right;">
+                    <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})' title="Редактировать простой"><i class="fa-solid fa-pen"></i></button>
+                    <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})" title="Удалить запись"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+// ==========================================
+// RECEIPTS ADMIN LOGIC
+// ==========================================
+
+let currentReceiptPeriod = 'week';
+
+function setReceiptPeriod(period) {
+    currentReceiptPeriod = period;
+    document.querySelectorAll('#tab-receipts .filter-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.background = '#f8fafc';
+        b.style.color = '#475569';
+        b.style.border = '1px solid #cbd5e1';
+    });
+    const btn = document.getElementById(`filter-receipt-period-${period}`);
+    if(btn) {
+        btn.classList.add('active');
+        btn.style.background = 'var(--accent-color)';
+        btn.style.color = '#ffffff';
+        btn.style.border = '1px solid var(--accent-color)';
+    }
+    loadAdminReceipts();
+}
+
+async function loadAdminReceipts() {
+    const tbody = document.getElementById('receipts-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Загрузка...</td></tr>';
+    
+    let url = '/api/admin/receipts';
+    
+    if (currentReceiptPeriod !== 'all') {
+        const today = new Date();
+        const start = new Date();
+        if (currentReceiptPeriod === 'week') {
+            start.setDate(today.getDate() - 7);
+        } else if (currentReceiptPeriod === 'month') {
+            start.setMonth(today.getMonth() - 1);
+        }
+        url += `?start_date=${start.toISOString().split('T')[0]}&end_date=${today.toISOString().split('T')[0]}`;
+    }
+
+    try {
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` } });
+        if (!res.ok) {
+            if(res.status === 401) { logoutAdmin(); return; }
+            throw new Error('Failed to fetch receipts');
+        }
+        const data = await res.json();
+        
+        tbody.innerHTML = '';
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Нет данных</td></tr>';
+            return;
+        }
+
+        data.forEach(r => {
+            const shiftDate = r.shift_date ? r.shift_date.split('-').reverse().join('.') : '';
+            const shiftName = r.shift_name || '';
+            let line = r.shift_line ? `${r.shift_line}` : '';
+            line = line.replace(/Линия\s*Линия/gi, 'Линия').trim();
+            if (line && !line.toLowerCase().startsWith('линия')) {
+                line = `Линия ${line}`;
+            }
+            const master = r.master_name || '';
+            
+            // Build material badges
+            const badges = [];
+            const cementTotal = (r.cement_silo1 || 0) + (r.cement_silo2 || 0) + (r.cement_silo3 || 0) + (r.cement_silo4 || 0);
+            if (cementTotal > 0) {
+                badges.push(`<span class="mat-badge mat-badge-cement"><i class="fa-solid fa-cube"></i> Цемент: <b>${cementTotal.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.chrysotile_4_20 > 0) {
+                badges.push(`<span class="mat-badge mat-badge-chrysotile"><i class="fa-solid fa-layer-group"></i> Хриз. 4-20: <b>${r.chrysotile_4_20.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.chrysotile_5_65 > 0) {
+                const tons = (r.chrysotile_5_65 / 1000).toFixed(1);
+                badges.push(`<span class="mat-badge mat-badge-chrysotile"><i class="fa-solid fa-layer-group"></i> Хриз. 5-65: <b>${r.chrysotile_5_65.toLocaleString('ru-RU')} кг (${tons} т)</b></span>`);
+            }
+            if (r.chrysotile_6_40 > 0) {
+                badges.push(`<span class="mat-badge mat-badge-chrysotile"><i class="fa-solid fa-layer-group"></i> Хриз. 6-40: <b>${r.chrysotile_6_40.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.cellulose > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other"><i class="fa-solid fa-box-open"></i> Целлюлоза: <b>${r.cellulose.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.crushed_slate > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other"><i class="fa-solid fa-recycle"></i> Дроб. шифер: <b>${r.crushed_slate.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.asbozurit > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other">Асбозурит: <b>${r.asbozurit.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.asbocarton > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other">Картон: <b>${r.asbocarton.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.pallets > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other"><i class="fa-solid fa-pallet"></i> Поддоны: <b>${r.pallets.toLocaleString('ru-RU')} шт</b></span>`);
+            }
+            if (r.fiberglass > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other">Стекловолокно: <b>${r.fiberglass.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.laprol > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other">Лапрол: <b>${r.laprol.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+
+            const badgesHtml = badges.length > 0 
+                ? `<div class="mat-badge-container">${badges.join('')}</div>`
+                : `<span class="mat-badge-empty">Нет поступившего сырья в смене</span>`;
+
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>#${r.id}</b></td>
+                    <td><b>${shiftDate}</b><br><small style="color:var(--text-secondary)">${shiftName}</small></td>
+                    <td><b>${line}</b><br><small style="color:var(--text-secondary)">${master}</small></td>
+                    <td>${badgesHtml}</td>
+                    <td style="white-space: nowrap; text-align: right;">
+                        <button class="action-btn btn-edit" onclick='editReceiptRow(${JSON.stringify(r).replace(/'/g, "&apos;")})' title="Редактировать приход"><i class="fa-solid fa-pen"></i></button>
+                        <button class="action-btn btn-delete" onclick="deleteReceiptRow(${r.id})" title="Удалить запись"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:red;">Ошибка загрузки</td></tr>';
+    }
+}
+
+async function editReceiptRow(r) {
+    document.getElementById('edit-receipt-id').value = r.id;
+    
+    // Autonomous fields
+    document.getElementById('edit-receipt-date').value = r.shift_date || r.date || '';
+    document.getElementById('edit-receipt-shift').value = r.shift_name || 'День';
+    const lineNum = (r.line || r.shift_line || '1').replace(/\D/g, '') || '1';
+    document.getElementById('edit-receipt-line').value = lineNum;
+
+    // Populate masters select
+    const masterSel = document.getElementById('edit-receipt-master');
+    if (masterSel) {
+        masterSel.innerHTML = '';
+        const masters = await getOrFetchMasters();
+        const activeMasters = masters.filter(m => m.role === 'master');
+        (activeMasters.length > 0 ? activeMasters : masters).forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.name;
+            if (m.id === r.master_id || m.name === r.master_name) opt.selected = true;
+            masterSel.appendChild(opt);
+        });
+    }
+
+    document.getElementById('edit-receipt-cement1').value = r.cement_silo1;
+    document.getElementById('edit-receipt-cement2').value = r.cement_silo2;
+    document.getElementById('edit-receipt-cement3').value = r.cement_silo3;
+    document.getElementById('edit-receipt-cement4').value = r.cement_silo4;
+    document.getElementById('edit-receipt-c420').value = r.chrysotile_4_20 / 50;
+    document.getElementById('edit-receipt-c565').value = r.chrysotile_5_65 / 50;
+    document.getElementById('edit-receipt-c640').value = r.chrysotile_6_40 / 50;
+    document.getElementById('edit-receipt-cellulose').value = r.cellulose;
+    document.getElementById('edit-receipt-crushed').value = r.crushed_slate;
+    document.getElementById('edit-receipt-asbozurit').value = r.asbozurit;
+    document.getElementById('edit-receipt-asbocarton').value = r.asbocarton;
+    document.getElementById('edit-receipt-pallets').value = r.pallets;
+    document.getElementById('edit-receipt-fiberglass').value = r.fiberglass;
+    document.getElementById('edit-receipt-laprol').value = r.laprol / 200;
+    
+    document.getElementById('edit-receipt-modal').style.display = 'block';
+}
+
+async function saveReceiptEdit() {
+    const id = document.getElementById('edit-receipt-id').value;
+    const lineVal = document.getElementById('edit-receipt-line').value;
+    const lineFormatted = lineVal.includes('Линия') ? lineVal : `Линия ${lineVal}`;
+
+    const data = {
+        date: document.getElementById('edit-receipt-date').value || null,
+        shift_name: document.getElementById('edit-receipt-shift').value || 'День',
+        line: lineFormatted,
+        master_id: parseInt(document.getElementById('edit-receipt-master').value) || null,
+        cement_silo1: parseFloat(document.getElementById('edit-receipt-cement1').value) || 0,
+        cement_silo2: parseFloat(document.getElementById('edit-receipt-cement2').value) || 0,
+        cement_silo3: parseFloat(document.getElementById('edit-receipt-cement3').value) || 0,
+        cement_silo4: parseFloat(document.getElementById('edit-receipt-cement4').value) || 0,
+        chrysotile_4_20: (parseFloat(document.getElementById('edit-receipt-c420').value) || 0) * 50,
+        chrysotile_5_65: (parseFloat(document.getElementById('edit-receipt-c565').value) || 0) * 50,
+        chrysotile_6_40: (parseFloat(document.getElementById('edit-receipt-c640').value) || 0) * 50,
+        cellulose: parseFloat(document.getElementById('edit-receipt-cellulose').value) || 0,
+        crushed_slate: parseFloat(document.getElementById('edit-receipt-crushed').value) || 0,
+        asbozurit: parseFloat(document.getElementById('edit-receipt-asbozurit').value) || 0,
+        asbocarton: parseFloat(document.getElementById('edit-receipt-asbocarton').value) || 0,
+        pallets: parseFloat(document.getElementById('edit-receipt-pallets').value) || 0,
+        fiberglass: parseFloat(document.getElementById('edit-receipt-fiberglass').value) || 0,
+        laprol: (parseFloat(document.getElementById('edit-receipt-laprol').value) || 0) * 200
+    };
+    
+    try {
+        const res = await fetch(`/api/admin/receipts/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+            },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Failed to update receipt');
+        closeModals();
+        loadAdminReceipts();
+    } catch (e) {
+        console.error(e);
+        alert('Ошибка при сохранении');
+    }
+}
+
+async function deleteReceiptRow(id) {
+    if(!confirm('Вы уверены, что хотите удалить этот приход сырья? Это действие нельзя отменить.')) return;
+    try {
+        const res = await fetch(`/api/admin/receipts/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` }
+        });
+        if (!res.ok) throw new Error('Failed to delete');
+        loadAdminReceipts();
+    } catch(e) {
+        console.error(e);
+        alert('Ошибка удаления: ' + e.message);
+    }
+}
+
+// ------------------------------------------------
+// DOWNTIME ADMIN TIME & DURATION HELPERS
+// ------------------------------------------------
+function setTimeNowAdmin(inputId) {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const el = document.getElementById(inputId);
+    if (el) {
+        el.value = `${h}:${m}`;
+        calcAdminDowntimeDuration();
+    }
+}
+
+function calcAdminDowntimeDuration() {
+    const s = (document.getElementById('edit-downtime-time')?.value || '').trim();
+    const e = (document.getElementById('edit-downtime-end-time')?.value || '').trim();
+    const durInput = document.getElementById('edit-downtime-duration');
+    if (!durInput) return;
+    
+    if (!s || !e) return;
+    const p1 = s.split(':');
+    const p2 = e.split(':');
+    if (p1.length >= 2 && p2.length >= 2) {
+        const h1 = parseInt(p1[0], 10) || 0;
+        const m1 = parseInt(p1[1], 10) || 0;
+        const h2 = parseInt(p2[0], 10) || 0;
+        const m2 = parseInt(p2[1], 10) || 0;
+        let t1 = h1 * 60 + m1;
+        let t2 = h2 * 60 + m2;
+        if (t2 < t1) t2 += 24 * 60; // переход через полночь
+        const diff = Math.max(0, t2 - t1);
+        durInput.value = diff;
+    }
+}
+
+// Password Management
+async function loadPasswords() {
+    const tbody = document.getElementById('passwords-table-body');
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#64748b;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка списка папок...</td></tr>';
+    }
+    try {
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '';
+        const res = await fetch('/api/admin/document-categories', {
+            headers: {
+                'X-Admin-PIN': pin
+            }
+        });
+        const data = await res.json();
+        if (tbody) {
+            if (res.ok && data.status === 'success') {
+                if (!data.data || data.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#64748b;">Папки не найдены</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.data.map(cat => `
+                    <tr>
+                        <td style="font-weight: 600; color: #64748b;">${cat.id}</td>
+                        <td style="font-weight: 600; color: #1e293b;">
+                            <i class="fa-solid fa-folder" style="color: #3b82f6; margin-right: 6px;"></i> ${escapeHtml(cat.name)}
+                        </td>
+                        <td>
+                            ${cat.is_protected 
+                                ? '<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:12px; background:#fee2e2; color:#dc2626; font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-lock"></i> Защищена</span>' 
+                                : '<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:12px; background:#dcfce7; color:#16a34a; font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-lock-open"></i> Открыта</span>'}
+                        </td>
+                        <td>
+                            <div style="display: inline-flex; gap: 6px; align-items: center;">
+                                <button type="button" onclick="setPassword(${cat.id}, this)" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                                    <i class="fa-solid fa-key"></i> Установить пароль
+                                </button>
+                                ${cat.is_protected ? `
+                                <button type="button" onclick="clearPassword(${cat.id}, this)" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; background: #ef4444; color: #fff; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                                    <i class="fa-solid fa-trash"></i> Сбросить
+                                </button>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#dc2626;"><i class="fa-solid fa-circle-exclamation"></i> Ошибка загрузки: ${escapeHtml(data.detail || data.message || 'Доступ запрещен')}</td></tr>`;
+            }
+        }
+    } catch(e) {
+        console.error("Error loading passwords:", e);
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#dc2626;"><i class="fa-solid fa-wifi"></i> Сетевая ошибка при загрузке списка папок</td></tr>`;
+        }
+    }
+}
+
+async function setPassword(catId, btnEl) {
+    const pwd = prompt("Введите новый пароль для папки:");
+    if (!pwd || !pwd.trim()) return;
+    
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...';
+    }
+    
+    try {
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '';
+        const res = await fetch(`/api/admin/document-categories/${catId}/set-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Admin-PIN': pin
+            },
+            body: JSON.stringify({password: pwd.trim()})
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            alert(data.message || "Пароль успешно установлен");
+            loadPasswords();
+        } else {
+            alert("Ошибка установки пароля: " + (data.detail || data.message || res.statusText));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Сетевая ошибка при установке пароля");
+    } finally {
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = '<i class="fa-solid fa-key"></i> Установить пароль';
+        }
+    }
+}
+
+async function clearPassword(catId, btnEl) {
+    if (!confirm("Вы уверены, что хотите сбросить пароль? Папка станет общедоступной.")) return;
+    
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сброс...';
+    }
+    
+    try {
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '';
+        const res = await fetch(`/api/admin/document-categories/${catId}/set-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Admin-PIN': pin
+            },
+            body: JSON.stringify({password: null})
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            alert(data.message || "Пароль успешно сброшен");
+            loadPasswords();
+        } else {
+            alert("Ошибка сброса пароля: " + (data.detail || data.message || res.statusText));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Сетевая ошибка при сбросе пароля");
+    } finally {
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = '<i class="fa-solid fa-trash"></i> Сбросить';
+        }
+    }
+}
+
+
+// ========================================================
+// УПРАВЛЕНИЕ СОТРУДНИКАМИ ЦЕХА (ЧЕК-ЛИСТЫ)
+// ========================================================
+let adminChecklistEmps = [];
+
+async function loadAdminChecklistEmployees() {
+    try {
+        const res = await fetch('/api/checklists/employees');
+        if (res.ok) {
+            adminChecklistEmps = await res.json();
+            renderChecklistEmployeesTable();
+        }
+    } catch (e) {
+        console.error("Error loading checklist employees:", e);
+    }
+}
+
+function renderChecklistEmployeesTable() {
+    const tbody = document.getElementById('checklist-emps-table-body');
+    if (!tbody) return;
+
+    const shiftFilter = document.getElementById('filter-emp-shift') ? document.getElementById('filter-emp-shift').value : '';
+    const searchFilter = document.getElementById('filter-emp-search') ? document.getElementById('filter-emp-search').value.toLowerCase().trim() : '';
+
+    let filtered = adminChecklistEmps.filter(e => {
+        const matchShift = !shiftFilter || e.shift_group === shiftFilter;
+        const matchSearch = !searchFilter || e.name.toLowerCase().includes(searchFilter) || e.position.toLowerCase().includes(searchFilter);
+        return matchShift && matchSearch;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Сотрудники не найдены</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(e => `
+        <tr>
+            <td style="font-weight: 600; color: var(--text-secondary);">${e.num || '—'}</td>
+            <td style="font-weight: 700; color: var(--text-primary);">${e.name}</td>
+            <td><span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;">${e.shift_group}</span></td>
+            <td><span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;">${e.department || 'Цех ХЦИ'}</span></td>
+            <td style="color: var(--text-secondary);">${e.position}</td>
+            <td style="text-align: right; white-space: nowrap;">
+                <button class="action-btn btn-edit" onclick="editChecklistEmp(${e.id})" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                <button class="action-btn btn-delete" onclick="deleteChecklistEmp(${e.id}, '${e.name}')" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openChecklistEmpModal() {
+    document.getElementById('cl-emp-id').value = '';
+    document.getElementById('cl-emp-name').value = '';
+    document.getElementById('cl-emp-pos').value = '';
+    document.getElementById('cl-emp-num').value = '';
+    document.getElementById('cl-emp-shift').value = '1-я смена';
+    document.getElementById('cl-emp-dept').value = 'ЛФМ';
+    document.getElementById('checklist-emp-modal-title').innerHTML = '<i class="fa-solid fa-user-plus"></i> Добавить сотрудника';
+    document.getElementById('checklist-emp-modal').style.display = 'flex';
+}
+
+function editChecklistEmp(empId) {
+    const emp = adminChecklistEmps.find(e => e.id === empId);
+    if (!emp) return;
+
+    document.getElementById('cl-emp-id').value = emp.id;
+    document.getElementById('cl-emp-name').value = emp.name;
+    document.getElementById('cl-emp-pos').value = emp.position;
+    document.getElementById('cl-emp-num').value = emp.num || '';
+    document.getElementById('cl-emp-shift').value = emp.shift_group;
+    if (document.getElementById('cl-emp-dept')) {
+        document.getElementById('cl-emp-dept').value = emp.department || 'ЛФМ';
+    }
+    document.getElementById('checklist-emp-modal-title').innerHTML = '<i class="fa-solid fa-user-pen"></i> Редактировать сотрудника';
+    document.getElementById('checklist-emp-modal').style.display = 'flex';
+}
+
+async function saveChecklistEmployee() {
+    const empId = document.getElementById('cl-emp-id').value;
+    const name = document.getElementById('cl-emp-name').value.trim();
+    const position = document.getElementById('cl-emp-pos').value.trim();
+    const shiftGroup = document.getElementById('cl-emp-shift').value;
+    const dept = document.getElementById('cl-emp-dept') ? document.getElementById('cl-emp-dept').value : '';
+    const num = document.getElementById('cl-emp-num').value;
+
+    if (!name || !position) {
+        alert("Пожалуйста, заполните ФИО и должность!");
+        return;
+    }
+
+    const payload = {
+        name: name,
+        position: position,
+        shift_group: shiftGroup,
+        department: dept,
+        num: num ? parseInt(num) : null
+    };
+
+    try {
+        const url = empId ? `/api/checklists/employees/${empId}` : `/api/checklists/employees`;
+        const method = empId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            closeModals();
+            loadAdminChecklistEmployees();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения: " + (err.detail || "Неизвестная ошибка"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при сохранении сотрудника");
+    }
+}
+
+async function deleteChecklistEmp(empId, name) {
+    if (!confirm(`Вы действительно хотите удалить сотрудника "${name}"?`)) return;
+
+    try {
+        const res = await fetch(`/api/checklists/employees/${empId}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadAdminChecklistEmployees();
+        } else {
+            alert("Ошибка при удалении сотрудника");
+        }
+    } catch (e) {
+        alert("Ошибка сети");
+    }
+}
+
+async function syncChecklistEmployeesFromGoogle() {
+    if (!confirm("Запустить обновление базы сотрудников из Google Таблицы?")) return;
+    try {
+        const res = await fetch('/api/checklists/employees/sync', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            alert(`Синхронизация завершена!\nОбработано строк: ${data.total_rows}\nДобавлено/обновлено: ${data.synced_count}`);
+            loadAdminChecklistEmployees();
+        } else {
+            alert("Ошибка синхронизации: " + (data.message || data.detail));
+        }
+    } catch (e) {
+        alert("Ошибка сети при синхронизации");
+    }
+}
+
+// ========================================================
+// УПРАВЛЕНИЕ ГРАФИКОМ СМЕННОСТИ
+// ========================================================
+let adminShiftSchedule = [];
+
+async function loadAdminShiftSchedule() {
+    try {
+        const res = await fetch('/api/checklists/schedule/all');
+        if (res.ok) {
+            adminShiftSchedule = await res.json();
+            populateScheduleMonthFilter();
+            renderShiftScheduleTable();
+        }
+    } catch (e) {
+        console.error("Error loading shift schedule:", e);
+    }
+}
+
+function populateScheduleMonthFilter() {
+    const monthSelect = document.getElementById('schedule-month-filter');
+    if (!monthSelect) return;
+
+    // Collect all unique months from schedule
+    const monthsSet = new Set();
+    adminShiftSchedule.forEach(e => {
+        if (e.date_str) {
+            const parts = e.date_str.split('.');
+            if (parts.length === 3) {
+                monthsSet.add(`${parts[1]}.${parts[2]}`);
+            }
+        }
+    });
+
+    const monthNames = {
+        '01': 'Январь', '02': 'Февраль', '03': 'Март', '04': 'Апрель',
+        '05': 'Май', '06': 'Июнь', '07': 'Июль', '08': 'Август',
+        '09': 'Сентябрь', '10': 'Октябрь', '11': 'Ноябрь', '12': 'Декабрь'
+    };
+
+    const sortedMonths = Array.from(monthsSet).sort();
+    const currentVal = monthSelect.value;
+    
+    monthSelect.innerHTML = '<option value="">Все месяцы</option>';
+    sortedMonths.forEach(m => {
+        const [mm, yyyy] = m.split('.');
+        const label = `${monthNames[mm] || mm} ${yyyy}`;
+        monthSelect.innerHTML += `<option value="${m}">${label}</option>`;
+    });
+
+    // Default to current month if available
+    if (!currentVal) {
+        const now = new Date();
+        const curM = String(now.getMonth() + 1).padStart(2, '0');
+        const curY = String(now.getFullYear());
+        const defaultMonth = `${curM}.${curY}`;
+        if (monthsSet.has(defaultMonth)) {
+            monthSelect.value = defaultMonth;
+        }
+    } else {
+        monthSelect.value = currentVal;
+    }
+}
+
+function renderShiftScheduleTable() {
+    const tbody = document.getElementById('shift-schedule-table-body');
+    if (!tbody) return;
+
+    const selectedMonth = document.getElementById('schedule-month-filter')?.value || '';
+    const selectedGroup = document.getElementById('schedule-group-filter')?.value || '';
+    const searchDate = (document.getElementById('schedule-search-date')?.value || '').toLowerCase().trim();
+
+    // Determine today's date formatted as DD.MM.YYYY
+    const now = new Date();
+    const todayStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
+
+    let filtered = adminShiftSchedule.filter(e => {
+        if (!e.date_str) return false;
+
+        // Month filter
+        if (selectedMonth) {
+            const parts = e.date_str.split('.');
+            if (parts.length === 3 && `${parts[1]}.${parts[2]}` !== selectedMonth) {
+                return false;
+            }
+        }
+
+        // Team/Group filter
+        if (selectedGroup) {
+            const dayG = e.day_shift_group || '';
+            const nightG = e.night_shift_group || '';
+            if (dayG !== selectedGroup && nightG !== selectedGroup) {
+                return false;
+            }
+        }
+
+        // Search date filter
+        if (searchDate && !e.date_str.toLowerCase().includes(searchDate)) {
+            return false;
+        }
+
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">График не найден по выбранным фильтрам</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(e => {
+        const isToday = e.date_str === todayStr;
+        const rowClass = isToday ? 'class="schedule-row-today" id="schedule-row-today"' : '';
+        const todayBadge = isToday ? '<span class="today-badge-indicator">Сегодня</span>' : '';
+
+        return `
+            <tr ${rowClass}>
+                <td style="font-weight: 700; color: var(--primary-color); white-space: nowrap;">
+                    ${e.date_str} ${todayBadge}
+                </td>
+                <td style="color: var(--text-secondary);">${e.day_of_week || '—'}</td>
+                <td><span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 3px 7px; border-radius: 6px; font-weight: 700; font-size: 0.78rem;">☀️ ${e.day_shift_group || '—'}</span></td>
+                <td><span style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 3px 7px; border-radius: 6px; font-weight: 700; font-size: 0.78rem;">🌙 ${e.night_shift_group || '—'}</span></td>
+                <td style="text-align: center;">${e.shift1_status || '—'}</td>
+                <td style="text-align: center;">${e.shift2_status || '—'}</td>
+                <td style="text-align: center;">${e.shift3_status || '—'}</td>
+                <td style="text-align: center;">${e.shift4_status || '—'}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button class="action-btn btn-edit" onclick="openEditShiftScheduleModal('${e.date_str}', '${e.day_shift_group || ''}', '${e.night_shift_group || ''}')" title="Изменить смены"><i class="fa-solid fa-pen"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function scrollToTodaySchedule() {
+    // Reset filters to show current month if needed
+    const now = new Date();
+    const curM = String(now.getMonth() + 1).padStart(2, '0');
+    const curY = String(now.getFullYear());
+    const monthSelect = document.getElementById('schedule-month-filter');
+    if (monthSelect) {
+        monthSelect.value = `${curM}.${curY}`;
+    }
+    const groupSelect = document.getElementById('schedule-group-filter');
+    if (groupSelect) groupSelect.value = '';
+    const searchInput = document.getElementById('schedule-search-date');
+    if (searchInput) searchInput.value = '';
+
+    renderShiftScheduleTable();
+
+    setTimeout(() => {
+        const todayRow = document.getElementById('schedule-row-today');
+        if (todayRow) {
+            todayRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            alert('Запись на сегодняшнюю дату не найдена в графике');
+        }
+    }, 80);
+}
+
+function openEditShiftScheduleModal(dateStr, dayShift, nightShift) {
+    document.getElementById('sched-date-str').value = dateStr;
+    document.getElementById('sched-date-display').value = dateStr;
+    document.getElementById('sched-day-shift').value = dayShift || 'Смена 1';
+    document.getElementById('sched-night-shift').value = nightShift || 'Смена 2';
+    document.getElementById('shift-schedule-modal').style.display = 'flex';
+}
+
+async function saveShiftScheduleDay() {
+    const dateStr = document.getElementById('sched-date-str').value;
+    const dayShift = document.getElementById('sched-day-shift').value;
+    const nightShift = document.getElementById('sched-night-shift').value;
+
+    try {
+        const res = await fetch('/api/checklists/schedule/update_day', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                date_str: dateStr,
+                day_shift_group: dayShift,
+                night_shift_group: nightShift
+            })
+        });
+
+        if (res.ok) {
+            closeModals();
+            loadAdminShiftSchedule();
+        } else {
+            alert("Ошибка при сохранении графика");
+        }
+    } catch (e) {
+        alert("Ошибка сети при сохранении");
+    }
+}
+
+
+// ==========================================================
+// ⚙️ PLANNER SETTINGS (EMPLOYEES & ZONES) ADMIN LOGIC
+// ==========================================================
+
+let adminPlannerEmployees = [];
+let adminPlannerZones = [];
+let adminAllTasks = [];
+let adminTrashTasks = [];
+let adminTasksCurrentView = 'active'; // 'active' | 'trash'
+let selectedAdminTaskIds = new Set();
+let adminCalendarStructure = {};
+let adminTranslateTimer = null;
+
+async function loadPlannerSettings() {
+    await Promise.all([
+        hydrateAdminCalendarStructure(),
+        loadPlannerEmployees(),
+        loadPlannerZones(),
+        loadAdminTasksList()
+    ]);
+}
+
+async function loadPlannerEmployees() {
+    try {
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '';
+        const res = await fetch('/api/admin/planner-employees', {
+            headers: {
+                'X-Admin-PIN': pin
+            }
+        });
+        if (res.ok) {
+            adminPlannerEmployees = await res.json();
+            renderPlannerEmployeesTable();
+        } else {
+            // Резервный вызов общего эндпоинта
+            const fallbackRes = await fetch('/api/planner/employees', {
+                headers: {
+                    'X-Admin-PIN': pin
+                }
+            });
+            if (fallbackRes.ok) {
+                adminPlannerEmployees = await fallbackRes.json();
+                renderPlannerEmployeesTable();
+            }
+        }
+    } catch (e) {
+        console.error("Error loading planner employees:", e);
+    }
+}
+
+function getRoleBadge(role) {
+    const rolesMap = {
+        'portal': { label: '🌐 Корп. Портал', style: 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;' },
+        'master': { label: '🏭 Цех ХЦИ', style: 'background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;' },
+        'lkc_master': { label: '🎨 Цех ЛКЦ', style: 'background: #fdf4ff; color: #a21caf; border: 1px solid #f5d0fe;' },
+        'qcd': { label: '🔬 Служба СКК', style: 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;' },
+        'director': { label: '🛡️ Дирекция', style: 'background: #fffbeb; color: #b45309; border: 1px solid #fde68a;' },
+        'technologist': { label: '⚗️ Технолог', style: 'background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0;' },
+        'mechanic': { label: '🔧 Механик (ОГМ)', style: 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;' },
+        'admin': { label: '👑 Администратор', style: 'background: #faf5ff; color: #6b21a8; border: 1px solid #e9d5ff;' }
+    };
+    const conf = rolesMap[role] || rolesMap['portal'];
+    return `<span style="display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 9999px; ${conf.style}">${conf.label}</span>`;
+}
+
+function renderPlannerEmployeesTable() {
+    const tbody = document.getElementById('planner-employees-table-body');
+    if (!tbody) return;
+
+    if (adminPlannerEmployees.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary);">Нет добавленных сотрудников</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = adminPlannerEmployees.map((emp, idx) => `
+        <tr>
+            <td style="color: var(--text-secondary); width: 35px;">${idx + 1}</td>
+            <td style="font-weight: 600; color: var(--text-primary);">${escapeHtml(emp.name)}</td>
+            <td style="color: ${emp.email ? 'var(--accent-color)' : 'var(--text-secondary)'};">
+                ${emp.email ? `<i class="fa-regular fa-envelope"></i> ${escapeHtml(emp.email)}` : '—'}
+            </td>
+            <td>
+                ${getRoleBadge(emp.role || 'portal')}
+            </td>
+            <td>
+                ${emp.pin_code 
+                    ? `<span style="font-family: monospace; font-weight: 700; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;">🔑 ${escapeHtml(emp.pin_code)}</span>` 
+                    : (emp.has_pin 
+                        ? `<span style="font-family: monospace; font-weight: 700; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;"><i class="fa-solid fa-lock"></i> Задан</span>` 
+                        : '<span style="color: #94a3b8; font-size: 0.75rem;">Не задан</span>')}
+            </td>
+            <td style="text-align: right; white-space: nowrap;">
+                <button onclick="openPlannerEmployeeModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}', '${(emp.pin_code || '').replace(/'/g, "\\'")}', '${emp.role || 'portal'}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deletePlannerEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" class="action-btn btn-delete" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openPlannerEmployeeModal(id = null, name = '', email = '', pin = '', role = 'portal') {
+    document.getElementById('planner-emp-id').value = id || '';
+    document.getElementById('planner-emp-name').value = name || '';
+    document.getElementById('planner-emp-email').value = email || '';
+    const roleSelect = document.getElementById('planner-emp-role');
+    if (roleSelect) {
+        roleSelect.value = role || 'portal';
+    }
+    const pinInput = document.getElementById('planner-emp-pin');
+    if (pinInput) {
+        pinInput.value = pin || '';
+        pinInput.placeholder = 'Например: 1234';
+    }
+    document.getElementById('planner-emp-modal-title').innerHTML = id ? `<i class="fa-solid fa-pen"></i> Редактировать сотрудника` : `<i class="fa-solid fa-user-plus"></i> Добавить сотрудника`;
+    
+    const modal = document.getElementById('planner-emp-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+async function savePlannerEmployee() {
+    const id = document.getElementById('planner-emp-id').value;
+    const name = document.getElementById('planner-emp-name').value.trim();
+    const email = document.getElementById('planner-emp-email').value.trim();
+    const pin = document.getElementById('planner-emp-pin').value.trim();
+    const roleElem = document.getElementById('planner-emp-role');
+    const role = roleElem ? roleElem.value : 'portal';
+
+    if (!name) {
+        alert("Пожалуйста, укажите имя/ФИО сотрудника");
+        return;
+    }
+
+    try {
+        const url = id ? `/api/planner/employees/${id}` : '/api/planner/employees';
+        const method = id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name: name, email: email, pin_code: pin, role: role })
+        });
+
+        if (res.ok) {
+            closePlannerModals();
+            loadPlannerEmployees();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при сохранении");
+    }
+}
+
+async function deletePlannerEmployee(id, name) {
+    if (!confirm(`Вы действительно хотите удалить сотрудника «${name}» из настроек планнера?`)) return;
+
+    try {
+        const res = await fetch(`/api/planner/employees/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadPlannerEmployees();
+        } else {
+            alert("Ошибка при удалении");
+        }
+    } catch (e) {
+        alert("Ошибка сети при удалении");
+    }
+}
+
+async function loadPlannerZones() {
+    try {
+        const res = await fetch('/api/planner/zones');
+        if (res.ok) {
+            adminPlannerZones = await res.json();
+            renderPlannerZonesTable();
+        }
+    } catch (e) {
+        console.error("Error loading planner zones:", e);
+    }
+}
+
+function renderPlannerZonesTable() {
+    const tbody = document.getElementById('planner-zones-table-body');
+    if (!tbody) return;
+
+    if (adminPlannerZones.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">Нет добавленных зон</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = adminPlannerZones.map((z, idx) => `
+        <tr>
+            <td style="color: var(--text-secondary); width: 35px;">${idx + 1}</td>
+            <td style="font-weight: 500; color: var(--text-primary);"><i class="fa-solid fa-tag" style="font-size: 0.75rem; color: var(--accent-color); margin-right: 4px;"></i> ${z.name}</td>
+            <td style="text-align: right; white-space: nowrap;">
+                <button onclick="openPlannerZoneModal(${z.id}, '${z.name.replace(/'/g, "\\'")}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deletePlannerZone(${z.id}, '${z.name.replace(/'/g, "\\'")}')" class="action-btn btn-delete" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openPlannerZoneModal(id = null, name = '') {
+    document.getElementById('planner-zone-id').value = id || '';
+    document.getElementById('planner-zone-name').value = name || '';
+    document.getElementById('planner-zone-modal-title').innerHTML = id ? `<i class="fa-solid fa-pen"></i> Редактировать зону` : `<i class="fa-solid fa-plus"></i> Добавить зону / подразделение`;
+    
+    const modal = document.getElementById('planner-zone-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+async function savePlannerZone() {
+    const id = document.getElementById('planner-zone-id').value;
+    const name = document.getElementById('planner-zone-name').value.trim();
+
+    if (!name) {
+        alert("Пожалуйста, укажите название зоны / подразделения");
+        return;
+    }
+
+    try {
+        const url = id ? `/api/planner/zones/${id}` : '/api/planner/zones';
+        const method = id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name: name })
+        });
+
+        if (res.ok) {
+            closePlannerModals();
+            loadPlannerZones();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при сохранении");
+    }
+}
+
+async function deletePlannerZone(id, name) {
+    if (!confirm(`Вы действительно хотите удалить зону «${name}» из настроек планнера?`)) return;
+
+    try {
+        const res = await fetch(`/api/planner/zones/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadPlannerZones();
+        } else {
+            alert("Ошибка при удалении");
+        }
+    } catch (e) {
+        alert("Ошибка сети при удалении");
+    }
+}
+
+function closePlannerModals() {
+    const empModal = document.getElementById('planner-emp-modal');
+    if (empModal) empModal.style.display = 'none';
+    const zoneModal = document.getElementById('planner-zone-modal');
+    if (zoneModal) zoneModal.style.display = 'none';
+}
+
+/* ==========================================================
+   ADMIN TASKS REGISTRY, FULL CRUD & SMART WEEK MANAGEMENT
+   ========================================================== */
+
+function closeAdminTaskModal() {
+    const modal = document.getElementById('admin-task-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function loadAdminTasksTab() {
+    await Promise.all([
+        hydrateAdminCalendarStructure(),
+        hydrateAdminDropdowns(),
+        loadAdminTasksList()
+    ]);
+}
+
+async function hydrateAdminCalendarStructure() {
+    try {
+        const res = await fetch('/api/tasks/weeks');
+        if (res.ok) {
+            const data = await res.json();
+            adminCalendarStructure = data.structure || {};
+            
+            // Заполнение выпадающих списков месяцев
+            const filterMonth = document.getElementById('admin-filter-month');
+            const modalMonth = document.getElementById('admin-modal-month');
+            const months = data.months || Object.keys(adminCalendarStructure);
+
+            if (filterMonth && months.length > 0) {
+                const curVal = filterMonth.value;
+                filterMonth.innerHTML = `<option value="all">🌐 За всё время</option>` +
+                    months.map(m => `<option value="${m}">${m}</option>`).join('');
+                if (curVal && months.includes(curVal)) filterMonth.value = curVal;
+                else if (data.default_month) filterMonth.value = data.default_month;
+                onAdminFilterMonthChange();
+            }
+
+            if (modalMonth && months.length > 0) {
+                const curVal = modalMonth.value;
+                modalMonth.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
+                if (curVal && months.includes(curVal)) modalMonth.value = curVal;
+                else if (data.default_month) modalMonth.value = data.default_month;
+                onAdminModalMonthChange();
+            }
+        }
+    } catch (e) {
+        console.error("Error hydrating admin calendar structure:", e);
+    }
+}
+
+async function hydrateAdminDropdowns() {
+    try {
+        const [zonesRes, empsRes] = await Promise.all([
+            fetch('/api/planner/zones'),
+            fetch('/api/planner/employees')
+        ]);
+
+        if (zonesRes.ok) {
+            adminPlannerZones = await zonesRes.json();
+            const filterZone = document.getElementById('admin-filter-zone');
+            const modalZone = document.getElementById('admin-modal-zone');
+
+            if (filterZone) {
+                const curVal = filterZone.value;
+                filterZone.innerHTML = `<option value="all">Все зоны</option>` +
+                    adminPlannerZones.map(z => `<option value="${z.name}">${z.name}</option>`).join('');
+                if (curVal) filterZone.value = curVal;
+            }
+
+            if (modalZone) {
+                modalZone.innerHTML = adminPlannerZones.map(z => `<option value="${z.name}">${z.name}</option>`).join('');
+                if (!modalZone.value && adminPlannerZones.length > 0) {
+                    modalZone.value = adminPlannerZones[0].name;
+                }
+            }
+        }
+
+        if (empsRes.ok) {
+            adminPlannerEmployees = await empsRes.json();
+            const modalAuthor = document.getElementById('admin-modal-author');
+            const modalAssignee = document.getElementById('admin-modal-assignee');
+
+            const empOptions = adminPlannerEmployees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
+
+            if (modalAuthor) {
+                modalAuthor.innerHTML = `<option value="">-- Выберите автора --</option>` + empOptions;
+            }
+            if (modalAssignee) {
+                modalAssignee.innerHTML = `<option value="">-- Не назначен --</option>` + empOptions;
+            }
+        }
+    } catch (e) {
+        console.error("Error hydrating admin dropdowns:", e);
+    }
+}
+
+function onAdminFilterMonthChange() {
+    const monthSelect = document.getElementById('admin-filter-month');
+    const weekSelect = document.getElementById('admin-filter-week');
+    if (!monthSelect || !weekSelect) return;
+
+    const selMonth = monthSelect.value;
+    if (selMonth === 'all') {
+        weekSelect.innerHTML = `<option value="all">🌐 Все недели</option>`;
+    } else {
+        const weeks = adminCalendarStructure[selMonth] || [];
+        weekSelect.innerHTML = `<option value="all">🌐 Все недели месяца</option>` +
+            weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+    }
+    filterAdminTasksTable();
+}
+
+function onAdminModalMonthChange() {
+    const monthSelect = document.getElementById('admin-modal-month');
+    const weekSelect = document.getElementById('admin-modal-week');
+    if (!monthSelect || !weekSelect) return;
+
+    const selMonth = monthSelect.value;
+    const weeks = adminCalendarStructure[selMonth] || [];
+    const curVal = weekSelect.value;
+
+    weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+    if (curVal && weeks.includes(curVal)) {
+        weekSelect.value = curVal;
+    } else if (weeks.length > 0) {
+        weekSelect.value = weeks[0];
+    }
+}
+
+async function onAdminTaskModalDueDateChange() {
+    const dateInput = document.getElementById('admin-modal-due-date');
+    if (!dateInput || !dateInput.value) return;
+
+    try {
+        const res = await fetch(`/api/tasks/resolve_week?date_str=${encodeURIComponent(dateInput.value)}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'ok' && data.month_label && data.week_label) {
+                const monthSelect = document.getElementById('admin-modal-month');
+                const weekSelect = document.getElementById('admin-modal-week');
+
+                if (monthSelect) {
+                    monthSelect.value = data.month_label;
+                    onAdminModalMonthChange();
+                }
+                if (weekSelect) {
+                    weekSelect.value = data.week_label;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error resolving week by date in admin modal:", e);
+    }
+}
+
+function onAdminTaskRuInput() {
+    const ruInput = document.getElementById('admin-modal-title-ru');
+    const kzInput = document.getElementById('admin-modal-title-kz');
+    const badge = document.getElementById('admin-kz-translate-status');
+    if (!ruInput || !kzInput) return;
+
+    if (adminTranslateTimer) clearTimeout(adminTranslateTimer);
+
+    const text = ruInput.value.trim();
+    if (!text) return;
+
+    if (badge) badge.textContent = "(Перевод...)";
+
+    adminTranslateTimer = setTimeout(async () => {
+        try {
+            const res = await fetch('/api/tasks/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.text_kz && (!kzInput.value.trim() || kzInput.dataset.autoFilled === "true")) {
+                    kzInput.value = data.text_kz;
+                    kzInput.dataset.autoFilled = "true";
+                }
+                if (badge) badge.textContent = "(Автоперевод)";
+            }
+        } catch (e) {
+            if (badge) badge.textContent = "(Ошибка)";
+        }
+    }, 600);
+}
+
+async function loadAdminTasksList() {
+    const tbodies = document.querySelectorAll('#admin-tasks-table-body, [id="admin-tasks-table-body"]');
+    tbodies.forEach(tbody => {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...</td></tr>`;
+    });
+
+    try {
+        const [activeRes, trashRes] = await Promise.all([
+            fetch('/api/tasks?month=all&is_archived=false'),
+            fetch('/api/tasks?month=all&is_archived=true')
+        ]);
+
+        if (activeRes.ok) {
+            adminAllTasks = await activeRes.json();
+        } else {
+            adminAllTasks = [];
+        }
+
+        if (trashRes.ok) {
+            adminTrashTasks = await trashRes.json();
+        } else {
+            adminTrashTasks = [];
+        }
+
+        // Обновляем счетчики на переключателе
+        const activeCntEl = document.getElementById('admin-tasks-active-cnt');
+        const trashCntEl = document.getElementById('admin-tasks-trash-cnt');
+        if (activeCntEl) activeCntEl.textContent = adminAllTasks.length;
+        if (trashCntEl) trashCntEl.textContent = adminTrashTasks.length;
+
+        filterAdminTasksTable();
+    } catch (e) {
+        console.error("Error loading admin tasks:", e);
+        tbodies.forEach(tbody => {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Ошибка сети при загрузке задач</td></tr>`;
+        });
+    }
+}
+
+function switchAdminTasksView(viewMode) {
+    adminTasksCurrentView = viewMode; // 'active' or 'trash'
+    clearAdminTasksSelection();
+
+    const btnActive = document.getElementById('btn-admin-tasks-view-active');
+    const btnTrash = document.getElementById('btn-admin-tasks-view-trash');
+    const bulkActive = document.getElementById('admin-tasks-bulk-actions-active');
+    const bulkTrash = document.getElementById('admin-tasks-bulk-actions-trash');
+    const hintEl = document.getElementById('admin-tasks-view-hint');
+
+    if (viewMode === 'active') {
+        if (btnActive) {
+            btnActive.style.background = '#ffffff';
+            btnActive.style.color = '#0f172a';
+            btnActive.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        }
+        if (btnTrash) {
+            btnTrash.style.background = 'transparent';
+            btnTrash.style.color = '#64748b';
+            btnTrash.style.boxShadow = 'none';
+        }
+        if (bulkActive) bulkActive.style.display = 'flex';
+        if (bulkTrash) bulkTrash.style.display = 'none';
+        if (hintEl) hintEl.textContent = '(Активные задачи всех горизонтов)';
+    } else {
+        if (btnActive) {
+            btnActive.style.background = 'transparent';
+            btnActive.style.color = '#64748b';
+            btnActive.style.boxShadow = 'none';
+        }
+        if (btnTrash) {
+            btnTrash.style.background = '#ffffff';
+            btnTrash.style.color = '#b91c1c';
+            btnTrash.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        }
+        if (bulkActive) bulkActive.style.display = 'none';
+        if (bulkTrash) bulkTrash.style.display = 'flex';
+        if (hintEl) hintEl.textContent = '(Удаленные и архивные задачи. Нажмите «Восстановить» для возврата в план)';
+    }
+
+    filterAdminTasksTable();
+}
+
+function filterAdminTasksTable() {
+    let q = '';
+    const searchInputs = document.querySelectorAll('#admin-task-search, [id="admin-task-search"]');
+    searchInputs.forEach(inp => {
+        if (inp.value && inp.value.trim()) q = inp.value.toLowerCase().trim();
+    });
+
+    const selMonth = document.getElementById('admin-filter-month')?.value || 'all';
+    const selWeek = document.getElementById('admin-filter-week')?.value || 'all';
+    const selZone = document.getElementById('admin-filter-zone')?.value || 'all';
+    const selStatus = document.getElementById('admin-filter-status')?.value || 'all';
+
+    let currentPool = (adminTasksCurrentView === 'trash') ? adminTrashTasks : adminAllTasks;
+    let filtered = currentPool;
+
+    if (selMonth !== 'all') {
+        filtered = filtered.filter(t => t.month_label === selMonth);
+    }
+    if (selWeek !== 'all') {
+        filtered = filtered.filter(t => t.week_label === selWeek);
+    }
+    if (selZone !== 'all') {
+        filtered = filtered.filter(t => t.zone === selZone || t.department_service === selZone);
+    }
+    if (selStatus !== 'all') {
+        filtered = filtered.filter(t => t.status === selStatus);
+    }
+    if (q) {
+        filtered = filtered.filter(t =>
+            (t.title && t.title.toLowerCase().includes(q)) ||
+            (t.title_kz && t.title_kz.toLowerCase().includes(q)) ||
+            (t.assignee_name && t.assignee_name.toLowerCase().includes(q)) ||
+            (t.author_name && t.author_name.toLowerCase().includes(q)) ||
+            (t.zone && t.zone.toLowerCase().includes(q)) ||
+            (t.code && t.code.toLowerCase().includes(q)) ||
+            (t.comment && t.comment.toLowerCase().includes(q)) ||
+            (t.month_label && t.month_label.toLowerCase().includes(q)) ||
+            (t.week_label && t.week_label.toLowerCase().includes(q))
+        );
+    }
+
+    renderAdminTasksTable(filtered);
+}
+
+function resetAdminTasksFilters() {
+    const filterMonth = document.getElementById('admin-filter-month');
+    const filterWeek = document.getElementById('admin-filter-week');
+    const filterZone = document.getElementById('admin-filter-zone');
+    const filterStatus = document.getElementById('admin-filter-status');
+    const searchInputs = document.querySelectorAll('#admin-task-search, [id="admin-task-search"]');
+
+    if (filterMonth) filterMonth.value = 'all';
+    if (filterWeek) filterWeek.value = 'all';
+    if (filterZone) filterZone.value = 'all';
+    if (filterStatus) filterStatus.value = 'all';
+    searchInputs.forEach(inp => { inp.value = ''; });
+
+    onAdminFilterMonthChange();
+}
+
+function renderAdminTasksTable(tasks) {
+    const tbodies = document.querySelectorAll('#admin-tasks-table-body, [id="admin-tasks-table-body"]');
+    if (!tbodies || tbodies.length === 0) return;
+
+    if (!tasks || tasks.length === 0) {
+        const emptyMsg = adminTasksCurrentView === 'trash' ? 'В корзине нет удаленных задач' : 'Задач не найдено';
+        tbodies.forEach(tbody => {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">${emptyMsg}</td></tr>`;
+        });
+        return;
+    }
+
+    const isTrashMode = (adminTasksCurrentView === 'trash');
+
+    const html = tasks.map(t => {
+        let statusBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 500; display: inline-block;">${escapeHtml(t.status || '—')}</span>`;
+        const st = t.status || '';
+        if (isTrashMode) {
+            statusBadge = `<span style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-trash-can"></i> В корзине</span>`;
+        } else if (st.includes('Выполнено')) {
+            statusBadge = `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Выполнено</span>`;
+        } else if (st.includes('В работе')) {
+            statusBadge = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-spinner fa-spin-pulse"></i> В работе</span>`;
+        } else if (st.includes('Перенесено')) {
+            statusBadge = `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrow-right-arrow-left"></i> Перенесено</span>`;
+        } else if (st.includes('Отменено')) {
+            statusBadge = `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-xmark"></i> Отменено</span>`;
+        } else if (st.includes('В очереди')) {
+            statusBadge = `<span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> В очереди</span>`;
+        }
+
+        const titleRu = escapeHtml(t.title || '—');
+        const titleKz = '';
+        const isChecked = selectedAdminTaskIds.has(t.id);
+
+        let zoneBadge = `<span style="background: #f1f5f9; padding: 2px 6px; border-radius: 5px; font-weight: 600; color: #334155; border: 1px solid #e2e8f0; font-size: 0.76rem; white-space: nowrap;">${escapeHtml(t.zone || '—')}</span>`;
+        if (t.department_service && t.department_service !== t.zone) {
+            zoneBadge += `<div style="margin-top: 2px;"><span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 1px 5px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">${escapeHtml(t.department_service)}</span></div>`;
+        }
+
+        const authorInfo = t.author_name ? `<div style="font-size: 0.72rem; color: #64748b;">Автор: ${escapeHtml(t.author_name)}</div>` : '';
+        const assigneeInfo = `<div style="font-size: 0.8rem; color: #1d4ed8; font-weight: 600;">${escapeHtml(t.assignee_name || '—')}</div>`;
+        const commentPreview = t.comment ? `<div style="font-size: 0.75rem; color: #475569; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(t.comment)}">${escapeHtml(t.comment)}</div>` : '<span style="color: #cbd5e1;">—</span>';
+
+        let actionButtonsHtml = '';
+        if (isTrashMode) {
+            actionButtonsHtml = `
+                <button onclick="restoreAdminTask(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="action-btn" style="width: auto !important; padding: 4px 10px !important; font-size: 0.78rem; font-weight: 600; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="Восстановить задачу обратно в активный план">
+                    <i class="fa-solid fa-rotate-left"></i> Восстановить
+                </button>
+            `;
+        } else {
+            actionButtonsHtml = `
+                <button onclick="openAdminTaskModal(${t.id})" class="action-btn btn-edit" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; margin-right: 4px;" title="Редактировать задачу">
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+                <button onclick="deleteTaskFromAdmin(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="btn-delete-task" style="padding: 0.25rem 0.5rem !important;" title="Переместить задачу в корзину">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            `;
+        }
+
+        return `
+            <tr id="admin-task-row-${t.id}">
+                <td style="text-align: center; white-space: nowrap;">
+                    <input type="checkbox" class="admin-task-row-cb" ${isChecked ? 'checked' : ''} onchange="toggleSelectAdminTask(${t.id}, this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать задачу">
+                </td>
+                <td style="white-space: nowrap;">
+                    <span style="font-family: monospace; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 4px; font-size: 0.78rem;">${escapeHtml(t.code || ('TSK-' + t.id))}</span>
+                </td>
+                <td style="white-space: nowrap; font-size: 0.76rem;">
+                    <div style="font-weight: 600; color: #0f172a;">${escapeHtml(t.month_label || '—')}</div>
+                    <div style="color: #64748b; font-size: 0.72rem; margin-top: 2px;">${escapeHtml(t.week_label || '—')}</div>
+                </td>
+                <td style="white-space: nowrap;">
+                    ${zoneBadge}
+                </td>
+                <td style="min-width: 260px; max-width: 440px; white-space: normal; word-break: break-word; line-height: 1.35; padding: 0.55rem 0.75rem;">
+                    <div style="font-weight: 500; color: #0f172a; font-size: 0.84rem;">${titleRu}</div>
+                    ${titleKz}
+                </td>
+                <td style="white-space: nowrap;">
+                    ${assigneeInfo}
+                    ${authorInfo}
+                </td>
+                <td style="white-space: nowrap; font-size: 0.78rem; font-weight: 600; color: #334155;">
+                    ${escapeHtml(t.due_date_str || '—')}
+                </td>
+                <td style="white-space: nowrap;">${statusBadge}</td>
+                <td style="white-space: nowrap;">${commentPreview}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                    ${actionButtonsHtml}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    tbodies.forEach(tbody => {
+        tbody.innerHTML = html;
+    });
+
+    updateAdminTasksBulkBar();
+}
+
+async function openAdminTaskModal(taskId = null) {
+    await hydrateAdminDropdowns();
+    if (Object.keys(adminCalendarStructure).length === 0) {
+        await hydrateAdminCalendarStructure();
+    }
+
+    const titleEl = document.getElementById('admin-task-modal-title');
+    const idInput = document.getElementById('admin-modal-task-id');
+    const ruInput = document.getElementById('admin-modal-title-ru');
+    const kzInput = document.getElementById('admin-modal-title-kz');
+    const typeSelect = document.getElementById('admin-modal-task-type');
+    const zoneSelect = document.getElementById('admin-modal-zone');
+    const deptSelect = document.getElementById('admin-modal-dept');
+    const authorSelect = document.getElementById('admin-modal-author');
+    const assigneeSelect = document.getElementById('admin-modal-assignee');
+    const dueDateInput = document.getElementById('admin-modal-due-date');
+    const monthSelect = document.getElementById('admin-modal-month');
+    const weekSelect = document.getElementById('admin-modal-week');
+    const statusSelect = document.getElementById('admin-modal-status');
+    const commentInput = document.getElementById('admin-modal-comment');
+    const saveBtn = document.getElementById('btn-save-admin-task');
+
+    if (saveBtn) saveBtn.disabled = false;
+    if (kzInput) delete kzInput.dataset.autoFilled;
+
+    if (taskId) {
+        let task = adminAllTasks.find(t => t.id === taskId);
+        if (!task) {
+            try {
+                const res = await fetch(`/api/tasks/${taskId}`);
+                if (res.ok) task = await res.json();
+            } catch (e) {}
+        }
+        if (!task) {
+            alert("Задача не найдена");
+            return;
+        }
+
+        if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-pen"></i> Редактирование задачи [${escapeHtml(task.code || ('TSK-' + task.id))}]`;
+        if (idInput) idInput.value = task.id;
+        if (ruInput) ruInput.value = task.title || '';
+        if (kzInput) kzInput.value = task.title_kz || '';
+        if (typeSelect) typeSelect.value = task.task_type || 'weekly';
+        if (zoneSelect) zoneSelect.value = task.zone || (adminPlannerZones[0]?.name || 'Бережливое производство');
+        if (deptSelect) deptSelect.value = task.department_service || '';
+        if (authorSelect) authorSelect.value = task.author_name || '';
+        if (assigneeSelect) assigneeSelect.value = task.assignee_name || '';
+
+        // Дата срока
+        if (dueDateInput) {
+            dueDateInput.value = parseDateToIso(task.due_date_str);
+        }
+
+        if (monthSelect) {
+            monthSelect.value = task.month_label || Object.keys(adminCalendarStructure)[0] || '';
+            onAdminModalMonthChange();
+        }
+        if (weekSelect) {
+            weekSelect.value = task.week_label || '';
+        }
+
+        if (statusSelect) statusSelect.value = task.status || '🟡 В работе';
+        if (commentInput) commentInput.value = task.comment || '';
+    } else {
+        if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-plus"></i> Новая задача планнера`;
+        if (idInput) idInput.value = '';
+        if (ruInput) ruInput.value = '';
+        if (kzInput) kzInput.value = '';
+        if (typeSelect) typeSelect.value = 'weekly';
+        if (zoneSelect && adminPlannerZones.length > 0) zoneSelect.value = adminPlannerZones[0].name;
+        if (deptSelect) deptSelect.value = '';
+
+        // По умолчанию автор — текущий вошедший пользователь или первый сотрудник
+        if (authorSelect) {
+            if (currentAdmin && currentAdmin.name) {
+                authorSelect.value = currentAdmin.name;
+            } else if (adminPlannerEmployees.length > 0) {
+                authorSelect.value = adminPlannerEmployees[0].name;
+            }
+        }
+        if (assigneeSelect) assigneeSelect.value = '';
+
+        // По умолчанию сегодня
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const isoToday = `${yyyy}-${mm}-${dd}`;
+        if (dueDateInput) dueDateInput.value = isoToday;
+
+        onAdminTaskModalDueDateChange();
+
+        if (statusSelect) statusSelect.value = '🟡 В работе';
+        if (commentInput) commentInput.value = '';
+    }
+
+    const modal = document.getElementById('admin-task-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function parseDateToIso(dateStr) {
+    if (!dateStr) return '';
+    const clean = String(dateStr).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+    
+    // Форматы: "18.09", "18.09 (Пт)", "18.09.2026"
+    const mFull = clean.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (mFull) {
+        return `${mFull[3]}-${mFull[2].padStart(2, '0')}-${mFull[1].padStart(2, '0')}`;
+    }
+    const mDm = clean.match(/(\d{1,2})\.(\d{1,2})/);
+    if (mDm) {
+        const yr = new Date().getFullYear();
+        return `${yr}-${mDm[2].padStart(2, '0')}-${mDm[1].padStart(2, '0')}`;
+    }
+    return '';
+}
+
+function formatIsoToRuDueDate(isoStr) {
+    if (!isoStr) return '';
+    const parts = isoStr.split('-');
+    if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        const dayNames = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+        const dayOfWeek = dayNames[d.getDay()] || "";
+        return `${parts[2]}.${parts[1]} (${dayOfWeek})`;
+    }
+    return isoStr;
+}
+
+async function saveAdminTask() {
+    const taskId = document.getElementById('admin-modal-task-id')?.value;
+    const titleRu = document.getElementById('admin-modal-title-ru')?.value.trim();
+    const titleKz = document.getElementById('admin-modal-title-kz')?.value.trim();
+    const taskType = document.getElementById('admin-modal-task-type')?.value || 'weekly';
+    const zone = document.getElementById('admin-modal-zone')?.value || 'Бережливое производство';
+    const dept = document.getElementById('admin-modal-dept')?.value || '';
+    const author = document.getElementById('admin-modal-author')?.value;
+    const assignee = document.getElementById('admin-modal-assignee')?.value || '';
+    const rawDue = document.getElementById('admin-modal-due-date')?.value;
+    const month = document.getElementById('admin-modal-month')?.value;
+    const week = document.getElementById('admin-modal-week')?.value;
+    const status = document.getElementById('admin-modal-status')?.value || '🟡 В работе';
+    const comment = document.getElementById('admin-modal-comment')?.value.trim() || '';
+
+    if (!titleRu && !titleKz) {
+        alert("Пожалуйста, введите суть задачи!");
+        document.getElementById('admin-modal-title-ru')?.focus();
+        return;
+    }
+    if (!author) {
+        alert("Пожалуйста, укажите автора задачи!");
+        document.getElementById('admin-modal-author')?.focus();
+        return;
+    }
+
+    const saveBtn = document.getElementById('btn-save-admin-task');
+    if (saveBtn) saveBtn.disabled = true;
+
+    const formattedDue = formatIsoToRuDueDate(rawDue);
+
+    const payload = {
+        title: titleRu,
+        title_kz: null,
+        task_type: taskType,
+        zone: zone,
+        department_service: dept || null,
+        author_name: author,
+        assignee_name: assignee,
+        due_date_str: formattedDue,
+        month_label: month,
+        week_label: week,
+        status: status,
+        comment: comment,
+        pin_code: (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : ""
+    };
+
+    try {
+        const url = taskId ? `/api/tasks/${taskId}` : '/api/tasks';
+        const method = taskId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            closeAdminTaskModal();
+            alert(taskId ? "Задача успешно обновлена!" : "Задача успешно создана!");
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения задачи: " + (err.detail || "Не удалось сохранить"));
+            if (saveBtn) saveBtn.disabled = false;
+        }
+    } catch (e) {
+        console.error("Error saving admin task:", e);
+        alert("Произошла ошибка сети при сохранении задачи");
+        if (saveBtn) saveBtn.disabled = false;
+    }
+}
+
+function toggleSelectAdminTask(taskId, isChecked) {
+    if (isChecked) {
+        selectedAdminTaskIds.add(taskId);
+    } else {
+        selectedAdminTaskIds.delete(taskId);
+    }
+    updateAdminTasksBulkBar();
+}
+
+function toggleSelectAllAdminTasks(isChecked) {
+    let q = '';
+    const searchInputs = document.querySelectorAll('#admin-task-search, [id="admin-task-search"]');
+    searchInputs.forEach(inp => {
+        if (inp.value && inp.value.trim()) q = inp.value.toLowerCase().trim();
+    });
+
+    const selMonth = document.getElementById('admin-filter-month')?.value || 'all';
+    const selWeek = document.getElementById('admin-filter-week')?.value || 'all';
+    const selZone = document.getElementById('admin-filter-zone')?.value || 'all';
+    const selStatus = document.getElementById('admin-filter-status')?.value || 'all';
+
+    let currentTasks = adminAllTasks;
+    if (selMonth !== 'all') currentTasks = currentTasks.filter(t => t.month_label === selMonth);
+    if (selWeek !== 'all') currentTasks = currentTasks.filter(t => t.week_label === selWeek);
+    if (selZone !== 'all') currentTasks = currentTasks.filter(t => t.zone === selZone || t.department_service === selZone);
+    if (selStatus !== 'all') currentTasks = currentTasks.filter(t => t.status === selStatus);
+    if (q) {
+        currentTasks = currentTasks.filter(t => 
+            (t.title && t.title.toLowerCase().includes(q)) ||
+            (t.title_kz && t.title_kz.toLowerCase().includes(q)) ||
+            (t.assignee_name && t.assignee_name.toLowerCase().includes(q)) ||
+            (t.author_name && t.author_name.toLowerCase().includes(q)) ||
+            (t.zone && t.zone.toLowerCase().includes(q)) ||
+            (t.code && t.code.toLowerCase().includes(q)) ||
+            (t.month_label && t.month_label.toLowerCase().includes(q))
+        );
+    }
+
+    currentTasks.forEach(t => {
+        if (isChecked) {
+            selectedAdminTaskIds.add(t.id);
+        } else {
+            selectedAdminTaskIds.delete(t.id);
+        }
+    });
+
+    const checkboxes = document.querySelectorAll('.admin-task-row-cb');
+    checkboxes.forEach(cb => cb.checked = isChecked);
+    updateAdminTasksBulkBar();
+}
+
+function updateAdminTasksBulkBar() {
+    const bars = document.querySelectorAll('#admin-tasks-bulk-bar, [id="admin-tasks-bulk-bar"]');
+    const countEls = document.querySelectorAll('#admin-tasks-selected-count, [id="admin-tasks-selected-count"]');
+    const masterCbs = document.querySelectorAll('#th-admin-select-all-tasks, [id="th-admin-select-all-tasks"]');
+
+    const count = selectedAdminTaskIds.size;
+    countEls.forEach(countEl => {
+        countEl.textContent = count;
+    });
+
+    bars.forEach(bar => {
+        bar.style.display = count > 0 ? 'flex' : 'none';
+    });
+
+    const allSelected = adminAllTasks.length > 0 && adminAllTasks.every(t => selectedAdminTaskIds.has(t.id));
+    masterCbs.forEach(masterCb => {
+        masterCb.checked = allSelected;
+    });
+}
+
+function clearAdminTasksSelection() {
+    selectedAdminTaskIds.clear();
+    const checkboxes = document.querySelectorAll('.admin-task-row-cb');
+    checkboxes.forEach(cb => cb.checked = false);
+    const masterCbs = document.querySelectorAll('#th-admin-select-all-tasks, [id="th-admin-select-all-tasks"]');
+    masterCbs.forEach(masterCb => {
+        masterCb.checked = false;
+    });
+    updateAdminTasksBulkBar();
+}
+
+async function executeAdminBulkStatus(newStatus) {
+    const taskIds = Array.from(selectedAdminTaskIds);
+    if (taskIds.length === 0) {
+        alert("Выберите хотя бы одну задачу");
+        return;
+    }
+
+    if (!confirm(`Изменить статус для ${taskIds.length} задач на «${newStatus}»?`)) return;
+
+    try {
+        const res = await fetch("/api/tasks/bulk_status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                task_ids: taskIds,
+                status: newStatus,
+                comment: newStatus.includes("Выполнено") ? "Выполнено администратором" : ""
+            })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`Успешно обновлено задач: ${data.updated_count}`);
+            clearAdminTasksSelection();
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка обновления: " + (err.detail || "Не удалось сохранить"));
+        }
+    } catch (e) {
+        console.error("Admin bulk status error:", e);
+        alert("Ошибка сети при массовом обновлении");
+    }
+}
+
+async function executeAdminBulkMove() {
+    const taskIds = Array.from(selectedAdminTaskIds);
+    if (taskIds.length === 0) {
+        alert("Выберите хотя бы одну задачу");
+        return;
+    }
+
+    const nextWeekStr = prompt("Введите неделю для переноса (например, «Неделя 2 (14.09 - 18.09)»):", "");
+    if (!nextWeekStr || !nextWeekStr.trim()) return;
+
+    try {
+        const res = await fetch("/api/tasks/bulk_status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                task_ids: taskIds,
+                status: "🔵 Перенесено",
+                comment: `Перенесено администратором на ${nextWeekStr.trim()}`,
+                move_to_next_week: true,
+                next_week_label: nextWeekStr.trim()
+            })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`Задачи (${data.updated_count} шт.) успешно перенесены`);
+            clearAdminTasksSelection();
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка переноса: " + (err.detail || "Не удалось сохранить"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при переносе задач");
+    }
+}
+
+async function executeAdminBulkDelete() {
+    const taskIds = Array.from(selectedAdminTaskIds);
+    if (taskIds.length === 0) {
+        alert("Выберите хотя бы одну задачу");
+        return;
+    }
+
+    if (!confirm(`Переместить ${taskIds.length} выбранных задач в Корзину?\n\nВы сможете восстановить их в любой момент из вкладки «Корзина».`)) return;
+
+    try {
+        const res = await fetch("/api/tasks/bulk_delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task_ids: taskIds })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`✅ ${data.message || `Задач перемещено в Корзину: ${data.deleted_count}`}`);
+            clearAdminTasksSelection();
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка удаления: " + (err.detail || "Не удалось удалить задачи"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при массовом перемещении задач в Корзину");
+    }
+}
+
+async function deleteTaskFromAdmin(taskId, taskTitle) {
+    if (!confirm(`Переместить задачу ID ${taskId} («${taskTitle || ''}») в Корзину?\n\nВы сможете восстановить её в любой момент из вкладки «Корзина».`)) return;
+
+    try {
+        const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+        if (res.ok) {
+            alert("✅ Задача успешно перемещена в Корзину");
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка удаления: " + (err.detail || "Не удалось переместить в Корзину"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при удалении задачи");
+    }
+}
+
+async function restoreAdminTask(taskId, taskTitle) {
+    if (!confirm(`Восстановить задачу ID ${taskId} («${taskTitle || ''}») из Корзины обратно в активный план?`)) return;
+
+    try {
+        const res = await fetch(`/api/tasks/${taskId}/restore`, { method: 'POST' });
+        if (res.ok) {
+            alert("✅ Задача успешно восстановлена в активный план!");
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка восстановления: " + (err.detail || "Не удалось восстановить"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при восстановлении задачи");
+    }
+}
+
+async function executeAdminBulkRestore() {
+    const taskIds = Array.from(selectedAdminTaskIds);
+    if (taskIds.length === 0) {
+        alert("Выберите хотя бы одну задачу для восстановления");
+        return;
+    }
+
+    if (!confirm(`Восстановить ${taskIds.length} задач из Корзины обратно в активный план?`)) return;
+
+    try {
+        const res = await fetch("/api/tasks/bulk_restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task_ids: taskIds })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`✅ ${data.message || `Успешно восстановлено задач: ${data.restored_count}`}`);
+            clearAdminTasksSelection();
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка восстановления: " + (err.detail || "Не удалось восстановить задачи"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при массовом восстановлении задач");
+    }
+}
+
+async function testSendPlannerEmailPrompt() {
+    const targetEmail = prompt("Введите Email для отправки тестового уведомления:", "");
+    if (!targetEmail || !targetEmail.trim()) return;
+
+    try {
+        const res = await fetch('/api/planner/test_email', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ to_email: targetEmail.trim() })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Тестовое письмо успешно отправлено! Проверьте входящие.");
+        } else {
+            alert("Ошибка отправки: " + (data.detail || "Проверьте переменные SMTP в Railway"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при проверке отправки");
+    }
+}
+
+
+// ==========================================
+// BACKUP & RESTORE / GOOGLE SYNC FUNCTIONS
+// ==========================================
+
+function downloadFullBackupExcel() {
+    window.location.href = '/api/admin/backup/excel';
+}
+
+async function triggerFullGoogleSync() {
+    if (!confirm("Запустить принудительную фоновую синхронизацию всех 4 листов с Google Таблицами?")) return;
+
+    try {
+        const res = await fetch('/api/admin/backup/google_sync_all', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Синхронизация всех листов запущена в фоновом режиме!");
+        } else {
+            alert("Ошибка синхронизации: " + (data.detail || res.statusText));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка сети при запуске синхронизации");
+    }
+}
+
+async function restoreFromBackupExcel() {
+    const fileInput = document.getElementById('backup-restore-file');
+    const statusMsg = document.getElementById('restore-status-msg');
+    
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert("Пожалуйста, выберите файл Excel (.xlsx) для восстановления.");
+        return;
+    }
+
+    const file = fileInput.files[0];
+    if (!confirm(`ВНИМАНИЕ! Восстановление из файла «${file.name}» проверит и обновит существующие записи приходов сырья, простоев и смен.\nПродолжить?`)) {
+        return;
+    }
+
+    if (statusMsg) {
+        statusMsg.style.color = '#3b82f6';
+        statusMsg.innerText = "Выполняется восстановление и проверка данных...";
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch('/api/admin/backup/restore', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+            let msg = `Успешно восстановлено! Приходов: ${data.receipts_created || 0} созд. / ${data.receipts_updated || 0} обн., Простоев: ${data.downtimes_created || 0} созд. / ${data.downtimes_updated || 0} обн.`;
+            if (statusMsg) {
+                statusMsg.style.color = '#10b981';
+                statusMsg.innerText = msg;
+            }
+            alert(msg);
+            loadAdminReceipts();
+            loadDowntimesLog();
+        } else {
+            const err = data.detail || res.statusText;
+            if (statusMsg) {
+                statusMsg.style.color = '#ef4444';
+                statusMsg.innerText = "Ошибка: " + err;
+            }
+            alert("Ошибка при восстановлении: " + err);
+        }
+    } catch(e) {
+        console.error(e);
+        if (statusMsg) {
+            statusMsg.style.color = '#ef4444';
+            statusMsg.innerText = "Ошибка сети при загрузке файла.";
+        }
+        alert("Ошибка сети при загрузке файла");
+    }
+}
+
+// =========================================================================
+// --- LKC (УЧАСТОК РАСКРОЯ И КОМПЛЕКТУЮЩИХ) ADMIN MODULE ---
+// =========================================================================
+
+let adminLKCCachedReports = [];
+
+function escapeLKCHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatLKCDateRu(dStr) {
+    if (!dStr) return '-';
+    try {
+        const parts = String(dStr).split('T')[0].split('-');
+        if (parts.length === 3) {
+            return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+        return dStr;
+    } catch (e) {
+        return dStr;
+    }
+}
+
+async function loadAdminLKCTab() {
+    const tbody = document.getElementById('admin-lkc-table-body');
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка рапортов ЛКЦ...</td></tr>`;
+    }
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+        const res = await fetch('/api/lkc/reports?limit=200', { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) throw new Error(`Ошибка сервера: ${res.status}`);
+        const reports = await res.json();
+        adminLKCCachedReports = Array.isArray(reports) ? reports : [];
+        filterAdminLKCTable();
+    } catch (err) {
+        console.error('[Admin LKC] Ошибка загрузки рапортов:', err);
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #ef4444; padding: 1.5rem;"><i class="fa-solid fa-circle-exclamation"></i> Не удалось загрузить рапорты: ${escapeLKCHtml(err.message)}</td></tr>`;
+        }
+    }
+}
+
+function filterAdminLKCTable() {
+    const dateFrom = document.getElementById('filter-lkc-date-from')?.value || '';
+    const dateTo = document.getElementById('filter-lkc-date-to')?.value || '';
+    const shiftFilter = (document.getElementById('filter-lkc-shift')?.value || '').toLowerCase();
+    const searchFilter = (document.getElementById('filter-lkc-search')?.value || '').toLowerCase().trim();
+
+    const filtered = adminLKCCachedReports.filter(r => {
+        const rDate = r.report_date ? String(r.report_date).split('T')[0] : '';
+        if (dateFrom && rDate < dateFrom) return false;
+        if (dateTo && rDate > dateTo) return false;
+
+        if (shiftFilter) {
+            const shiftName = (r.shift_name || '').toLowerCase();
+            if (shiftFilter === 'день') {
+                if (!shiftName.includes('день') && !shiftName.includes('дневн') && shiftName !== '1') return false;
+            } else if (shiftFilter === 'ночь') {
+                if (!shiftName.includes('ноч') && shiftName !== '2') return false;
+            } else if (!shiftName.includes(shiftFilter)) {
+                return false;
+            }
+        }
+
+        if (searchFilter) {
+            const master = (r.master_name || '').toLowerCase();
+            const notes = (r.notes || '').toLowerCase();
+            const itemsText = (r.items || []).map(it => (it.product_type || '') + ' ' + (it.dimension_size || '')).join(' ').toLowerCase();
+            if (!master.includes(searchFilter) && !notes.includes(searchFilter) && !itemsText.includes(searchFilter)) {
+                return false;
+            }
+        }
+        return true;
+    });
+
+    renderAdminLKCTable(filtered);
+}
+
+function renderAdminLKCTable(reports) {
+    const tbody = document.getElementById('admin-lkc-table-body');
+    const statsBadge = document.getElementById('admin-lkc-stats-badge');
+    if (!tbody) return;
+
+    if (!reports || reports.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Нет рапортов, соответствующих выбранным фильтрам</td></tr>`;
+        if (statsBadge) statsBadge.innerText = 'Рапортов: 0';
+        return;
+    }
+
+    let totalRawSpent = 0;
+    let totalWhSubmitted = 0;
+    let totalScrap = 0;
+
+    let html = '';
+    reports.forEach(r => {
+        totalRawSpent += (r.raw_sheets_spent || 0);
+        totalWhSubmitted += (r.warehouse_submitted_qty || 0);
+        totalScrap += (r.scrap_defect_qty || 0);
+
+        const isDayShift = (r.shift_name || '').includes('1') || (r.shift_name || '').toLowerCase().includes('дневн') || (r.shift_name || '').toLowerCase().includes('день');
+        const shiftBadge = isDayShift
+            ? `<span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.74rem;"><i class="fa-solid fa-sun"></i> День</span>`
+            : `<span style="background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.74rem;"><i class="fa-solid fa-moon"></i> Ночь</span>`;
+
+        // Краткий перечень продукции
+        const itemsList = (r.items || []).map(it => {
+            const shortName = escapeLKCHtml(it.product_type || it.dimension_size || 'Продукция');
+            return `<span style="display: inline-block; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 5px; font-size: 0.73rem; margin: 1px 2px;">${shortName}: <b>${it.fact_qty || 0}</b></span>`;
+        }).join('');
+
+        const totalItemsCount = (r.items || []).reduce((acc, it) => acc + (it.fact_qty || 0), 0);
+        const prodCellContent = itemsList ? `${itemsList} <span style="color:#64748b; font-size:0.75rem;">(всего ${totalItemsCount} шт)</span>` : '<span style="color:#94a3b8; font-style:italic;">Нет позиций</span>';
+
+        // Простои
+        const totalDowntimeMin = (r.downtimes || []).reduce((acc, d) => acc + (d.duration_minutes || 0), 0);
+        const downtimeBadge = totalDowntimeMin > 0
+            ? `<span style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> ${totalDowntimeMin} мин</span>`
+            : `<span style="color: #10b981; font-weight: 500; font-size: 0.75rem;"><i class="fa-solid fa-check"></i> 0 мин</span>`;
+
+        html += `
+            <tr>
+                <td>
+                    <b>#${r.id}</b>
+                    <div style="font-size: 0.75rem; color: #64748b;">${formatLKCDateRu(r.report_date)}</div>
+                </td>
+                <td>${shiftBadge}</td>
+                <td>
+                    <div style="font-weight: 600; color: #0f172a;">${escapeLKCHtml(r.master_name || '-')}</div>
+                </td>
+                <td style="max-width: 320px; white-space: normal;">
+                    ${prodCellContent}
+                </td>
+                <td style="text-align: right; font-weight: 600; color: #0f172a;">
+                    ${r.raw_sheets_spent || 0} <span style="font-size: 0.72rem; color: #64748b;">л.</span>
+                </td>
+                <td style="text-align: right; font-weight: 600; color: #047857;">
+                    ${r.warehouse_submitted_qty || 0} <span style="font-size: 0.72rem; color: #64748b;">шт</span>
+                </td>
+                <td style="text-align: right; font-weight: 600; color: ${r.scrap_defect_qty > 0 ? '#dc2626' : '#64748b'};">
+                    ${r.scrap_defect_qty || 0}
+                </td>
+                <td style="text-align: center;">
+                    ${downtimeBadge}
+                </td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button class="action-btn btn-edit" title="Просмотр деталей рапорта" onclick="openAdminLKCDetails(${r.id})">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                    <button class="action-btn btn-delete" title="Удалить рапорт" onclick="deleteAdminLKCReport(${r.id})">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+
+    if (statsBadge) {
+        statsBadge.innerHTML = `Рапортов: <b>${reports.length}</b> | Сырья: <b>${totalRawSpent}</b> л. | Сдано: <b>${totalWhSubmitted}</b> шт. | Брак: <b>${totalScrap}</b> шт.`;
+    }
+}
+
+async function openAdminLKCDetails(reportId) {
+    let report = adminLKCCachedReports.find(r => r.id === reportId);
+    if (!report || !report.items || !report.raw_materials) {
+        try {
+            const res = await fetch(`/api/lkc/reports/${reportId}`);
+            if (res.ok) {
+                report = await res.json();
+            }
+        } catch (e) {
+            console.error('[Admin LKC] Ошибка загрузки деталей:', e);
+        }
+    }
+
+    if (!report) {
+        alert('Не удалось загрузить данные рапорта №' + reportId);
+        return;
+    }
+
+    // Заполнение модального окна
+    document.getElementById('admin-lkc-modal-id').innerText = report.id;
+    document.getElementById('admin-lkc-modal-date').innerText = formatLKCDateRu(report.report_date);
+    document.getElementById('admin-lkc-modal-shift').innerText = report.shift_name || '-';
+    document.getElementById('admin-lkc-modal-master').innerText = report.master_name || '-';
+    document.getElementById('admin-lkc-modal-thickness').innerText = report.raw_sheets_thickness || '-';
+
+    // 1. Позиции выпуска
+    const itemsTbody = document.getElementById('admin-lkc-modal-items-tbody');
+    if (itemsTbody) {
+        if (!report.items || report.items.length === 0) {
+            itemsTbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding: 0.8rem;">Нет позиций продукции</td></tr>`;
+        } else {
+            itemsTbody.innerHTML = report.items.map((it, idx) => `
+                <tr>
+                    <td style="color:#64748b;">${idx + 1}</td>
+                    <td><b>${escapeLKCHtml(it.product_type || '-')}</b></td>
+                    <td>${escapeLKCHtml(it.dimension_size || '-')}</td>
+                    <td style="text-align: right;">${it.plan_qty || 0}</td>
+                    <td style="text-align: right; font-weight: 700; color: #1e3a8a;">${it.fact_qty || 0} ${escapeLKCHtml(it.fact_unit || 'шт')}</td>
+                    <td>${escapeLKCHtml(it.order_batch || '-')}</td>
+                    <td style="text-align: right;">${it.sets_count || 0}</td>
+                    <td style="text-align: right;">${it.comp_t_count || 0}</td>
+                    <td style="text-align: right;">${it.comp_l_count || 0}</td>
+                    <td style="text-align: right;">${it.comp_screws_count || 0}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // 2. Расход сырья и сдача на склад
+    const rawTbody = document.getElementById('admin-lkc-modal-raw-tbody');
+    if (rawTbody) {
+        if (!report.raw_materials || report.raw_materials.length === 0) {
+            rawTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding: 0.8rem;">Нет записей расхода сырья</td></tr>`;
+        } else {
+            rawTbody.innerHTML = report.raw_materials.map((rm, idx) => `
+                <tr>
+                    <td style="color:#64748b;">${idx + 1}</td>
+                    <td><b>${escapeLKCHtml(rm.material_name || '-')}</b></td>
+                    <td>${escapeLKCHtml(rm.thickness || '-')}</td>
+                    <td style="text-align: right; font-weight: 700; color: #0f172a;">${rm.spent_qty || 0} ${escapeLKCHtml(rm.unit || 'шт')}</td>
+                    <td style="text-align: right; font-weight: 700; color: #047857;">${rm.warehouse_submitted_qty || 0} шт</td>
+                    <td style="text-align: right; font-weight: 700; color: ${rm.scrap_defect_qty > 0 ? '#dc2626' : '#64748b'};">${rm.scrap_defect_qty || 0} шт</td>
+                    <td>${escapeLKCHtml(rm.notes || '-')}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // 3. Простои оборудования
+    const dtTbody = document.getElementById('admin-lkc-modal-downtimes-tbody');
+    if (dtTbody) {
+        if (!report.downtimes || report.downtimes.length === 0) {
+            dtTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#10b981; padding: 0.8rem;"><i class="fa-solid fa-check"></i> Простоев за смену не зафиксировано</td></tr>`;
+        } else {
+            dtTbody.innerHTML = report.downtimes.map(dt => `
+                <tr>
+                    <td><b>${escapeLKCHtml(dt.start_time || '')}</b> - ${escapeLKCHtml(dt.end_time || '')}</td>
+                    <td style="text-align: center; font-weight: 700; color: #dc2626;">${dt.duration_minutes || 0}</td>
+                    <td><b>${escapeLKCHtml(dt.equipment_node || '-')}</b></td>
+                    <td><span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${escapeLKCHtml(dt.category || '-')}</span></td>
+                    <td style="color: #991b1b;">${escapeLKCHtml(dt.reason || '-')}</td>
+                    <td>${escapeLKCHtml(dt.comment || '-')}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // Примечания
+    const notesWrap = document.getElementById('admin-lkc-modal-notes-wrap');
+    const notesEl = document.getElementById('admin-lkc-modal-notes');
+    if (notesWrap && notesEl) {
+        if (report.notes && report.notes.trim()) {
+            notesEl.innerText = report.notes;
+            notesWrap.style.display = 'block';
+        } else {
+            notesWrap.style.display = 'none';
+        }
+    }
+
+    const modal = document.getElementById('admin-lkc-details-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeAdminLKCDetailsModal() {
+    const modal = document.getElementById('admin-lkc-details-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function deleteAdminLKCReport(reportId) {
+    if (!confirm(`Вы действительно хотите удалить рапорт ЛКЦ №${reportId}?\nДанное действие выполнит мягкое удаление записи.`)) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/lkc/reports/${reportId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Ошибка удаления');
+
+        if (typeof showToast === 'function') {
+            showToast('info', `Рапорт №${reportId} успешно удален`);
+        } else {
+            alert(`Рапорт №${reportId} успешно удален`);
+        }
+
+        loadAdminLKCTab();
+    } catch (e) {
+        console.error('[Admin LKC] Ошибка удаления:', e);
+        alert('Ошибка при удалении рапорта: ' + e.message);
+    }
+}
+
+async function syncAdminLKCGoogleSheets(btn) {
+    if (!btn) btn = document.getElementById('btn-admin-sync-lkc-sheets');
+    const origHtml = btn ? btn.innerHTML : '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка...';
+    }
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        const res = await fetch('/api/lkc/sync_google_sheets', {
+            method: 'POST',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || 'Не удалось выполнить синхронизацию с Google Таблицей');
+        }
+
+        const msg = 'Данные ЛКЦ успешно выгружены в Google Таблицу (3 листа: «Производство», «Простои», «Сдано на склад»)!';
+        if (typeof showToast === 'function') {
+            showToast('success', msg);
+        }
+        alert(msg);
+
+        // Обновим ссылку на таблицу если вернулся URL
+        if (data.url) {
+            const openLink = document.getElementById('btn-admin-open-lkc-sheets');
+            if (openLink) openLink.href = data.url;
+        }
+    } catch (err) {
+        console.error('[Admin LKC] Ошибка синхронизации Google Sheets:', err);
+        const errMsg = 'Ошибка выгрузки в Google Таблицу: ' + err.message;
+        if (typeof showToast === 'function') {
+            showToast('error', errMsg);
+        }
+        alert(errMsg);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+// HTMX & View Transitions reactive initialization
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', initAdminLogin);
+} else {
+    initAdminLogin();
+}
+document.addEventListener('htmx:load', () => {
+    initAdminLogin();
+});

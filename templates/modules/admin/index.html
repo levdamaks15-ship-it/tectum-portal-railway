@@ -1,0 +1,2734 @@
+{% extends "core/base.html" %}
+
+{% block title %}Панель администратора | Tectum{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="/static/modules/admin/admin.css?v=20261105_v1">
+{% endblock %}
+
+{% block content %}
+<script>
+        fetch('/api/system/env').then(res => res.json()).then(data => {
+            if (data.is_sandbox) {
+                const banner = document.createElement('div');
+                banner.style.cssText = "background: #ffcc00; color: #000; text-align: center; padding: 10px; font-weight: bold; font-size: 16px; position: sticky; top: 0; z-index: 10000; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: 100%;";
+                banner.innerHTML = "⚠️ ОБУЧАЮЩИЙ ПОРТАЛ — Данные не сохраняются в реальную базу ⚠️";
+                document.body.prepend(banner);
+                document.title = "[Обучение] " + document.title;
+            }
+        }).catch(e => console.error('Sandbox check failed:', e));
+    </script>
+
+    <!-- Login Screen -->
+    <div id="admin-login-screen"
+        style="position: absolute; top:0; left:0; width: 100%; height: 100%; background: var(--bg-color); z-index: 2000; display: none; justify-content: center; align-items: center; padding: 1rem; box-sizing: border-box;">
+        <div class="glass-panel"
+            style="width: 100%; max-width: 420px; text-align: center; padding: 2.2rem 2rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); box-sizing: border-box;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1rem; border: 1px solid #bfdbfe;">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;">Вход администратора</h3>
+            <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.88rem; line-height: 1.4;">Доступ разрешен исключительно системному администратору (Левда М.)</p>
+            
+            <input type="hidden" id="admin-pin" value="">
+            <div class="pin-boxes-container" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 1.5rem;">
+                <input type="password" inputmode="numeric" class="pin-digit-box" id="admin-pin-box-1" maxlength="1" autocomplete="off" oninput="handleAdminPinBoxInput(1, event)" onkeydown="handleAdminPinBoxKeydown(1, event)">
+                <input type="password" inputmode="numeric" class="pin-digit-box" id="admin-pin-box-2" maxlength="1" autocomplete="off" oninput="handleAdminPinBoxInput(2, event)" onkeydown="handleAdminPinBoxKeydown(2, event)">
+                <input type="password" inputmode="numeric" class="pin-digit-box" id="admin-pin-box-3" maxlength="1" autocomplete="off" oninput="handleAdminPinBoxInput(3, event)" onkeydown="handleAdminPinBoxKeydown(3, event)">
+                <input type="password" inputmode="numeric" class="pin-digit-box" id="admin-pin-box-4" maxlength="1" autocomplete="off" oninput="handleAdminPinBoxInput(4, event)" onkeydown="handleAdminPinBoxKeydown(4, event)">
+            </div>
+
+            <button onclick="adminLogin()" id="btn-admin-login-submit" style="width: 100%; min-height: 44px; background: #2563eb; color: #ffffff; border: none; border-radius: 10px; font-weight: 600; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти в Админку</span>
+            </button>
+
+            <p id="admin-login-error" style="color: #dc2626; margin-top: 1rem; font-size: 0.85rem; font-weight: 500; display: none;">Неверный PIN-код или нет прав администратора.</p>
+            <button onclick="window.location.href='/'" class="btn-secondary"
+                style="width: 100%; min-height: 40px; margin-top: 0.75rem; border-radius: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; background: transparent; border: 1px solid #cbd5e1; color: #475569;">
+                <i class="fa-solid fa-arrow-left"></i> Вернуться на портал
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Mobile Top Navigation Header -->
+    <div class="mobile-admin-header" id="mobile-admin-header" style="display: none; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; background: #ffffff; border-bottom: 1px solid #e2e8f0;">
+        <button class="mobile-menu-btn" onclick="toggleAdminSidebar()" aria-label="Открыть меню">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <div style="display: inline-flex; align-items: center; gap: 6px;">
+            <span class="brand-title-tectum" style="font-size: 1rem;">TECTUM</span>
+            <span class="brand-badge-shop badge-shop-admin" style="font-size: 0.65rem; padding: 2px 6px;">АДМИН</span>
+        </div>
+        <button onclick="window.location.href='/'" class="mobile-menu-btn" style="font-size: 1rem;" title="На портал">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+    </div>
+
+    <!-- Backdrop for mobile drawer -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleAdminSidebar(false)"></div>
+
+    <!-- Main Admin App -->
+    <div id="admin-app" style="display: flex; width: 100%; height: calc(100vh - 105px); overflow: hidden;">
+        <div class="admin-sidebar" id="admin-sidebar">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e2e8f0;">
+                <div class="header-brand-left" style="height: 32px; display: inline-flex; align-items: center; gap: 8px;">
+                    <a href="/" style="text-decoration: none; display: inline-flex; align-items: center;" title="На главную портала">
+                        <span class="brand-title-tectum" style="font-size: 1.05rem;">TECTUM</span>
+                    </a>
+                    <span class="brand-badge-shop badge-shop-admin" id="header-shop-badge" style="font-size: 0.68rem; padding: 3px 7px;">АДМИН</span>
+                </div>
+                <button class="mobile-menu-btn" onclick="toggleAdminSidebar(false)"
+                    style="display: none; border: 1px solid #e2e8f0; font-size: 1.1rem; padding: 0.2rem;"
+                    id="mobile-close-sidebar-btn">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <!-- Секция 1: Персонал и доступ -->
+            <div class="admin-nav-group">
+                <div class="admin-nav-group-title"><i class="fa-solid fa-users-gear"></i> Персонал и доступ</div>
+                <div class="admin-nav-item active" onclick="switchAdminTab('planner-settings')" id="nav-planner-settings"><i
+                        class="fa-solid fa-users-gear"></i> Сотрудники и доступ</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('checklist-emps')" id="nav-checklist-emps"><i
+                        class="fa-solid fa-id-card-clip"></i> Сотрудники цеха (Чек-листы)</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('passwords')" id="nav-passwords"><i
+                        class="fa-solid fa-lock"></i> Пароли папок</div>
+            </div>
+
+            <!-- Секция 2: Справочники производства -->
+            <div class="admin-nav-group">
+                <div class="admin-nav-group-title"><i class="fa-solid fa-industry"></i> Справочники</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('shift-schedule')" id="nav-shift-schedule"><i
+                        class="fa-solid fa-calendar-check"></i> График сменности</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('norms')" id="nav-norms"><i
+                        class="fa-solid fa-scale-balanced"></i> Нормы продукции</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('downtimes-dir')" id="nav-downtimes-dir"><i
+                        class="fa-solid fa-list-check"></i> Справочник простоев</div>
+            </div>
+
+            <!-- Секция 3: Операционные журналы -->
+            <div class="admin-nav-group">
+                <div class="admin-nav-group-title"><i class="fa-solid fa-clipboard-list"></i> Журналы данных</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('tasks')" id="nav-tasks"><i
+                        class="fa-solid fa-list-check"></i> Управление задачами</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('shifts')" id="nav-shifts"><i
+                        class="fa-solid fa-calendar-days"></i> Управление сменами</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('receipts')" id="nav-receipts"><i
+                        class="fa-solid fa-truck-ramp-box"></i> Приходы сырья</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('downtimes-log')" id="nav-downtimes-log"><i
+                        class="fa-solid fa-clock"></i> Журнал простоев</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('lkc')" id="nav-lkc"><i
+                        class="fa-solid fa-shapes"></i> Рапорты ЛКЦ</div>
+            </div>
+
+            <!-- Секция 4: Система и безопасность -->
+            <div class="admin-nav-group">
+                <div class="admin-nav-group-title"><i class="fa-solid fa-sliders"></i> Система</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('backup')" id="nav-backup"><i
+                        class="fa-solid fa-floppy-disk"></i> Бэкап и Откат</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('audit-logs')" id="nav-audit-logs"><i
+                        class="fa-solid fa-clock-rotate-left"></i> История изменений</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('planner-settings')" id="nav-planner-settings-legacy" style="display:none;"><i
+                        class="fa-solid fa-gear"></i> Настройки планнера</div>
+                <div class="admin-nav-item" onclick="switchAdminTab('ai-assistant')" id="nav-ai-assistant"><i
+                        class="fa-solid fa-robot"></i> ИИ-Ассистент (Регламенты)</div>
+                <a href="/lkc" target="_blank" class="admin-nav-item" style="display: flex; text-decoration: none;"><i
+                        class="fa-solid fa-scissors"></i> Кабинет мастера ЛКЦ <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.68rem; margin-left: auto; color: #94a3b8;"></i></a>
+                <a href="/static/docs.html" class="admin-nav-item" style="display: flex; text-decoration: none;"><i
+                        class="fa-solid fa-folder-open"></i> База Знаний (Drive)</a>
+            </div>
+
+            <div style="flex-grow: 1;"></div>
+
+            <button onclick="adminLogout()" class="btn-secondary" style="width: 100%; margin-bottom: 0.5rem; color: #ef4444; border-color: #fca5a5; background: #fff5f5;"><i
+                    class="fa-solid fa-right-from-bracket"></i> Выйти из админки</button>
+            <button onclick="window.location.href='/'" class="btn-secondary" style="width: 100%;"><i
+                    class="fa-solid fa-arrow-left"></i> На портал</button>
+        </div>
+
+        <div class="admin-content">
+
+            <!-- Masters Tab (Deprecated - Hidden in favor of Сотрудники и доступ) -->
+            <div id="tab-masters" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <h2>Управление мастерами и аккаунтами</h2>
+                    <button onclick="openMasterModal()"
+                        style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i
+                            class="fa-solid fa-plus"></i> Добавить</button>
+                </div>
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Имя</th>
+                                <th>Роль</th>
+                                <th>Email</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="masters-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tasks Management Tab -->
+            <div id="tab-tasks" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0;"><i class="fa-solid fa-list-check"></i> Управление задачами планнера</h2>
+                        <p style="color: var(--text-secondary); margin: 2px 0 0; font-size: 0.8rem;">Полный реестр, создание, редактирование, фильтрация и управление задачами всех горизонтов</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="openAdminTaskModal()"
+                            style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.85rem; background: var(--accent-color); color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-plus"></i> Добавить задачу
+                        </button>
+                        <button onclick="loadAdminTasksTab()" class="btn-secondary"
+                            style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;" title="Обновить список">
+                            <i class="fa-solid fa-arrows-rotate"></i> Обновить
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Переключатель режима: Активные / Корзина -->
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <div style="display: inline-flex; background: #e2e8f0; padding: 3px; border-radius: 8px; gap: 3px;">
+                        <button type="button" id="btn-admin-tasks-view-active" onclick="switchAdminTasksView('active')"
+                            style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> Активные задачи 
+                            <span id="admin-tasks-active-cnt" style="background: #eff6ff; color: #1d4ed8; padding: 1px 6px; border-radius: 10px; font-size: 0.74rem; font-weight: 700;">...</span>
+                        </button>
+                        <button type="button" id="btn-admin-tasks-view-trash" onclick="switchAdminTasksView('trash')"
+                            style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; background: transparent; color: #64748b; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-trash-can" style="color: #ef4444;"></i> Корзина (Удаленные)
+                            <span id="admin-tasks-trash-cnt" style="background: #fee2e2; color: #b91c1c; padding: 1px 6px; border-radius: 10px; font-size: 0.74rem; font-weight: 700;">0</span>
+                        </button>
+                    </div>
+                    <span id="admin-tasks-view-hint" style="font-size: 0.76rem; color: #64748b;">(Любую удаленную задачу можно восстановить в 1 клик)</span>
+                </div>
+
+                <!-- Панель фильтров задач -->
+                <div class="glass-panel" style="padding: 0.75rem 1rem; margin-bottom: 0.85rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <label style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;">
+                            <i class="fa-solid fa-calendar-days"></i> Месяц:
+                        </label>
+                        <select id="admin-filter-month" onchange="onAdminFilterMonthChange()" style="padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem; background: #ffffff;">
+                            <option value="all">🌐 За всё время</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <label style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;">
+                            <i class="fa-solid fa-calendar-week"></i> Неделя:
+                        </label>
+                        <select id="admin-filter-week" onchange="filterAdminTasksTable()" style="padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem; background: #ffffff;">
+                            <option value="all">🌐 Все недели</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <label style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;">
+                            <i class="fa-solid fa-layer-group"></i> Зона:
+                        </label>
+                        <select id="admin-filter-zone" onchange="filterAdminTasksTable()" style="padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem; background: #ffffff;">
+                            <option value="all">Все зоны</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <label style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;">
+                            <i class="fa-solid fa-circle-dot"></i> Статус:
+                        </label>
+                        <select id="admin-filter-status" onchange="filterAdminTasksTable()" style="padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem; background: #ffffff;">
+                            <option value="all">Все статусы</option>
+                            <option value="🟡 В работе">🟡 В работе</option>
+                            <option value="🟢 Выполнено">🟢 Выполнено</option>
+                            <option value="🔵 Перенесено">🔵 Перенесено</option>
+                            <option value="🔴 Отменено">🔴 Отменено</option>
+                            <option value="⚪ В очереди">⚪ В очереди</option>
+                        </select>
+                    </div>
+
+                    <input type="text" id="admin-task-search" placeholder="Поиск по сути, исполнителю, ID..."
+                        oninput="filterAdminTasksTable()"
+                        style="padding: 0.35rem 0.75rem; font-size: 0.82rem; border-radius: 6px; flex: 1; min-width: 200px; border: 1px solid #cbd5e1; background: #ffffff;">
+
+                    <button onclick="resetAdminTasksFilters()" class="btn-secondary" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.82rem;" title="Сбросить все фильтры">
+                        <i class="fa-solid fa-rotate-left"></i> Сброс
+                    </button>
+                </div>
+
+                <!-- Таблица задач -->
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <div style="overflow-x: auto; max-height: calc(100vh - 250px); border: 1px solid var(--glass-border); border-radius: 8px;">
+                        <table class="tasks-registry-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 35px; text-align: center;">
+                                        <input type="checkbox" id="th-admin-select-all-tasks" onchange="toggleSelectAllAdminTasks(this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать все задачи">
+                                    </th>
+                                    <th style="width: 85px;">ID / Код</th>
+                                    <th style="width: 170px;">Период (Неделя)</th>
+                                    <th style="width: 110px;">Зона / Служба</th>
+                                    <th style="min-width: 280px;">Суть задачи (RU / KZ)</th>
+                                    <th style="width: 140px;">Автор / Исполнитель</th>
+                                    <th style="width: 90px;">Срок</th>
+                                    <th style="width: 130px;">Статус</th>
+                                    <th style="width: 140px;">Комментарий</th>
+                                    <th style="text-align: right; width: 130px;">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-tasks-table-body">
+                                <tr>
+                                    <td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                                        Загрузка задач...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Панель массовых действий -->
+                    <div id="admin-tasks-bulk-bar" style="display: none; margin-top: 0.75rem; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.6rem 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem; color: #fff;">
+                        <div style="font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-check-double" style="color: #38bdf8;"></i>
+                            <span>Выбрано задач: <span id="admin-tasks-selected-count" style="color: #38bdf8; font-weight: 700;">0</span></span>
+                        </div>
+                        <div id="admin-tasks-bulk-actions-active" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <button type="button" onclick="executeAdminBulkStatus('🟡 В работе')" style="background: #eab308; color: #000; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-play"></i> В работу
+                            </button>
+                            <button type="button" onclick="executeAdminBulkStatus('🟢 Выполнено')" style="background: #10b981; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-check"></i> Выполнить
+                            </button>
+                            <button type="button" onclick="executeAdminBulkMove()" style="background: #3b82f6; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-arrow-right"></i> На след. неделю
+                            </button>
+                            <button type="button" onclick="executeAdminBulkDelete()" style="background: #ef4444; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-trash"></i> В корзину
+                            </button>
+                            <button type="button" onclick="clearAdminTasksSelection()" style="background: transparent; color: #94a3b8; border: none; font-size: 1.1rem; cursor: pointer; padding: 0 4px;" title="Снять выбор">&times;</button>
+                        </div>
+                        <div id="admin-tasks-bulk-actions-trash" style="display: none; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <button type="button" onclick="executeAdminBulkRestore()" style="background: #10b981; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-rotate-left"></i> Восстановить выбранные
+                            </button>
+                            <button type="button" onclick="clearAdminTasksSelection()" style="background: transparent; color: #94a3b8; border: none; font-size: 1.1rem; cursor: pointer; padding: 0 4px;" title="Снять выбор">&times;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checklist Employees Tab -->
+            <div id="tab-checklist-emps" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0;"><i class="fa-solid fa-id-card-clip"></i> Сотрудники цеха (Чек-листы)</h2>
+                        <p style="color: var(--text-secondary); margin: 2px 0 0; font-size: 0.8rem;">База всех рабочих и
+                            мастеров для чек-листов и премий</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="openChecklistEmpModal()"
+                            style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--accent-color);"><i
+                                class="fa-solid fa-user-plus"></i> Добавить сотрудника</button>
+                        <button onclick="syncChecklistEmployeesFromGoogle()"
+                            style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i
+                                class="fa-solid fa-arrows-rotate"></i> Обновить из Google</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 0.6rem; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <select id="filter-emp-shift" class="form-control"
+                        style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.85rem;"
+                        onchange="renderChecklistEmployeesTable()">
+                        <option value="">Все смены</option>
+                        <option value="1-я смена">1-я смена</option>
+                        <option value="2-я смена">2-я смена</option>
+                        <option value="3-я смена">3-я смена</option>
+                        <option value="4-я смена">4-я смена</option>
+                        <option value="Котельная">Котельная</option>
+                        <option value="Дневной персонал">Дневной персонал</option>
+                    </select>
+                    <input type="text" id="filter-emp-search" placeholder="Поиск по ФИО или должности..."
+                        style="padding: 0.35rem 0.8rem; width: 240px; font-size: 0.85rem;"
+                        oninput="renderChecklistEmployeesTable()">
+                </div>
+
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th>ФИО Сотрудника</th>
+                                <th>Смена</th>
+                                <th>Участок</th>
+                                <th>Должность</th>
+                                <th style="text-align: right;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checklist-emps-table-body">
+                            <tr>
+                                <td colspan="6" style="text-align: center;">Загрузка сотрудников...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Shift Schedule Tab -->
+            <div id="tab-shift-schedule" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0;"><i class="fa-solid fa-calendar-check"></i> График сменности</h2>
+                        <p style="color: var(--text-secondary); margin: 2px 0 0; font-size: 0.8rem;">Календарь дежурств
+                            бригад по дням и ночам</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 0.75rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"
+                    class="glass-panel" style="padding: 0.6rem 0.8rem;">
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <label style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;"><i
+                                class="fa-solid fa-calendar-days"></i> Месяц:</label>
+                        <select id="schedule-month-filter" onchange="renderShiftScheduleTable()"
+                            style="padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem; background: #ffffff;">
+                            <option value="">Все месяцы</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <label style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;"><i
+                                class="fa-solid fa-user-group"></i> Бригада:</label>
+                        <select id="schedule-group-filter" onchange="renderShiftScheduleTable()"
+                            style="padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem; background: #ffffff;">
+                            <option value="">Все бригады</option>
+                            <option value="Смена 1">Смена 1</option>
+                            <option value="Смена 2">Смена 2</option>
+                            <option value="Смена 3">Смена 3</option>
+                            <option value="Смена 4">Смена 4</option>
+                        </select>
+                    </div>
+
+                    <input type="text" id="schedule-search-date" placeholder="Поиск (напр., 19.08)..."
+                        style="padding: 0.35rem 0.6rem; width: 170px; font-size: 0.82rem; border-radius: 6px; border: 1px solid #cbd5e1;"
+                        oninput="renderShiftScheduleTable()">
+
+                    <button onclick="scrollToTodaySchedule()" class="btn-secondary"
+                        style="width: auto; padding: 0.35rem 0.85rem; font-size: 0.82rem; border: 1px solid #3b82f6; color: #2563eb; background: #eff6ff; font-weight: 600;"
+                        title="Прокрутить к сегодняшнему дню"><i class="fa-solid fa-location-crosshairs"></i>
+                        Сегодня</button>
+
+                    <button onclick="loadAdminShiftSchedule()" class="btn-secondary"
+                        style="width: auto; padding: 0.35rem 0.8rem; font-size: 0.82rem;"><i
+                            class="fa-solid fa-arrows-rotate"></i> Обновить</button>
+                </div>
+
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>День недели</th>
+                                <th>☀️ Дневная смена (08:00 – 19:00)</th>
+                                <th>🌙 Ночная смена (19:00 – 08:00)</th>
+                                <th>Смена 1</th>
+                                <th>Смена 2</th>
+                                <th>Смена 3</th>
+                                <th>Смена 4</th>
+                                <th style="text-align: right;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shift-schedule-table-body">
+                            <tr>
+                                <td colspan="9" style="text-align: center;">Загрузка графика...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Passwords Tab -->
+            <div id="tab-passwords" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <h2>Управление паролями папок</h2>
+                </div>
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Имя папки</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="passwords-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Shifts Tab -->
+            <div id="tab-shifts" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h2 style="margin: 0;"><i class="fa-solid fa-calendar-days"></i> Управление сменами и рапортами</h2>
+                    <div style="display: flex; gap: 0.4rem; align-items: center;">
+                        <button class="filter-btn active" id="filter-period-week" onclick="setShiftPeriod('week')"
+                            style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: var(--accent-color);"><i
+                                class="fa-solid fa-calendar-week"></i> Неделя</button>
+                        <button class="filter-btn" id="filter-period-month" onclick="setShiftPeriod('month')"
+                            style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: rgba(255,255,255,0.1);"><i
+                                class="fa-solid fa-calendar-minus"></i> Месяц</button>
+                        <button class="filter-btn" id="filter-period-all" onclick="setShiftPeriod('all')"
+                            style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: rgba(255,255,255,0.1);"><i
+                                class="fa-solid fa-infinity"></i> Все время</button>
+                    </div>
+                </div>
+
+                <div class="glass-panel"
+                    style="padding: 0.75rem 1rem; margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; background: #ffffff; border: 1px solid #e2e8f0;">
+                    <div style="flex: 1; min-width: 130px;">
+                        <label
+                            style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem; font-weight: 600;">Линия</label>
+                        <select id="filter-line" onchange="filterShifts()"
+                            style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                            <option value="">Все линии</option>
+                            <option value="1">Линия 1</option>
+                            <option value="2">Линия 2</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <label
+                            style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem; font-weight: 600;">Мастер</label>
+                        <select id="filter-master" onchange="filterShifts()"
+                            style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                            <option value="">Все мастера</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1.5; min-width: 160px;">
+                        <label
+                            style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem; font-weight: 600;">Продукция</label>
+                        <select id="filter-product" onchange="filterShifts()"
+                            style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                            <option value="">Вся продукция</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1.2; min-width: 140px;">
+                        <label
+                            style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem; font-weight: 600;">Назначение</label>
+                        <select id="filter-export-type" onchange="filterShifts()"
+                            style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                            <option value="">Все назначения</option>
+                            <option value="Эталон">Эталон</option>
+                            <option value="Оренбург">Оренбург</option>
+                            <option value="Шымкент">Шымкент</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1.5; min-width: 160px;">
+                        <label
+                            style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem; font-weight: 600;">Поиск
+                            (Партия / ID)</label>
+                        <input type="text" id="filter-search" oninput="filterShifts()" placeholder="№ партии или ID..."
+                            style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                    </div>
+                    <div style="display: flex; align-items: flex-end; padding-top: 0.9rem;">
+                        <button onclick="resetShiftFilters()" class="btn-secondary"
+                            style="padding: 0.35rem 0.8rem; width: auto; font-size: 0.8rem;" title="Сбросить фильтры"><i
+                                class="fa-solid fa-rotate-left"></i> Сброс</button>
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Дата / Смена</th>
+                                <th>Линия / Мастер</th>
+                                <th>Продукция / Партия</th>
+                                <th>Выработка (ЛФМ / Склад / 1 сорт)</th>
+                                <th>Брак (Дест. / ОТК)</th>
+                                <th style="text-align: right;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shifts-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+
+            <!-- Receipts Tab -->
+            <div id="tab-receipts" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0;"><i class="fa-solid fa-truck-ramp-box"></i> Приходы сырья</h2>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Учет фактически поступивших
+                            компонентов по сменам</span>
+                    </div>
+                    <div style="display: flex; gap: 0.4rem; align-items: center;">
+                        <button class="filter-btn active" id="filter-receipt-period-week"
+                            onclick="setReceiptPeriod('week')"
+                            style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: var(--accent-color);"><i
+                                class="fa-solid fa-calendar-week"></i> Неделя</button>
+                        <button class="filter-btn" id="filter-receipt-period-month" onclick="setReceiptPeriod('month')"
+                            style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: rgba(255,255,255,0.1);"><i
+                                class="fa-solid fa-calendar-minus"></i> Месяц</button>
+                        <button class="filter-btn" id="filter-receipt-period-all" onclick="setReceiptPeriod('all')"
+                            style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: rgba(255,255,255,0.1);"><i
+                                class="fa-solid fa-infinity"></i> Все время</button>
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">ID</th>
+                                <th style="width: 140px;">Дата / Смена</th>
+                                <th style="width: 140px;">Линия / Мастер</th>
+                                <th>Фактически поступившее сырье</th>
+                                <th style="text-align: right; width: 70px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receipts-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+
+            <!-- Norms Tab -->
+            <div id="tab-norms" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h2 style="margin: 0;"><i class="fa-solid fa-scale-balanced"></i> Нормы продукции</h2>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="openNormModal()"
+                            style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i
+                                class="fa-solid fa-plus"></i> Добавить продукт</button>
+                        <button id="btn-export-norms-google" onclick="exportNormsToGoogle()"
+                            style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #1B5E20;"><i
+                                class="fa-solid fa-cloud-arrow-up"></i> Выгрузить в Google</button>
+                        <button id="btn-sync-norms-google" onclick="syncNormsFromGoogle()"
+                            style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i
+                                class="fa-solid fa-arrows-rotate"></i> Обновить из Google</button>
+                    </div>
+                </div>
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
+                        <thead>
+                            <tr>
+                                <th>Продукция</th>
+                                <th>Вес (кг)</th>
+                                <th>Норма Хризотил 4-20</th>
+                                <th>Норма Хризотил 5-65</th>
+                                <th>Норма Хризотил 6-40</th>
+                                <th>Норма Цемент</th>
+                                <th>Норма Целлюлоза</th>
+                                <th>Норма Дробленый шифер</th>
+                                <th>Норма Асбозурит</th>
+                                <th>Норма Стекловолокно</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="norms-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Downtimes Log Tab -->
+            <div id="tab-downtimes-log" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0;"><i class="fa-solid fa-clock"></i> Журнал простоев (редактирование)</h2>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Оперативный просмотр и
+                            классификация остановок оборудования</span>
+                    </div>
+                    <button onclick="loadDowntimesLog()" class="btn-secondary"
+                        style="width: auto; padding: 0.35rem 0.8rem; font-size: 0.82rem;"><i
+                            class="fa-solid fa-arrows-rotate"></i> Обновить</button>
+                </div>
+
+                <!-- Downtime Filters Bar -->
+                <div class="glass-panel"
+                    style="padding: 0.6rem 0.8rem; margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" id="filter-downtime-search" oninput="applyDowntimeFilters()"
+                            placeholder="Поиск по причине или узлу оборудования..."
+                            style="width: 100%; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                    </div>
+                    <div style="min-width: 170px;">
+                        <select id="filter-downtime-category" onchange="applyDowntimeFilters()"
+                            style="width: 100%; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                            <option value="">Все категории</option>
+                            <option value="Механические">Механические</option>
+                            <option value="Энергетические">Энергетические</option>
+                            <option value="Технологические">Технологические</option>
+                            <option value="Организационные">Организационные</option>
+                            <option value="Без категории">Без категории</option>
+                        </select>
+                    </div>
+                    <div style="min-width: 120px;">
+                        <select id="filter-downtime-line" onchange="applyDowntimeFilters()"
+                            style="width: 100%; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                            <option value="">Все линии</option>
+                            <option value="1">Линия 1</option>
+                            <option value="2">Линия 2</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">Дата / Смена</th>
+                                <th style="width: 70px;">Линия</th>
+                                <th style="width: 95px;">Время</th>
+                                <th style="width: 60px;">Длит.</th>
+                                <th>Узел / Причина остановки</th>
+                                <th style="width: 130px;">Категория</th>
+                                <th style="text-align: right; width: 70px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="downtimes-log-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- LKC Shift Reports Tab -->
+            <div id="tab-lkc" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-shapes" style="color: var(--primary-color);"></i> Рапорты смен ЛКЦ (Линия раскроя и комплектующих)
+                        </h2>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">
+                            Журнал сменных отчетов ЛКЦ: выпуск продукции, расход сырья, сдача на склад, брак и простои оборудования
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button id="btn-admin-sync-lkc-sheets" onclick="syncAdminLKCGoogleSheets(this)" class="btn-save"
+                            style="width: auto; padding: 0.45rem 0.9rem; background: #059669; display: inline-flex; align-items: center; gap: 6px;"
+                            title="Синхронизировать данные с Google Таблицей ЛКЦ">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Выгрузить в Google Таблицу
+                        </button>
+                        <a id="btn-admin-open-lkc-sheets" href="https://docs.google.com/spreadsheets/d/1V3eF2b9yN3uOcgTrDbQI8N8Y26GDrtne8E6hbQpMjjE/edit?gid=0#gid=0"
+                            target="_blank" class="btn-secondary"
+                            style="padding: 0.45rem 0.9rem; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;"
+                            title="Открыть Google Таблицу ЛКЦ">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть Google Таблицу
+                        </a>
+                        <a href="/lkc" target="_blank" class="btn-secondary"
+                            style="padding: 0.45rem 0.9rem; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;"
+                            title="Открыть кабинет мастера ЛКЦ в новой вкладке">
+                            <i class="fa-solid fa-scissors"></i> Интерфейс ЛКЦ
+                        </a>
+                        <button onclick="loadAdminLKCTab()" class="btn-secondary"
+                            style="width: auto; padding: 0.45rem 0.9rem;" title="Обновить список рапортов">
+                            <i class="fa-solid fa-arrows-rotate"></i> Обновить
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LKC Filters Bar -->
+                <div class="glass-panel"
+                    style="padding: 0.6rem 0.8rem; margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center;">
+                    <div style="min-width: 140px;">
+                        <input type="date" id="filter-lkc-date-from" onchange="filterAdminLKCTable()"
+                            style="width: 100%; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem;"
+                            title="Дата с">
+                    </div>
+                    <div style="min-width: 140px;">
+                        <input type="date" id="filter-lkc-date-to" onchange="filterAdminLKCTable()"
+                            style="width: 100%; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem;"
+                            title="Дата по">
+                    </div>
+                    <div style="min-width: 170px;">
+                        <select id="filter-lkc-shift" onchange="filterAdminLKCTable()"
+                            style="width: 100%; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                            <option value="">Все смены</option>
+                            <option value="День">☀️ День</option>
+                            <option value="Ночь">🌙 Ночь</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" id="filter-lkc-search" oninput="filterAdminLKCTable()"
+                            placeholder="Поиск по мастеру, продукции или примечанию..."
+                            style="width: 100%; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem;">
+                    </div>
+                    <div id="admin-lkc-stats-badge"
+                        style="padding: 0.35rem 0.75rem; border-radius: 6px; background: #f1f5f9; font-size: 0.8rem; font-weight: 600; color: #475569;">
+                        Рапортов: 0
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">ID / Дата</th>
+                                <th style="width: 120px;">Смена</th>
+                                <th style="width: 150px;">Мастер смены</th>
+                                <th>Выпуск продукции</th>
+                                <th style="width: 120px; text-align: right;">Расход сырья</th>
+                                <th style="width: 120px; text-align: right;">Сдано на склад</th>
+                                <th style="width: 90px; text-align: right;">Брак</th>
+                                <th style="width: 100px; text-align: center;">Простои</th>
+                                <th style="text-align: right; width: 90px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-lkc-table-body">
+                            <tr>
+                                <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                                    Загрузка данных ЛКЦ...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Backup & Restore Tab -->
+            <div id="tab-backup" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-floppy-disk" style="color: var(--primary-color);"></i> Резервное
+                            копирование и Откат данных
+                        </h2>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">Полные снимки базы данных,
+                            экспорт в Excel (1-в-1 как в Google Sheets), облачная синхронизация и восстановление</span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="downloadFullBackupExcel()" class="btn-save"
+                            style="width: auto; padding: 0.5rem 1.1rem; background: #217346; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-file-excel"></i> Скачать полный бэкап (Excel)
+                        </button>
+                        <button onclick="triggerFullGoogleSync()" class="btn-secondary"
+                            style="width: auto; padding: 0.5rem 1.1rem; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-arrows-rotate"></i> Синхронизировать всё с Google Таблицами
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info Cards -->
+                <div class="audit-kpi-grid" style="margin-bottom: 1.5rem;">
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(33, 115, 70, 0.15); color: #217346;">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val" id="backup-stat-shifts">4 листа</div>
+                            <div class="audit-kpi-lbl">Сводный отчет, Приход, Простои, Переборка</div>
+                        </div>
+                    </div>
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val">100% Паритет</div>
+                            <div class="audit-kpi-lbl">Точное соответствие структуре облачных таблиц</div>
+                        </div>
+                    </div>
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val">Откат назад</div>
+                            <div class="audit-kpi-lbl">Возврат рапортов к предыдущему состоянию</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restore from Backup Section -->
+                <div class="glass-panel"
+                    style="padding: 1.5rem; max-width: 800px; margin-bottom: 2rem; border-radius: 8px;">
+                    <h3
+                        style="margin-top: 0; margin-bottom: 0.5rem; color: var(--primary-color); display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-upload"></i> Восстановление данных из Excel-бэкапа
+                    </h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1rem;">
+                        Загрузите ранее сохраненный файл полного бэкапа Excel (<code>Tectum_Backup_*.xlsx</code>).
+                        Система проверит листы «Приход сырья» и «Простои» и обновит существующие либо создаст
+                        недостающие записи.
+                    </p>
+                    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                        <input type="file" id="backup-restore-file" accept=".xlsx"
+                            style="max-width: 350px; padding: 0.4rem; font-size: 0.9rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff;">
+                        <button onclick="restoreFromBackupExcel()" class="btn-save"
+                            style="width: auto; padding: 0.5rem 1.2rem; background: var(--accent-color);">
+                            <i class="fa-solid fa-arrow-rotate-left"></i> Восстановить из файла
+                        </button>
+                    </div>
+                    <div id="restore-status-msg" style="margin-top: 0.8rem; font-size: 0.85rem; font-weight: 500;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cleanup Tab -->
+            <div id="tab-cleanup" style="display: none;">
+                <div style="max-width: 600px;">
+                    <h2 style="color: var(--danger-color); margin-bottom: 0.8rem;"><i
+                            class="fa-solid fa-triangle-exclamation"></i> Сброс операционных данных</h2>
+                    <p
+                        style="color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.8rem; font-size: 0.88rem;">
+                        Эта операция безвозвратно удалит все записи о сменах, отчетах ЛФМ, простоях оборудования и
+                        партиях продукции.
+                        Справочники (сотрудники и нормы) останутся нетронутыми.
+                    </p>
+                    <div
+                        style="background: rgba(255,0,0,0.1); padding: 0.8rem; border: 1px solid var(--danger-color); border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem;">
+                        <strong>Внимание:</strong> Перед очисткой убедитесь, что вы выгрузили все необходимые отчеты
+                        (PDF/Excel). Для подтверждения потребуется дважды ввести пароль администратора.
+                    </div>
+                    <button onclick="clearOperationalData()" class="btn-danger"
+                        style="width: 100%; padding: 0.75rem; font-size: 0.95rem;"><i
+                            class="fa-solid fa-triangle-exclamation"></i> ПОДТВЕРДИТЬ ОЧИСТКУ ДАННЫХ</button>
+                </div>
+            </div>
+
+            <!-- Audit Logs Tab -->
+            <div id="tab-audit-logs" style="display: none;">
+                <!-- Header & Actions -->
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary-color);"></i> История
+                            изменений (Центр аудита)
+                        </h2>
+                        <span style="font-size: 0.78rem; color: var(--text-secondary);">Полный журнал действий,
+                            корректировок данных и перемещений по всем модулям</span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="exportAuditLogsToCsv()"
+                            style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; background: #217346; border: none; border-radius: 6px; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-file-excel"></i> Экспорт (CSV)
+                        </button>
+                        <button onclick="loadAuditLogs()"
+                            style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text-primary); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-arrows-rotate"></i> Обновить
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Summary Cards -->
+                <div class="audit-kpi-grid">
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val" id="audit-kpi-total">0</div>
+                            <div class="audit-kpi-lbl">Всего событий в логе</div>
+                        </div>
+                    </div>
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+                            <i class="fa-solid fa-calendar-day"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val" id="audit-kpi-today">0</div>
+                            <div class="audit-kpi-lbl">Событий за сегодня</div>
+                        </div>
+                    </div>
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val" id="audit-kpi-tasks">0</div>
+                            <div class="audit-kpi-lbl">Задачи планнера</div>
+                        </div>
+                    </div>
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">
+                            <i class="fa-solid fa-industry"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val" id="audit-kpi-shifts">0</div>
+                            <div class="audit-kpi-lbl">Смены и производство</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module Filter Chips -->
+                <div class="audit-chips-container" id="audit-module-chips">
+                    <div class="audit-chip active" onclick="setAuditModuleFilter('all', this)">
+                        <i class="fa-solid fa-layer-group"></i> Все разделы
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('tasks', this)">
+                        <i class="fa-solid fa-list-check"></i> 📌 Планнер задач
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('shifts', this)">
+                        <i class="fa-solid fa-industry"></i> 🏭 Смены и рапорты ЛФМ
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('plan_board', this)">
+                        <i class="fa-solid fa-calendar-days"></i> 📊 План-факт доска
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('raw_materials', this)">
+                        <i class="fa-solid fa-boxes-stacked"></i> 📦 Приход сырья
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('directories', this)">
+                        <i class="fa-solid fa-book"></i> 📖 Справочники и нормы
+                    </div>
+                </div>
+
+                <!-- Detailed Filter & Search Toolbar -->
+                <div class="glass-panel"
+                    style="padding: 0.75rem 1rem; margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                        <!-- Date Presets -->
+                        <div
+                            style="display: flex; gap: 3px; background: #f1f5f9; padding: 3px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                            <button type="button" class="btn-date-preset active"
+                                onclick="setAuditDatePreset('all', this)">Все время</button>
+                            <button type="button" class="btn-date-preset"
+                                onclick="setAuditDatePreset('today', this)">Сегодня</button>
+                            <button type="button" class="btn-date-preset"
+                                onclick="setAuditDatePreset('yesterday', this)">Вчера</button>
+                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('7days', this)">7
+                                дней</button>
+                            <button type="button" class="btn-date-preset"
+                                onclick="setAuditDatePreset('30days', this)">30 дней</button>
+                        </div>
+
+                        <!-- Date Pickers -->
+                        <div
+                            style="display: flex; gap: 4px; align-items: center; font-size: 0.78rem; color: #64748b; font-weight: 500;">
+                            <span>С:</span>
+                            <input type="date" id="filter-audit-date-from" onchange="onAuditCustomDateChange()"
+                                style="padding: 0.25rem 0.4rem; font-size: 0.78rem; border-radius: 5px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;">
+                            <span>По:</span>
+                            <input type="date" id="filter-audit-date-to" onchange="onAuditCustomDateChange()"
+                                style="padding: 0.25rem 0.4rem; font-size: 0.78rem; border-radius: 5px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                        <!-- Action filter -->
+                        <select id="filter-audit-action" class="form-control"
+                            style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;"
+                            onchange="renderAuditLogsTable()">
+                            <option value="">Все действия</option>
+                            <option value="CREATE">CREATE (Создание)</option>
+                            <option value="UPDATE">UPDATE (Изменение)</option>
+                            <option value="DELETE">DELETE (Удаление)</option>
+                            <option value="SYNC">SYNC (Синхронизация)</option>
+                            <option value="IMPORT">IMPORT (Импорт)</option>
+                        </select>
+
+                        <!-- User filter -->
+                        <select id="filter-audit-user" class="form-control"
+                            style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;"
+                            onchange="renderAuditLogsTable()">
+                            <option value="">Все пользователи</option>
+                        </select>
+
+                        <!-- Search -->
+                        <div style="position: relative;">
+                            <input type="text" id="filter-audit-search" placeholder="Поиск по деталям, ID..."
+                                style="padding: 0.35rem 0.75rem 0.35rem 1.8rem; width: 230px; font-size: 0.8rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;"
+                                oninput="renderAuditLogsTable()">
+                            <i class="fa-solid fa-magnifying-glass"
+                                style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: #94a3b8;"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audit Log Table -->
+                <div class="glass-panel"
+                    style="overflow-x: auto; padding: 0; border: 1px solid var(--glass-border); border-radius: 8px; max-height: 600px;">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 135px;">Время</th>
+                                <th style="width: 140px;">Пользователь</th>
+                                <th style="width: 100px;">Действие</th>
+                                <th style="width: 140px;">Раздел / Объект</th>
+                                <th>Детализация изменений</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-logs-table-body">
+                            <tr>
+                                <td colspan="5" style="text-align:center; color: var(--text-secondary); padding: 2rem;">
+                                    Загрузка истории изменений...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Downtime Directory Tab -->
+            <div id="tab-downtimes-dir" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h2 style="margin: 0;"><i class="fa-solid fa-list-check"></i> Справочник поломок (простоев)</h2>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="downtimes-dir-search" placeholder="Поиск поломки..."
+                            oninput="filterDowntimesDirTable()"
+                            style="width: 220px; padding: 0.35rem 0.6rem; font-size: 0.85rem;">
+                        <button onclick="openDowntimeDirModal()"
+                            style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i
+                                class="fa-solid fa-plus"></i> Добавить</button>
+                        <button id="btn-sync-downtimes-google" onclick="syncDowntimesDirFromGoogle()"
+                            style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i
+                                class="fa-solid fa-arrows-rotate"></i> Обновить из Google</button>
+                    </div>
+                </div>
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
+                        <thead>
+                            <tr>
+                                <th>Участок</th>
+                                <th>Узел/Подузел</th>
+                                <th>Поломка (Неисправность)</th>
+                                <th>Категория</th>
+                                <th>Комментарий</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="downtimes-dir-table-body">
+                            <tr>
+                                <td colspan="6" style="text-align:center; color: var(--text-secondary);">Загрузка...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Planner Settings Tab -->
+            <div id="tab-planner-settings" style="display: block;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0;"><i class="fa-solid fa-users-gear"></i> Сотрудники, доступы и подразделения</h2>
+                        <p style="color: var(--text-secondary); margin: 2px 0 0; font-size: 0.8rem;">Единое управление сотрудниками завода, их ролями, рабочими местами, PIN-кодами, Email и подразделениями</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <button onclick="testSendPlannerEmailPrompt()"
+                            style="width: auto; padding: 0.35rem 0.85rem; font-size: 0.82rem; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--accent-color);"
+                            title="Проверить доставку уведомления на вашу почту">
+                            <i class="fa-solid fa-paper-plane"></i> Проверить отправку Email
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.25rem;">
+                    <!-- Employees & Emails Card -->
+                    <div class="glass-panel" style="padding: 1rem; display: flex; flex-direction: column;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                            <h3 style="margin: 0; font-size: 0.98rem; color: var(--primary-color);"><i
+                                    class="fa-solid fa-users"></i> Сотрудники и Email уведомлений</h3>
+                            <button onclick="openPlannerEmployeeModal()"
+                                style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.82rem; background: var(--accent-color);"><i
+                                    class="fa-solid fa-user-plus"></i> Добавить</button>
+                        </div>
+                        <div style="overflow-x: auto; flex: 1;">
+                            <table class="data-table" style="width: 100%; text-align: left;">
+                                <thead>
+                                    <tr>
+                                        <th>№</th>
+                                        <th>Сотрудник</th>
+                                        <th>Email для уведомлений</th>
+                                        <th>Рабочее место / Доступ</th>
+                                        <th>PIN-код</th>
+                                        <th style="text-align: right;">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="planner-employees-table-body">
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; color: var(--text-secondary);">
+                                            Загрузка сотрудников...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Zones / Departments Card -->
+                    <div class="glass-panel" style="padding: 1rem; display: flex; flex-direction: column;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                            <h3 style="margin: 0; font-size: 0.98rem; color: var(--primary-color);"><i
+                                    class="fa-solid fa-layer-group"></i> Зоны / Подразделения</h3>
+                            <button onclick="openPlannerZoneModal()"
+                                style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.82rem; background: var(--accent-color);"><i
+                                    class="fa-solid fa-plus"></i> Добавить</button>
+                        </div>
+                        <div style="overflow-x: auto; flex: 1;">
+                            <table class="data-table" style="width: 100%; text-align: left;">
+                                <thead>
+                                    <tr>
+                                        <th>№</th>
+                                        <th>Зона / Подразделение</th>
+                                        <th style="text-align: right;">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="planner-zones-table-body">
+                                    <tr>
+                                        <td colspan="3" style="text-align: center; color: var(--text-secondary);">
+                                            Загрузка зон...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Tasks Registry & Deletion (Admin Only) -->
+                <div class="glass-panel"
+                    style="padding: 1rem; margin-top: 1.25rem; display: flex; flex-direction: column;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 0.98rem; color: var(--primary-color);"><i
+                                    class="fa-solid fa-list-check"></i> Реестр задач планнера (Администрирование и
+                                удаление)</h3>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">Удаление задач разрешено
+                                исключительно из панели администратора</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <input type="text" id="admin-task-search" placeholder="Поиск по сути, исполнителю, ID..."
+                                oninput="filterAdminTasksTable()"
+                                style="padding: 0.35rem 0.65rem; font-size: 0.82rem; border-radius: 6px; width: 220px; background: rgba(0,0,0,0.2); color: var(--text-primary); border: 1px solid var(--border-color);">
+                            <button onclick="loadAdminTasksList()"
+                                style="width: auto; padding: 0.35rem 0.65rem; font-size: 0.82rem; background: var(--bg-tertiary);"
+                                title="Обновить список"><i class="fa-solid fa-arrows-rotate"></i></button>
+                            <button onclick="openAdminTaskModal()" class="btn-primary"
+                                style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 4px;"
+                                title="Создать задачу планнера"><i class="fa-solid fa-plus"></i> Новая задача</button>
+                        </div>
+                    </div>
+                    <div
+                        style="overflow-x: auto; max-height: 480px; border: 1px solid var(--glass-border); border-radius: 8px;">
+                        <table class="tasks-registry-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 35px; text-align: center;">
+                                        <input type="checkbox" id="th-admin-select-all-tasks" onchange="toggleSelectAllAdminTasks(this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать все задачи">
+                                    </th>
+                                    <th style="width: 85px;">ID / Код</th>
+                                    <th style="width: 150px;">Период (Неделя)</th>
+                                    <th style="width: 90px;">Зона</th>
+                                    <th style="min-width: 260px;">Суть задачи (RU / KZ)</th>
+                                    <th style="width: 130px;">Исполнитель</th>
+                                    <th style="width: 100px;">Срок</th>
+                                    <th style="width: 120px;">Статус</th>
+                                    <th style="width: 120px;">Примечание</th>
+                                    <th style="text-align: right; width: 90px;">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-tasks-table-body">
+                                <tr>
+                                    <td colspan="10"
+                                        style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                                        Загрузка задач...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Панель массовых действий администратора над задачами -->
+                    <div id="admin-tasks-bulk-bar" style="display: none; margin-top: 0.75rem; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.6rem 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem; color: #fff;">
+                        <div style="font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-check-double" style="color: #38bdf8;"></i>
+                            <span>Выбрано задач: <span id="admin-tasks-selected-count" style="color: #38bdf8; font-weight: 700;">0</span></span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <button type="button" onclick="executeAdminBulkStatus('🟡 В работе')" style="background: #eab308; color: #000; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-play"></i> В работу
+                            </button>
+                            <button type="button" onclick="executeAdminBulkStatus('🟢 Выполнено')" style="background: #10b981; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-check"></i> Выполнить
+                            </button>
+                            <button type="button" onclick="executeAdminBulkMove()" style="background: #3b82f6; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-arrow-right"></i> На след. неделю
+                            </button>
+                            <button type="button" onclick="executeAdminBulkDelete()" style="background: #ef4444; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-trash"></i> Удалить выбранные
+                            </button>
+                            <button type="button" onclick="clearAdminTasksSelection()" style="background: transparent; color: #94a3b8; border: none; font-size: 1.1rem; cursor: pointer; padding: 0 4px;" title="Снять выделение">&times;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Assistant Tab (Регламенты Тектум) -->
+            <div id="tab-ai-assistant" style="display: none;">
+                <div class="ai-chat-layout">
+                    <!-- Боковая панель истории диалогов -->
+                    <div class="ai-history-panel">
+                        <div class="ai-history-header">
+                            <span style="font-weight: 700; font-size: 0.9rem; color: #1e293b;">
+                                <i class="fa-solid fa-clock-rotate-left"></i> История бесед
+                            </span>
+                            <button onclick="startNewAiConversation()" class="btn-secondary"
+                                style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.78rem;" title="Начать новый диалог">
+                                <i class="fa-solid fa-plus"></i> Новый
+                            </button>
+                        </div>
+                        <div class="ai-conversations-list" id="ai-conversations-list">
+                            <div style="padding: 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem;">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Загрузка...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Основное окно чата -->
+                    <div class="ai-chat-container">
+                        <div class="ai-chat-header">
+                            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                <div style="background: #fee2e2; color: #b91c1c; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fa-solid fa-robot"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.95rem; color: #0f172a;">ИИ-Ассистент завода «Тектум»</div>
+                                    <div style="font-size: 0.72rem; color: #16a34a; display: flex; align-items: center; gap: 4px;">
+                                        <span style="display: inline-block; width: 7px; height: 7px; background: #16a34a; border-radius: 50%;"></span> База знаний: Энциклопедия регламентов
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="startNewAiConversation()" class="btn-secondary"
+                                style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                                <i class="fa-solid fa-rotate-right"></i> Очистить экран
+                            </button>
+                        </div>
+
+                        <!-- Область сообщений -->
+                        <div class="ai-chat-messages" id="ai-chat-messages">
+                            <!-- Контент генерируется динамически через js -->
+                        </div>
+
+                        <!-- Нижняя строка ввода -->
+                        <div class="ai-input-bar">
+                            <input type="text" id="ai-chat-input"
+                                placeholder="Задайте рабочий вопрос по регламентам, браку или запуску оборудования..."
+                                onkeydown="if(event.key === 'Enter') sendAiMessage()"
+                                autocomplete="off">
+                            <button id="ai-send-btn" class="ai-send-btn" onclick="sendAiMessage()" title="Отправить сообщение">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- Checklist Employee Modal -->
+    <div id="checklist-emp-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="checklist-emp-modal-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-user-gear"></i>
+                Сотрудник цеха</h3>
+            <input type="hidden" id="cl-emp-id">
+            <div class="form-group">
+                <label>ФИО Сотрудника</label>
+                <input type="text" id="cl-emp-name" placeholder="например, Иванов Иван Иванович" required>
+            </div>
+            <div class="form-group">
+                <label>Смена / Бригада</label>
+                <select id="cl-emp-shift">
+                    <option value="1-я смена">1-я смена</option>
+                    <option value="2-я смена">2-я смена</option>
+                    <option value="3-я смена">3-я смена</option>
+                    <option value="4-я смена">4-я смена</option>
+                    <option value="Котельная">Котельная</option>
+                    <option value="Дневной персонал">Дневной персонал</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Должность / Профессия</label>
+                <input type="text" id="cl-emp-pos" placeholder="например, Машинист листоформовочной машины" required>
+            </div>
+            <div class="form-group">
+                <label>Производственный участок</label>
+                <select id="cl-emp-dept">
+                    <option value="Цех ХЦИ">Цех ХЦИ</option>
+                    <option value="ЛФМ">ЛФМ</option>
+                    <option value="Дестакер">Дестакер</option>
+                    <option value="Стакер">Стакер</option>
+                    <option value="Заготовительное отделение (ЗО)">Заготовительное отделение (ЗО)</option>
+                    <option value="Рекуператоры и целлюлоза">Рекуператоры и целлюлоза</option>
+                    <option value="Участок дозировки">Участок дозировки</option>
+                    <option value="Сменные ремслужбы">Сменные ремслужбы</option>
+                    <option value="СКК">СКК</option>
+                    <option value="Слесарная мастерская">Слесарная мастерская</option>
+                    <option value="Зона ремонта насосов">Зона ремонта насосов</option>
+                    <option value="Участок ремонта цилиндров">Участок ремонта цилиндров</option>
+                    <option value="Котельная">Котельная</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Табельный / Порядковый номер (№)</label>
+                <input type="number" id="cl-emp-num" placeholder="например, 15">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="button" onclick="closeModals()" class="btn-secondary">Отмена</button>
+                <button onclick="saveChecklistEmployee()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shift Schedule Day Edit Modal -->
+    <div id="shift-schedule-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="shift-schedule-modal-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-calendar-day"></i>
+                Редактирование смены на дату</h3>
+            <input type="hidden" id="sched-date-str">
+            <div class="form-group">
+                <label>Дата</label>
+                <input type="text" id="sched-date-display" readonly style="opacity: 0.8;">
+            </div>
+            <div class="form-group">
+                <label>☀️ Дневная смена (08:00 – 19:00)</label>
+                <select id="sched-day-shift">
+                    <option value="Смена 1">Смена 1</option>
+                    <option value="Смена 2">Смена 2</option>
+                    <option value="Смена 3">Смена 3</option>
+                    <option value="Смена 4">Смена 4</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>🌙 Ночная смена (19:00 – 08:00)</label>
+                <select id="sched-night-shift">
+                    <option value="Смена 1">Смена 1</option>
+                    <option value="Смена 2">Смена 2</option>
+                    <option value="Смена 3">Смена 3</option>
+                    <option value="Смена 4">Смена 4</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="button" onclick="closeModals()" class="btn-secondary">Отмена</button>
+                <button onclick="saveShiftScheduleDay()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Modal -->
+    <div id="master-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="master-modal-title" style="margin-bottom: 1.5rem;">Сотрудник</h3>
+            <input type="hidden" id="master-id">
+            <div class="form-group">
+                <label>Имя</label>
+                <input type="text" id="master-name">
+            </div>
+            <div class="form-group">
+                <label>ПИН-код (4 цифры)</label>
+                <input type="text" id="master-pin" maxlength="4">
+            </div>
+            <div class="form-group">
+                <label>Email (для Microsoft 365 SSO)</label>
+                <input type="email" id="master-email" placeholder="example@company.onmicrosoft.com">
+            </div>
+            <div class="form-group">
+                <label>Роль</label>
+                <select id="master-role">
+                    <option value="admin">admin (Администратор)</option>
+                    <option value="director">director (Технический директор)</option>
+                    <option value="technologist">technologist (Главный технолог)</option>
+                    <option value="master">master (Мастер смены)</option>
+                    <option value="mechanic">mechanic (Главный механик)</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="button" onclick="closeModals()" class="btn-secondary">Отмена</button>
+                <button onclick="saveMaster()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Downtime Directory Modal -->
+    <div id="downtime-dir-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="downtime-dir-modal-title" style="margin-bottom: 1.5rem;">Запись справочника</h3>
+            <input type="hidden" id="downtime-dir-id">
+            <div class="form-group">
+                <label>Участок (Отделение)</label>
+                <input type="text" id="downtime-dir-dept" placeholder="например, ЛФМ">
+            </div>
+            <div class="form-group">
+                <label>Узел / Подузел</label>
+                <input type="text" id="downtime-dir-node" placeholder="например, Ковшевая мешалка">
+            </div>
+            <div class="form-group">
+                <label>Поломка (Неисправность)</label>
+                <input type="text" id="downtime-dir-breakdown" placeholder="например, Замена подшипника">
+            </div>
+            <div class="form-group">
+                <label>Категория</label>
+                <select id="downtime-dir-category">
+                    <option value="Механические">Механические</option>
+                    <option value="Энергетические">Энергетические</option>
+                    <option value="Технологические">Технологические</option>
+                    <option value="ТО и ППР">ТО и ППР</option>
+                    <option value="Остановки не связанные с простоем оборудования">Остановки не связанные с простоем
+                        оборудования</option>
+                    <option value="Санитарный день">Санитарный день</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Комментарий / Пример (необязательно)</label>
+                <input type="text" id="downtime-dir-comment" placeholder="например, Сгорел двигатель">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="button" onclick="closeModals()" class="btn-secondary">Отмена</button>
+                <button onclick="saveDowntimeDirEntry()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Task Modal (Create & Full Edit) -->
+    <div id="admin-task-modal" class="modal">
+        <div class="modal-content" style="max-width: 680px; max-height: 85vh; overflow-y: auto; word-break: break-word;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.6rem;">
+                <h3 id="admin-task-modal-title" style="margin: 0; color: var(--primary-color);">
+                    <i class="fa-solid fa-list-check"></i> Задача планнера
+                </h3>
+                <button type="button" onclick="closeAdminTaskModal()" class="btn-secondary" style="width: auto; padding: 0.35rem 0.65rem; font-size: 0.85rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <input type="hidden" id="admin-modal-task-id">
+            
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label style="font-weight: 600; font-size: 0.82rem;">Суть задачи (RU) <span style="color: #dc2626;">*</span></label>
+                <textarea id="admin-modal-title-ru" rows="2" placeholder="Введите суть задачи на русском..." style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.5rem; font-size: 0.85rem;" oninput="onAdminTaskRuInput()"></textarea>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label style="font-weight: 600; font-size: 0.82rem; display: flex; justify-content: space-between;">
+                    <span>Суть задачи (KZ)</span>
+                    <span id="admin-kz-translate-status" style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Автоперевод)</span>
+                </label>
+                <textarea id="admin-modal-title-kz" rows="2" placeholder="Тапсырманың мәні қазақша..." style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.5rem; font-size: 0.85rem;"></textarea>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Тип задачи / Горизонт</label>
+                    <select id="admin-modal-task-type" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="weekly">Еженедельная задача</option>
+                        <option value="service_plan">План служб (ППР / Ревизия)</option>
+                        <option value="tech_council">Техсовет</option>
+                        <option value="quality_day">День качества</option>
+                        <option value="roadmap">Дорожная карта</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Зона / Подразделение</label>
+                    <select id="admin-modal-zone" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;"></select>
+                </div>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Служба (для планов служб)</label>
+                    <select id="admin-modal-dept" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="">— Не выбрано —</option>
+                        <option value="ОГМ">ОГМ (Механики)</option>
+                        <option value="ОГЭ">ОГЭ (Энергетики)</option>
+                        <option value="Технологи">Технологи</option>
+                        <option value="ОТК">ОТК / СКК</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Автор задачи <span style="color: #dc2626;">*</span></label>
+                    <select id="admin-modal-author" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;"></select>
+                </div>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Исполнитель</label>
+                    <select id="admin-modal-assignee" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;"></select>
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Срок исполнения</label>
+                    <input type="date" id="admin-modal-due-date" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;" onchange="onAdminTaskModalDueDateChange()">
+                </div>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Месяц</label>
+                    <select id="admin-modal-month" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;" onchange="onAdminModalMonthChange()"></select>
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Рабочая неделя</label>
+                    <select id="admin-modal-week" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;"></select>
+                </div>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Статус</label>
+                    <select id="admin-modal-status" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="🟡 В работе">🟡 В работе</option>
+                        <option value="🟢 Выполнено">🟢 Выполнено</option>
+                        <option value="🔵 Перенесено">🔵 Перенесено</option>
+                        <option value="🔴 Отменено">🔴 Отменено</option>
+                        <option value="⚪ В очереди">⚪ В очереди</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 600; font-size: 0.82rem;">Факт / Комментарий</label>
+                    <input type="text" id="admin-modal-comment" placeholder="Факт выполнения или комментарий..." style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                <button type="button" onclick="closeAdminTaskModal()" class="btn-secondary" style="width: auto; padding: 0.45rem 1rem;">Отмена</button>
+                <button type="button" id="btn-save-admin-task" onclick="saveAdminTask()" class="btn-save" style="width: auto; padding: 0.45rem 1.2rem; background: var(--primary-color); color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    <i class="fa-solid fa-check"></i> Сохранить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Norm Modal -->
+
+    <div id="norm-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h3 id="norm-modal-title" style="margin-bottom: 1.5rem;">Норма продукции</h3>
+            <input type="hidden" id="norm-id">
+
+            <div class="form-group">
+                <label>Название продукта</label>
+                <input type="text" id="norm-name">
+            </div>
+
+            <div class="form-grid">
+                <div>
+                    <label>Вес готового листа (кг)</label>
+                    <input type="number" id="norm-weight" step="0.01">
+                </div>
+                <div>
+                    <label>Норма Цемент (кг)</label>
+                    <input type="number" id="norm-cement" step="0.001">
+                </div>
+                <div>
+                    <label>Норма Хризотил 4-20 (кг)</label>
+                    <input type="number" id="norm-chr420" step="0.001">
+                </div>
+                <div>
+                    <label>Норма Хризотил 5-65 (кг)</label>
+                    <input type="number" id="norm-chr565" step="0.001">
+                </div>
+                <div>
+                    <label>Норма Хризотил 6-40 (кг)</label>
+                    <input type="number" id="norm-chr640" step="0.001">
+                </div>
+                <div>
+                    <label>Норма Целлюлоза (кг)</label>
+                    <input type="number" id="norm-cel" step="0.001">
+                </div>
+                <div>
+                    <label>Норма Дроб. шифер (кг)</label>
+                    <input type="number" id="norm-slate" step="0.001">
+                </div>
+                <div>
+                    <label>Норма Асбозурит (кг)</label>
+                    <input type="number" id="norm-asb" step="0.001">
+                </div>
+                <div>
+                    <label>Норма Стекловолокно (кг)</label>
+                    <input type="number" id="norm-fib" step="0.001">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="button" onclick="closeModals()" class="btn-secondary">Отмена</button>
+                <button onclick="saveNorm()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unified Shift & Report Edit Modal -->
+    <div id="unified-shift-modal" class="modal">
+        <div class="modal-content" style="max-width: 950px; max-height: 90vh; overflow-y: auto;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                    <h3 id="unified-modal-title" style="margin: 0; color: var(--primary-color);"><i
+                            class="fa-solid fa-pen-to-square"></i> Редактирование рапорта смены</h3>
+                    <span id="unified-modal-subtitle" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="button" onclick="rollbackCurrentUnifiedShift()" class="btn-secondary"
+                        style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4);"
+                        title="Откатить смену к снимку до последнего изменения">
+                        <i class="fa-solid fa-rotate-left"></i> Откатить назад
+                    </button>
+                    <button type="button" onclick="closeModals()" class="btn-secondary"
+                        style="width: auto; padding: 0.4rem 0.7rem; font-size: 0.85rem;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <input type="hidden" id="unified-shift-id">
+
+            <!-- Modal Tabs Navigation -->
+            <div
+                style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; overflow-x: auto;">
+                <button class="tab-btn active" id="btn-tab-meta" onclick="switchUnifiedTab('meta')"
+                    style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--accent-color); width: auto;"><i
+                        class="fa-solid fa-circle-info"></i> Метаданные</button>
+                <button class="tab-btn" id="btn-tab-prod" onclick="switchUnifiedTab('prod')"
+                    style="padding: 0.5rem 1rem; font-size: 0.9rem; background: rgba(255,255,255,0.1); width: auto;"><i
+                        class="fa-solid fa-industry"></i> Выработка</button>
+                <button class="tab-btn" id="btn-tab-zo" onclick="switchUnifiedTab('zo')"
+                    style="padding: 0.5rem 1rem; font-size: 0.9rem; background: rgba(255,255,255,0.1); width: auto;"><i
+                        class="fa-solid fa-cubes-stacked"></i> Сырье (ЗО)</button>
+                <button class="tab-btn" id="btn-tab-defect" onclick="switchUnifiedTab('defect')"
+                    style="padding: 0.5rem 1rem; font-size: 0.9rem; background: rgba(255,255,255,0.1); width: auto;"><i
+                        class="fa-solid fa-boxes-stacked"></i> Переборка и Брак</button>
+                <button class="tab-btn" id="btn-tab-downtimes" onclick="switchUnifiedTab('downtimes')"
+                    style="padding: 0.5rem 1rem; font-size: 0.9rem; background: rgba(255,255,255,0.1); width: auto;"><i
+                        class="fa-solid fa-clock"></i> Простои</button>
+            </div>
+
+            <!-- Tab 1: Metadata -->
+            <div id="unified-tab-meta" class="unified-tab-content" style="display: block;">
+                <h4 style="margin-bottom: 1rem; color: var(--text-secondary);">Основные параметры смены</h4>
+                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div>
+                        <label>Дата</label>
+                        <input type="date" id="uni-date">
+                    </div>
+                    <div>
+                        <label>Смена</label>
+                        <select id="uni-shift-name">
+                            <option value="День">День</option>
+                            <option value="Ночь">Ночь</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Линия</label>
+                        <select id="uni-line">
+                            <option value="1">Линия 1</option>
+                            <option value="2">Линия 2</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Мастер смены</label>
+                        <select id="uni-master"></select>
+                    </div>
+                    <div>
+                        <label>Номер партии</label>
+                        <input type="text" id="uni-batch-number" placeholder="№ партии (например, 434)">
+                    </div>
+                    <div>
+                        <label>Продукция</label>
+                        <select id="uni-product"></select>
+                    </div>
+                    <div>
+                        <label>Назначение / Экспорт</label>
+                        <select id="uni-export-type">
+                            <option value="Эталон">Эталон</option>
+                            <option value="Оренбург">Оренбург</option>
+                            <option value="Шымкент">Шымкент</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Статус записи</label>
+                        <select id="uni-status">
+                            <option value="active">Открыта (active)</option>
+                            <option value="closed">Закрыта (closed)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Production -->
+            <div id="unified-tab-prod" class="unified-tab-content" style="display: none;">
+                <h4 style="margin-bottom: 1rem; color: var(--text-secondary);">Показатели выработки продукции (Формовка ЛФМ и ЗО)</h4>
+                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+                    <div>
+                        <label title="Всего сформованных листов">Формовка: Листов (ЛФМ)</label>
+                        <input type="number" id="uni-lfm-sheets" step="1" min="0">
+                    </div>
+                    <div>
+                        <label title="Сбросы листов (технологические)">Формовка: Сбросы (техн.)</label>
+                        <input type="number" id="uni-lfm-wind-resets" step="1" min="0">
+                    </div>
+                    <div>
+                        <label title="Сбросы листов при замене телеги">Формовка: Сбросы (замена телеги)</label>
+                        <input type="number" id="uni-lfm-cart-resets" step="1" min="0">
+                    </div>
+                    <div>
+                        <label title="Количество замесов">Замесы ЗО (шт)</label>
+                        <input type="number" id="uni-zo-batches" step="1" min="0">
+                    </div>
+                    <div>
+                        <label title="Брак по данным ОТК (СКК)">Брак ОТК / СКК (листы)</label>
+                        <input type="number" id="uni-qcd-defect" step="1" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Raw Materials (Silos Calculator matching master form) -->
+            <div id="unified-tab-zo" class="unified-tab-content" style="display: none;">
+                <h4 style="margin-bottom: 0.8rem; color: var(--text-secondary);"><i
+                        class="fa-solid fa-cubes-stacked"></i> Фактический расход сырья (ЗО / ЛФМ)</h4>
+
+                
+
+                <div class="uni-rm-grid" id="uni-rm-calculator-grid">
+                    <div class="uni-rm-header" style="text-align: left;">Материал</div>
+                    <div class="uni-rm-header" id="uni-rm-header-silo1">Силос 1</div>
+                    <div class="uni-rm-header" id="uni-rm-header-silo2">Силос 2</div>
+                    <div class="uni-rm-header" id="uni-rm-header-silo3">Силос 3</div>
+                    <div class="uni-rm-header" id="uni-rm-header-silo4">Силос 4</div>
+                    <div class="uni-rm-header" style="text-align: right;">Итого</div>
+
+                    <!-- Хризотил 4-20 -->
+                    <div class="uni-rm-label-row">Хризотил 4-20 (кг)</div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-1"
+                            oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-2"
+                            oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-3"
+                            oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-4"
+                            oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-chr-4-20" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
+                    <!-- Хризотил 5-65 -->
+                    <div class="uni-rm-label-row">Хризотил 5-65 (кг)</div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-1"
+                            oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-2"
+                            oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-3"
+                            oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-4"
+                            oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-chr-5-65" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
+                    <!-- Хризотил 6-40 -->
+                    <div class="uni-rm-label-row">Хризотил 6-40 (кг)</div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-1"
+                            oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-2"
+                            oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-3"
+                            oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-4"
+                            oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-chr-6-40" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
+                    <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.4rem 0;">
+                    </div>
+
+                    <!-- Цемент -->
+                    <div class="uni-rm-label-row" style="font-weight: 600; color: var(--primary-color);">Цемент (кг)
+                    </div>
+                    <div class="form-group"><input type="number" id="uni-calc-cem-1" oninput="calcAdminCem()"
+                            placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cem-2" oninput="calcAdminCem()"
+                            placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cem-3" oninput="calcAdminCem()"
+                            placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cem-4" oninput="calcAdminCem()"
+                            placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="text" id="uni-zo-cem-total-readonly" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
+                    <!-- Скрытые поля силосов для отправки в базу -->
+                    <input type="hidden" id="uni-zo-cem-1" value="0">
+                    <input type="hidden" id="uni-zo-cem-2" value="0">
+                    <input type="hidden" id="uni-zo-cem-3" value="0">
+                    <input type="hidden" id="uni-zo-cem-4" value="0">
+
+                    <input type="hidden" id="uni-zo-chr-4-20-1" value="0">
+                    <input type="hidden" id="uni-zo-chr-4-20-2" value="0">
+                    <input type="hidden" id="uni-zo-chr-4-20-3" value="0">
+                    <input type="hidden" id="uni-zo-chr-4-20-4" value="0">
+
+                    <input type="hidden" id="uni-zo-chr-5-65-1" value="0">
+                    <input type="hidden" id="uni-zo-chr-5-65-2" value="0">
+                    <input type="hidden" id="uni-zo-chr-5-65-3" value="0">
+                    <input type="hidden" id="uni-zo-chr-5-65-4" value="0">
+
+                    <input type="hidden" id="uni-zo-chr-6-40-1" value="0">
+                    <input type="hidden" id="uni-zo-chr-6-40-2" value="0">
+                    <input type="hidden" id="uni-zo-chr-6-40-3" value="0">
+                    <input type="hidden" id="uni-zo-chr-6-40-4" value="0">
+
+                    <input type="hidden" id="uni-zo-cel-1" value="0">
+                    <input type="hidden" id="uni-zo-cel-2" value="0">
+                    <input type="hidden" id="uni-zo-cel-3" value="0">
+                    <input type="hidden" id="uni-zo-cel-4" value="0">
+
+                    <input type="hidden" id="uni-zo-csl-1" value="0">
+                    <input type="hidden" id="uni-zo-csl-2" value="0">
+                    <input type="hidden" id="uni-zo-csl-3" value="0">
+                    <input type="hidden" id="uni-zo-csl-4" value="0">
+
+                    <input type="hidden" id="uni-zo-asb-1" value="0">
+                    <input type="hidden" id="uni-zo-asb-2" value="0">
+                    <input type="hidden" id="uni-zo-asb-3" value="0">
+                    <input type="hidden" id="uni-zo-asb-4" value="0">
+
+                    <input type="hidden" id="uni-zo-fib-1" value="0">
+                    <input type="hidden" id="uni-zo-fib-2" value="0">
+                    <input type="hidden" id="uni-zo-fib-3" value="0">
+                    <input type="hidden" id="uni-zo-fib-4" value="0">
+
+                    <input type="hidden" id="uni-zo-lap-1" value="0">
+                    <input type="hidden" id="uni-zo-lap-2" value="0">
+                    <input type="hidden" id="uni-zo-lap-3" value="0">
+                    <input type="hidden" id="uni-zo-lap-4" value="0">
+
+                    <input type="hidden" id="uni-zo-car-1" value="0">
+                    <input type="hidden" id="uni-zo-car-2" value="0">
+                    <input type="hidden" id="uni-zo-car-3" value="0">
+                    <input type="hidden" id="uni-zo-car-4" value="0">
+
+                    <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.4rem 0;">
+                    </div>
+
+                    <!-- Целлюлоза -->
+                    <div class="uni-rm-label-row">Целлюлоза (кг)</div>
+                    <div class="form-group"><input type="number" id="uni-calc-cellulose-1"
+                            oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cellulose-2"
+                            oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cellulose-3"
+                            oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cellulose-4"
+                            oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-cellulose" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
+                    <!-- Дробленый шифер -->
+                    <div class="uni-rm-label-row">Дробленый шифер (кг)</div>
+                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-1"
+                            oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-2"
+                            oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-3"
+                            oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-4"
+                            oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-crushed-slate" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
+                    <!-- Асбозурит -->
+                    <div class="uni-rm-label-row">Асбозурит (кг)</div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-1"
+                            oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-2"
+                            oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-3"
+                            oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-4"
+                            oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-asbozurit" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
+                    <!-- Стекловолокно -->
+                    <div class="uni-rm-label-row">Стекловолокно (кг)</div>
+                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-1"
+                            oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-2"
+                            oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-3"
+                            oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-4"
+                            oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-fiberglass" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
+                    <!-- Лапрол -->
+                    <div class="uni-rm-label-row">Лапрол (мл)</div>
+                    <div class="form-group" style="grid-column: span 2;"><input type="number" id="uni-calc-laprol-machine"
+                            oninput="calcAdminLaprol()" placeholder="Под машину (мл)"
+                            title="Расход лапрола: Под машину (мл)" step="0.1"></div>
+                    <div class="form-group" style="grid-column: span 2;"><input type="number" id="uni-calc-laprol-pushitel"
+                            oninput="calcAdminLaprol()" placeholder="В Г/Пушитель (мл)"
+                            title="Расход лапрола: В Г/Пушитель (мл)" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-laprol" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"
+                            placeholder="0" title="Общий расход лапрола (мл)">
+                    </div>
+
+                    <!-- Асбокартон -->
+                    <div class="uni-rm-label-row">Асбокартон (кг)</div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-1"
+                            oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-2"
+                            oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-3"
+                            oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-4"
+                            oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-asbocarton" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
+                    <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.4rem 0;">
+                    </div>
+
+                    <!-- Сливы -->
+                    <div class="uni-rm-label-row">Слив хризотила (ЗО, кг)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="form-group"><input type="number" id="uni-zo-asb-drain" placeholder="0" step="0.1"></div>
+
+                    <div class="uni-rm-label-row">Слив цемента (ЗО, кг)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="form-group"><input type="number" id="uni-zo-cem-drain" placeholder="0" step="0.1"></div>
+
+                    <div class="uni-rm-label-row">Слив асбеста (ЛФМ, кг)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="form-group"><input type="number" id="uni-lfm-asb-drain" placeholder="0" step="0.1">
+                    </div>
+
+                    <div class="uni-rm-label-row">Слив цемента (ЛФМ, кг)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="form-group"><input type="number" id="uni-lfm-cem-drain" placeholder="0" step="0.1">
+                    </div>
+                </div>
+                <script>
+                    function calcAdminLaprol() {
+                        const s1 = parseFloat(document.getElementById('uni-calc-laprol-machine')?.value) || 0;
+                        const s2 = parseFloat(document.getElementById('uni-calc-laprol-pushitel')?.value) || 0;
+                        const total = s1 + s2;
+                        const target = document.getElementById('uni-zo-laprol');
+                        if (target) target.value = total > 0 ? (Number.isInteger(total) ? total : total.toFixed(1)) : '';
+
+                        if (document.getElementById('uni-zo-lap-1')) document.getElementById('uni-zo-lap-1').value = s1 > 0 ? s1 : '0';
+                        if (document.getElementById('uni-zo-lap-2')) document.getElementById('uni-zo-lap-2').value = s2 > 0 ? s2 : '0';
+                    }
+                </script>
+            </div>
+
+            <!-- Tab 4: Destacker Defects & Sorting (Переборка и Брак) -->
+            <div id="unified-tab-defect" class="unified-tab-content" style="display: none;">
+                <!-- БЛОК 1: СВОЯ СМЕНА -->
+                <div
+                    style="background: rgba(2, 132, 199, 0.05); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(2, 132, 199, 0.25); margin-bottom: 1.2rem;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h4 style="margin: 0; color: #0284c7; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                            🔹 Своя смена</h4>
+                        <span style="background: rgba(2, 132, 199, 0.15); color: #0284c7; padding: 2px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">Текущая смена</span>
+                    </div>
+                    <div class="form-grid"
+                        style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>На склад ГП своей смены (листов)</label>
+                            <input type="number" id="uni-warehouse-gp" step="1" min="0" placeholder="0" oninput="calcAdminWarehouseTotals()">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>1 Сорт своей смены (листов)</label>
+                            <input type="number" id="uni-first-grade" step="1" min="0" placeholder="0" oninput="calcAdminWarehouseTotals()">
+                        </div>
+                    </div>
+                    <div
+                        style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.6rem; font-weight: 600;">
+                        Детализация дефектов Дестакера (своя смена):</div>
+                    <div class="form-grid"
+                        style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.6rem; margin-bottom: 0.8rem;">
+                        <div class="form-group" style="margin-bottom:0;"><label>Сдир</label><input type="number"
+                                id="uni-def-scratch" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Плохой рез</label><input type="number"
+                                id="uni-def-bad-cut" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Налип сверху</label><input type="number"
+                                id="uni-def-stick-top" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Сломан</label><input type="number"
+                                id="uni-def-broken" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Упал коробки</label><input type="number"
+                                id="uni-def-fell-box" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Не соотв. толщ.</label><input
+                                type="number" id="uni-def-thickness" step="1" min="0" oninput="calcAdminDefects()">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Кромка</label><input type="number"
+                                id="uni-def-edge" step="1" min="0" oninput="calcAdminDefects()"></div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; max-width: 280px;">
+                        <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого брака своей смены (авто)</label>
+                        <input type="number" id="uni-defect-total-readonly" readonly placeholder="0"
+                            style="background: rgba(220, 38, 38, 0.08); font-weight: bold; color: var(--danger-color);">
+                    </div>
+                </div>
+
+                <!-- БЛОК 2: ПРЕДЫДУЩАЯ СМЕНА -->
+                <div
+                    style="background: rgba(245, 158, 11, 0.05); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.25); margin-bottom: 1.2rem;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h4 style="margin: 0; color: #f59e0b; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                            🔸 Предыдущая смена (из камеры твердения)</h4>
+                        <span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 2px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">Предыдущая смена</span>
+                    </div>
+                    <div class="form-grid"
+                        style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>На склад ГП прошлой смены (листов)</label>
+                            <input type="number" id="uni-prev-warehouse-gp" step="1" min="0" placeholder="0" oninput="calcAdminWarehouseTotals()">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>1 Сорт прошлой смены (листов)</label>
+                            <input type="number" id="uni-prev-first-grade" step="1" min="0" placeholder="0" oninput="calcAdminWarehouseTotals()">
+                        </div>
+                    </div>
+                    <div
+                        style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.6rem; font-weight: 600;">
+                        Детализация дефектов Дестакера (прошлая смена):</div>
+                    <div class="form-grid"
+                        style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.6rem; margin-bottom: 0.8rem;">
+                        <div class="form-group" style="margin-bottom:0;"><label>Сдир</label><input type="number"
+                                id="uni-prev-def-scratch" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Плохой рез</label><input type="number"
+                                id="uni-prev-def-bad-cut" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Налип сверху</label><input type="number"
+                                id="uni-prev-def-stick-top" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Сломан</label><input type="number"
+                                id="uni-prev-def-broken" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Упал коробки</label><input type="number"
+                                id="uni-prev-def-fell-box" step="1" min="0" oninput="calcAdminDefects()"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Не соотв. толщ.</label><input
+                                type="number" id="uni-prev-def-thickness" step="1" min="0" oninput="calcAdminDefects()">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Кромка</label><input type="number"
+                                id="uni-prev-def-edge" step="1" min="0" oninput="calcAdminDefects()"></div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; max-width: 280px;">
+                        <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого брака прошлой смены (авто)</label>
+                        <input type="number" id="uni-prev-defect-total-readonly" readonly placeholder="0"
+                            style="background: rgba(245, 158, 11, 0.08); font-weight: bold; color: #f59e0b;">
+                    </div>
+                </div>
+
+                <!-- ИТОГО НА СКЛАД ГП (АВТОМАТИЧЕСКАЯ СУММА ВНИЗУ БЛОКА КАК НА ПОРТАЛЕ) -->
+                <div
+                    style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <div style="font-weight: 700; color: #10b981; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.03em;">
+                            📦 Всего на склад ГП (авто)</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">Сумма своей и предыдущей смены</div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">1 Сорт (всего)</span>
+                            <input type="text" id="uni-first-grade-total-readonly" readonly placeholder="0"
+                                style="width: 110px; text-align: right; font-size: 1.15rem; font-weight: 800; color: var(--primary-color); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.4rem 0.75rem;">
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Склад ГП (всего)</span>
+                            <input type="text" id="uni-warehouse-gp-total-readonly" readonly placeholder="0"
+                                style="width: 130px; text-align: right; font-size: 1.25rem; font-weight: 800; color: #10b981; background: rgba(255,255,255,0.05); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 0.4rem 0.75rem;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Downtimes -->
+            <div id="unified-tab-downtimes" class="unified-tab-content" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="margin: 0; color: var(--text-secondary);">Журнал простоев за смену</h4>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>Время</th>
+                                <th>Длительность (мин)</th>
+                                <th>Причина</th>
+                                <th>Категория</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="uni-downtimes-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div
+                style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                <button type="button" onclick="closeModals()" class="btn-secondary"
+                    style="width: auto; padding: 0.6rem 1.5rem;">Отмена</button>
+                <button id="btn-save-unified-shift" onclick="saveUnifiedShiftReport()" class="btn-save"
+                    style="width: auto; padding: 0.6rem 2rem;"><i class="fa-solid fa-check"></i> Сохранить
+                    изменения</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Edit Receipt Modal -->
+    <div id="edit-receipt-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3>Редактирование прихода сырья</h3>
+                <span class="close" onclick="closeModals()">&times;</span>
+            </div>
+            <input type="hidden" id="edit-receipt-id">
+            <div class="unified-form-grid"
+                style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--glass-border);">
+                <div class="form-group"><label>Дата прихода</label><input type="date" id="edit-receipt-date"></div>
+                <div class="form-group">
+                    <label>Смена</label>
+                    <select id="edit-receipt-shift">
+                        <option value="День">День</option>
+                        <option value="Ночь">Ночь</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Линия</label>
+                    <select id="edit-receipt-line">
+                        <option value="1">Линия 1</option>
+                        <option value="2">Линия 2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Мастер смены</label>
+                    <select id="edit-receipt-master"></select>
+                </div>
+            </div>
+
+            <div class="unified-form-grid" style="grid-template-columns: 1fr 1fr; margin-top: 1rem;">
+                <div class="form-group"><label>Цемент (Силос 1)</label><input type="number" id="edit-receipt-cement1"
+                        step="0.1"></div>
+                <div class="form-group"><label>Цемент (Силос 2)</label><input type="number" id="edit-receipt-cement2"
+                        step="0.1"></div>
+                <div class="form-group"><label>Цемент (Силос 3)</label><input type="number" id="edit-receipt-cement3"
+                        step="0.1"></div>
+                <div class="form-group"><label>Цемент (Силос 4)</label><input type="number" id="edit-receipt-cement4"
+                        step="0.1"></div>
+                <div class="form-group"><label>Хризотил 4-20 (мешков по 50 кг)</label><input type="number"
+                        id="edit-receipt-c420" step="0.1"></div>
+                <div class="form-group"><label>Хризотил 5-65 (мешков по 50 кг)</label><input type="number"
+                        id="edit-receipt-c565" step="0.1"></div>
+                <div class="form-group"><label>Хризотил 6-40 (мешков по 50 кг)</label><input type="number"
+                        id="edit-receipt-c640" step="0.1"></div>
+                <div class="form-group"><label>Целлюлоза</label><input type="number" id="edit-receipt-cellulose"
+                        step="0.1"></div>
+                <div class="form-group"><label>Дробленый шифер</label><input type="number" id="edit-receipt-crushed"
+                        step="0.1"></div>
+                <div class="form-group"><label>Асбозурит</label><input type="number" id="edit-receipt-asbozurit"
+                        step="0.1"></div>
+                <div class="form-group"><label>Асбокартон</label><input type="number" id="edit-receipt-asbocarton"
+                        step="0.1"></div>
+                <div class="form-group"><label>Поддоны</label><input type="number" id="edit-receipt-pallets" step="0.1">
+                </div>
+                <div class="form-group"><label>Стекловолокно</label><input type="number" id="edit-receipt-fiberglass"
+                        step="0.1"></div>
+                <div class="form-group"><label>Лапрол (бочек по 200 кг)</label><input type="number"
+                        id="edit-receipt-laprol" step="0.1"></div>
+            </div>
+
+            <button onclick="saveReceiptEdit()" style="width: 100%; margin-top: 1rem;"><i class="fa-solid fa-save"></i>
+                Сохранить</button>
+        </div>
+    </div>
+
+
+    <!-- Edit Downtime Row Modal -->
+    <div id="edit-downtime-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 540px; max-height: 85vh; overflow-y: auto; word-break: break-word;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem; font-size: 1.2rem;">
+                    <span>⏱️</span> Редактировать простой
+                </h3>
+                <button type="button" onclick="document.getElementById('edit-downtime-modal').style.display='none'" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+            </div>
+            <input type="hidden" id="edit-downtime-id">
+
+            <!-- 1. Параметры смены -->
+            <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.5rem;">
+                1. Параметры смены
+            </label>
+            <div class="unified-form-grid"
+                style="grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.65rem; margin-bottom: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--glass-border);">
+                <div class="form-group"><label>📅 Дата</label><input type="date" id="edit-downtime-date"></div>
+                <div class="form-group">
+                    <label>☀️/🌙 Смена</label>
+                    <select id="edit-downtime-shift">
+                        <option value="День">День</option>
+                        <option value="Ночь">Ночь</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>🏭 Линия</label>
+                    <select id="edit-downtime-line">
+                        <option value="1">Линия 1</option>
+                        <option value="2">Линия 2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>👤 Мастер смены</label>
+                    <select id="edit-downtime-master"></select>
+                </div>
+            </div>
+
+            <!-- 2. Что произошло / Что делали (Свободный ввод как в портале) -->
+            <div style="margin-bottom: 1rem;">
+                <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.4rem;">
+                    2. Что произошло / Что делали *
+                </label>
+                <textarea id="edit-downtime-desc" rows="3"
+                    placeholder="Например: Замена ножей, чистка кармана и рекуператора, устранение затора..."
+                    style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-size: 0.95rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
+            </div>
+
+            <!-- 3. Время и длительность -->
+            <div style="margin-bottom: 1rem;">
+                <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.5rem;">
+                    3. Время и длительность
+                </label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; align-items: end;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                            <label style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin: 0;">⏰ Начало</label>
+                            <button type="button" onclick="setTimeNowAdmin('edit-downtime-time')"
+                                style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer;"
+                                title="Установить текущее время">Сейчас</button>
+                        </div>
+                        <input type="text" id="edit-downtime-time" placeholder="--:--"
+                            oninput="calcAdminDowntimeDuration()" onchange="calcAdminDowntimeDuration()"
+                            style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 1rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; text-align: center; height: 38px;">
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                            <label style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin: 0;">⏰ Конец</label>
+                            <button type="button" onclick="setTimeNowAdmin('edit-downtime-end-time')"
+                                style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer;"
+                                title="Установить текущее время">Сейчас</button>
+                        </div>
+                        <input type="text" id="edit-downtime-end-time" placeholder="--:--"
+                            oninput="calcAdminDowntimeDuration()" onchange="calcAdminDowntimeDuration()"
+                            style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 1rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; text-align: center; height: 38px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-bottom: 0.25rem; display: block;">⏱️ Итого (мин)</label>
+                        <input type="number" id="edit-downtime-duration" placeholder="0"
+                            style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 1rem; font-weight: 700; border: 1px solid #bae6fd; background: #f0f9ff; color: #0369a1; box-sizing: border-box; text-align: center; height: 38px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Остановка оборудования -->
+            <div class="form-group"
+                style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; cursor: pointer; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #fee2e2; background: #fff5f5;">
+                <input type="checkbox" id="edit-downtime-is-equipment-stop" style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
+                <label for="edit-downtime-is-equipment-stop" style="margin: 0; cursor: pointer; font-weight: 600; font-size: 0.88rem; color: #991b1b;">
+                    🛑 Остановка оборудования (Линия была полностью остановлена)
+                </label>
+            </div>
+
+            <!-- 5. Параметры классификации и потерь (Админ) -->
+            <div class="unified-form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
+                <div class="form-group">
+                    <label>Категория</label>
+                    <select id="edit-downtime-category">
+                        <option value="Механические">Механические</option>
+                        <option value="Энергетические">Энергетические</option>
+                        <option value="Технологические">Технологические</option>
+                        <option value="ТО и ППР">ТО и ППР</option>
+                        <option value="Остановки не связанные с простоем оборудования">Остановки не связанные с простоем оборудования</option>
+                        <option value="Санитарный день">Санитарный день</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Статус</label>
+                    <select id="edit-downtime-status">
+                        <option value="pending">pending (В процессе)</option>
+                        <option value="resolved">resolved (Решено)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="unified-form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="form-group"><label>Потери (тонн)</label><input type="number" id="edit-downtime-lost-tons" step="0.1"></div>
+                <div class="form-group"><label>Потери (тенге)</label><input type="number" id="edit-downtime-lost-tenge" step="0.1"></div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.25rem;">
+                <button type="button" onclick="document.getElementById('edit-downtime-modal').style.display='none'"
+                    class="btn-secondary" style="width: auto; padding: 0.6rem 1.2rem;">Отмена</button>
+                <button id="btn-save-downtime" onclick="saveDowntimeEdit()" class="btn-save" style="width: auto; padding: 0.6rem 1.5rem;">
+                    <i class="fa-solid fa-save"></i> Сохранить
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Edit Plan Board Modal -->
+    <div id="edit-plan-board-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <h3 id="plan-board-modal-title">Редактировать запись выработки</h3>
+            <input type="hidden" id="edit-pb-id">
+            <div class="form-group"><label>Дата (ГГГГ-ММ-ДД)</label><input type="date" id="edit-pb-date"></div>
+            <div class="form-group">
+                <label>Линия</label>
+                <select id="edit-pb-line">
+                    <option value="ЛФМ-1">ЛФМ-1</option>
+                    <option value="ЛФМ-2">ЛФМ-2</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Смена</label>
+                <select id="edit-pb-shift-name">
+                    <option value="День">День</option>
+                    <option value="Ночь">Ночь</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Номер смены (Excel)</label><input type="number" id="edit-pb-shift-number">
+            </div>
+            <div class="form-group">
+                <label>Мастер</label>
+                <select id="edit-pb-master"></select>
+            </div>
+            <div class="form-group"><label>План (листы)</label><input type="number" id="edit-pb-plan-sheets"></div>
+            <div class="form-group"><label>Факт (листы)</label><input type="number" id="edit-pb-fact-sheets"></div>
+            <div class="form-group"><label>1-й сорт</label><input type="number" id="edit-pb-first-grade"></div>
+            <div class="form-group"><label>Брак</label><input type="number" id="edit-pb-defect"></div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" onclick="document.getElementById('edit-plan-board-modal').style.display='none'"
+                    class="btn-secondary">Отмена</button>
+                <button onclick="savePlanBoardEdit()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Planner Employee Modal -->
+    <div id="planner-emp-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="planner-emp-modal-title" style="margin: 0; font-size: 1.1rem;"><i
+                        class="fa-solid fa-user-tag"></i> Сотрудник планнера</h3>
+                <span onclick="closePlannerModals()"
+                    style="cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);">&times;</span>
+            </div>
+            <input type="hidden" id="planner-emp-id">
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label
+                    style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: var(--text-secondary);">Имя
+                    / ФИО *</label>
+                <input type="text" id="planner-emp-name" placeholder="Например: Левда М."
+                    style="width: 100%; padding: 0.5rem; box-sizing: border-box; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; border-radius: 6px;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label
+                    style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: var(--text-secondary);">Email
+                    для уведомлений</label>
+                <input type="email" id="planner-emp-email" placeholder="name@tectum.ru или user@gmail.com"
+                    style="width: 100%; padding: 0.5rem; box-sizing: border-box; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; border-radius: 6px;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label
+                    style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: var(--text-secondary);"><i
+                        class="fa-solid fa-briefcase" style="color: #3b82f6;"></i> Рабочее место / Доступ</label>
+                <select id="planner-emp-role"
+                    style="width: 100%; padding: 0.55rem; box-sizing: border-box; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer;">
+                    <option value="portal">🌐 Корпоративный портал (Планнер + База знаний)</option>
+                    <option value="master">🏭 Цех ХЦИ (Сменный рапорт)</option>
+                    <option value="lkc_master">🎨 Цех ЛКЦ (Окрасочный цех)</option>
+                    <option value="qcd">🔬 Служба СКК (Контроль качества)</option>
+                    <option value="director">🛡️ Руководство завода (Дирекция)</option>
+                    <option value="technologist">⚗️ Главный технолог</option>
+                    <option value="mechanic">🔧 Главный механик (ОГМ)</option>
+                    <option value="admin">👑 Системный администратор</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+                <label
+                    style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: var(--text-secondary);"><i
+                        class="fa-solid fa-key" style="color: #f59e0b;"></i> 4-значный PIN-код (для создания и правок
+                    задач)</label>
+                <input type="text" id="planner-emp-pin" maxlength="10" placeholder="Например: 1234"
+                    style="width: 100%; padding: 0.5rem; box-sizing: border-box; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; border-radius: 6px; font-weight: 700; letter-spacing: 2px;">
+            </div>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" onclick="closePlannerModals()" class="btn-secondary"
+                    style="width: auto; padding: 0.45rem 1rem;">Отмена</button>
+                <button onclick="savePlannerEmployee()" class="btn-save"
+                    style="width: auto; padding: 0.45rem 1.25rem;"><i class="fa-solid fa-check"></i> Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Planner Zone Modal -->
+    <div id="planner-zone-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="planner-zone-modal-title" style="margin: 0; font-size: 1.1rem;"><i
+                        class="fa-solid fa-layer-group"></i> Зона / Подразделение</h3>
+                <span onclick="closePlannerModals()"
+                    style="cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);">&times;</span>
+            </div>
+            <input type="hidden" id="planner-zone-id">
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+                <label
+                    style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: var(--text-secondary);">Название
+                    зоны / подразделения *</label>
+                <input type="text" id="planner-zone-name" placeholder="Например: Бережливое производство"
+                    style="width: 100%; padding: 0.5rem; box-sizing: border-box; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; border-radius: 6px;">
+            </div>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" onclick="closePlannerModals()" class="btn-secondary"
+                    style="width: auto; padding: 0.45rem 1rem;">Отмена</button>
+                <button onclick="savePlannerZone()" class="btn-save" style="width: auto; padding: 0.45rem 1.25rem;"><i
+                        class="fa-solid fa-check"></i> Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Task Modal (Edit/Create Task in Admin Panel) -->
+    <div id="admin-task-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 640px; max-height: 85vh; overflow-y: auto; word-break: break-word;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem;">
+                <h3 id="admin-task-modal-title" style="margin: 0; font-size: 1.1rem; color: var(--primary-color);">
+                    <i class="fa-solid fa-pen"></i> Редактирование задачи
+                </h3>
+                <span onclick="closeAdminTaskModal()" style="cursor: pointer; font-size: 1.5rem; color: var(--text-secondary); line-height: 1;">&times;</span>
+            </div>
+            <input type="hidden" id="admin-modal-task-id">
+
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Суть задачи (на русском) *</label>
+                <textarea id="admin-modal-title-ru" rows="3" oninput="onAdminTaskRuInput()" placeholder="Опишите суть производственной задачи..." required style="width: 100%; box-sizing: border-box; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.88rem; background: #fff; color: #0f172a; resize: vertical;"></textarea>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                    <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Суть задачи (на казахском / қазақша)</label>
+                    <span id="admin-kz-translate-status" style="font-size: 0.74rem; color: #16a34a; font-weight: 600;"></span>
+                </div>
+                <textarea id="admin-modal-title-kz" rows="2" placeholder="Тапсырманың мазмұны қазақ тілінде..." style="width: 100%; box-sizing: border-box; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.88rem; background: #fff; color: #0f172a; resize: vertical;"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Зона / Подразделение *</label>
+                    <select id="admin-modal-zone" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;"></select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Доп. цех / участок</label>
+                    <input type="text" id="admin-modal-dept" placeholder="например: Цех ХЦИ, ЛФМ-1" style="width: 100%; box-sizing: border-box; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Автор задачи *</label>
+                    <select id="admin-modal-author" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;"></select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Исполнитель</label>
+                    <select id="admin-modal-assignee" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;"></select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Срок (Дедлайн)</label>
+                    <input type="date" id="admin-modal-due-date" onchange="onAdminTaskModalDueDateChange()" style="width: 100%; box-sizing: border-box; padding: 0.45rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.82rem;">
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Месяц планнера</label>
+                    <select id="admin-modal-month" onchange="onAdminModalMonthChange()" style="width: 100%; padding: 0.45rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.82rem;"></select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Неделя</label>
+                    <select id="admin-modal-week" style="width: 100%; padding: 0.45rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.82rem;"></select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Статус *</label>
+                    <select id="admin-modal-status" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem; font-weight: 600;">
+                        <option value="🟡 В работе">🟡 В работе</option>
+                        <option value="🟢 Выполнено">🟢 Выполнено</option>
+                        <option value="🔵 Перенесено">🔵 Перенесено</option>
+                        <option value="🔴 Отменено">🔴 Отменено</option>
+                        <option value="⚪ В очереди">⚪ В очереди</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Тип горизонта</label>
+                    <select id="admin-modal-task-type" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;">
+                        <option value="weekly">Недельная задача</option>
+                        <option value="backlog">Бэклог / Очередь</option>
+                        <option value="strategic">Стратегическая (Дорожная карта)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Комментарий / примечание</label>
+                <input type="text" id="admin-modal-comment" placeholder="Примечание к задаче..." style="width: 100%; box-sizing: border-box; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;">
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+                <button type="button" onclick="closeAdminTaskModal()" class="btn-secondary" style="width: auto; padding: 0.5rem 1.2rem;">Отмена</button>
+                <button id="btn-save-admin-task" onclick="saveAdminTask()" class="btn-save" style="width: auto; padding: 0.5rem 1.5rem;"><i class="fa-solid fa-check"></i> Сохранить задачу</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin LKC Report Details Modal -->
+    <div id="admin-lkc-details-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 860px; max-height: 85vh; overflow-y: auto; word-break: break-word;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem;">
+                <h3 style="margin: 0; font-size: 1.15rem; color: var(--primary-color); display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-shapes"></i> Детали рапорта смены ЛКЦ №<span id="admin-lkc-modal-id"></span>
+                </h3>
+                <span onclick="closeAdminLKCDetailsModal()" style="cursor: pointer; font-size: 1.5rem; color: var(--text-secondary); line-height: 1;">&times;</span>
+            </div>
+
+            <!-- Meta info cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.2rem; background: #f8fafc; padding: 0.85rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div>
+                    <span style="font-size: 0.74rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Дата смены:</span>
+                    <div id="admin-lkc-modal-date" style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">-</div>
+                </div>
+                <div>
+                    <span style="font-size: 0.74rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Смена:</span>
+                    <div id="admin-lkc-modal-shift" style="font-weight: 600; color: #0f172a; font-size: 0.9rem;">-</div>
+                </div>
+                <div>
+                    <span style="font-size: 0.74rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Мастер смены:</span>
+                    <div id="admin-lkc-modal-master" style="font-weight: 600; color: #0f172a; font-size: 0.9rem;">-</div>
+                </div>
+                <div>
+                    <span style="font-size: 0.74rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Толщина сырья:</span>
+                    <div id="admin-lkc-modal-thickness" style="font-weight: 600; color: #0f172a; font-size: 0.9rem;">-</div>
+                </div>
+            </div>
+
+            <!-- Block 1: Production items -->
+            <div style="margin-bottom: 1.2rem;">
+                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.92rem; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-boxes-stacked"></i> 1. Выпуск готовой продукции и нарезка полос
+                </h4>
+                <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <table class="data-table" style="width: 100%; font-size: 0.8rem;">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Номенклатура / Изделие</th>
+                                <th>Типоразмер</th>
+                                <th style="text-align: right;">План (шт)</th>
+                                <th style="text-align: right;">Факт (шт)</th>
+                                <th>Партия</th>
+                                <th style="text-align: right;">Компл.</th>
+                                <th style="text-align: right;">Т-планки</th>
+                                <th style="text-align: right;">L-уголки</th>
+                                <th style="text-align: right;">Саморезы</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-lkc-modal-items-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Block 2: Raw Material & Warehouse -->
+            <div style="margin-bottom: 1.2rem;">
+                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.92rem; color: #065f46; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-truck-ramp-box"></i> 2. Расход сырья, сдача на склад и брак
+                </h4>
+                <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <table class="data-table" style="width: 100%; font-size: 0.8rem;">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Наименование сырья</th>
+                                <th>Толщина</th>
+                                <th style="text-align: right;">Израсходовано (листов)</th>
+                                <th style="text-align: right;">Сдано на склад ГП (шт)</th>
+                                <th style="text-align: right;">Брак / отходы (шт)</th>
+                                <th>Примечание</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-lkc-modal-raw-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Block 3: Downtimes -->
+            <div style="margin-bottom: 1.2rem;">
+                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.92rem; color: #b45309; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-clock"></i> 3. Зафиксированные простои оборудования
+                </h4>
+                <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <table class="data-table" style="width: 100%; font-size: 0.8rem;">
+                        <thead>
+                            <tr>
+                                <th>Время</th>
+                                <th style="text-align: center;">Длит. (мин)</th>
+                                <th>Оборудование / Узел</th>
+                                <th>Категория</th>
+                                <th>Причина простоя</th>
+                                <th>Комментарий</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-lkc-modal-downtimes-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Notes block -->
+            <div id="admin-lkc-modal-notes-wrap" style="margin-bottom: 1.2rem; display: none;">
+                <h4 style="margin: 0 0 0.35rem 0; font-size: 0.85rem; color: #475569;">
+                    <i class="fa-solid fa-comment-dots"></i> Примечания мастера к смене:
+                </h4>
+                <div id="admin-lkc-modal-notes" style="padding: 0.6rem 0.8rem; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; font-size: 0.82rem; color: #92400e;"></div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+                <button type="button" onclick="closeAdminLKCDetailsModal()" class="btn-secondary" style="width: auto; padding: 0.5rem 1.4rem;">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
+    <script src="/static/modules/admin/admin.js?v=20261105_v1"></script>
+    <script src="/static/modules/admin/ai_assistant.js?v=20261105_v1"></script>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "core/base.html" %}
+
+{% block title %}Чек-листы смен и ТО | Tectum{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="/static/modules/checklists/checklists.css?v=20261105_v1">
+{% endblock %}
+
+{% block content %}
+<div class="cl-wrapper">
+<!-- Navigation Tabs -->
+        <div class="cl-nav-tabs">
+            <a href="#fill" class="cl-tab-btn active" id="cl-tab-btn-fill" onclick="switchClTab('fill', event)">✍️
+                Заполнить чек-лист</a>
+            <a href="#journal" class="cl-tab-btn" id="cl-tab-btn-journal" onclick="switchClTab('journal', event)">📋
+                Журнал сдачи</a>
+            <button type="button" class="cl-tab-btn" onclick="openGoogleSheet()">📊 Открыть Google Таблицу</button>
+        </div>
+
+        <!-- TAB 1: Fill Form -->
+        <div id="tab-fill-content">
+            <!-- Template Picker -->
+            <div style="margin-bottom: 0.8rem; font-weight: 700; font-size: 0.95rem; color: var(--cl-subtext);">
+                ВЫБЕРИТЕ ТИП ЧЕК-ЛИСТА:
+            </div>
+            <div class="template-selector-grid" id="template-cards-container">
+                <!-- Rendered by JS -->
+            </div>
+
+            <!-- Form Panel -->
+            <div class="form-panel" id="checklist-form-panel">
+                <div style="margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 id="active-template-title" style="margin: 0; font-size: 1.25rem;">Чек-лист мастера смены
+                        </h2>
+                        <p id="active-template-sub"
+                            style="margin: 4px 0 0; color: var(--cl-subtext); font-size: 0.85rem;">Проверка состояния
+                            оборудования</p>
+                    </div>
+                    <div id="duty-shift-badge"
+                        style="background: rgba(37,99,235,0.1); color: var(--cl-primary); padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;">
+                        Загрузка смены...
+                    </div>
+                </div>
+
+                <!-- Parameters Grid -->
+                <div class="meta-grid">
+                    <div class="form-group">
+                        <label>1. Дата</label>
+                        <input type="text" id="cl-date" class="form-control" readonly
+                            style="opacity: 0.85; background: var(--cl-card);">
+                    </div>
+                    <div class="form-group">
+                        <label>2. Смена (Время)</label>
+                        <select id="cl-shift-name" class="form-control" onchange="onShiftChange()"
+                            style="font-weight: 700; border-color: var(--cl-primary);">
+                            <option value="День">☀️ День (08:00 – 19:00)</option>
+                            <option value="Ночь">🌙 Ночь (19:00 – 08:00)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>3. Дежурная бригада</label>
+                        <select id="cl-shift-group" class="form-control" disabled
+                            style="opacity: 0.85; background: var(--cl-card);">
+                            <option value="1-я смена">1-я смена</option>
+                            <option value="2-я смена">2-я смена</option>
+                            <option value="3-я смена">3-я смена</option>
+                            <option value="4-я смена">4-я смена</option>
+                            <option value="Котельная">Котельная</option>
+                            <option value="Дневной персонал">Дневной персонал</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="dept-form-group">
+                        <label>4. Производственный участок</label>
+                        <select id="cl-department" class="form-control" onchange="onDepartmentChange()">
+                            <!-- Loaded based on active template & factory areas -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label id="inspector-label-text">5. Принимающий смену</label>
+                        <select id="cl-inspector-name" class="form-control" onchange="onInspectorChange()">
+                            <!-- Loaded from API -->
+                        </select>
+                    </div>
+                    <div class="form-group" id="submitter-form-group">
+                        <label id="submitter-label-text">6. Сдающий смену</label>
+                        <select id="cl-submitter-name" class="form-control">
+                            <!-- Loaded from API -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Checklist Items -->
+                <div style="margin-bottom: 1rem; font-weight: 700; font-size: 0.95rem; color: var(--cl-subtext);">
+                    ПУНКТЫ ПРОВЕРКИ И СОСТОЯНИЕ РАБОЧИХ МЕСТ:
+                </div>
+                <div id="checklist-items-container">
+                    <!-- Injected items -->
+                </div>
+
+                <!-- Overall Notes -->
+                <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+                    <label>Общие примечания / Выявленные замечания за смену</label>
+                    <textarea id="cl-overall-notes" class="form-control" rows="3"
+                        placeholder="Укажите дополнительные замечания или важные детали смены..."></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <button id="cl-submit-btn" class="submit-btn" onclick="submitChecklist()">
+                    <span>💾 Сохранить и передать в отчет</span>
+                </button>
+                <div id="cl-submit-status"
+                    style="margin-top: 10px; text-align: center; font-weight: 600; display: none;"></div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Journal -->
+        <div id="tab-journal-content" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">Журнал сданных чек-листов</h3>
+                <button onclick="loadChecklistJournal()" class="status-btn"
+                    style="padding: 6px 12px; font-size: 0.85rem;">🔄 Обновить</button>
+            </div>
+            <div id="journal-list-container">
+                <div style="text-align: center; color: var(--cl-subtext); padding: 2rem;">Загрузка истории...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Universal Notification Modal (как на портале) -->
+    <div id="universal-notification-overlay" class="modal-overlay-fade"
+        style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9998; backdrop-filter: blur(4px);">
+    </div>
+    <div id="universal-notification-modal" class="modal-centered"
+        style="display:none; z-index: 9999; width: 90%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); background: var(--cl-card); padding: 2.5rem 2rem; text-align: center; border: 1px solid var(--cl-border); border-radius: 16px;">
+        <div id="unm-icon"
+            style="width: 75px; height: 75px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto; transition: all 0.3s ease;">
+            <span id="unm-icon-text" style="font-size: 2.8rem; line-height: 1;"></span>
+        </div>
+        <h2 id="unm-title" style="margin-bottom: 0.8rem; color: var(--cl-text); font-size: 1.4rem;"></h2>
+        <p id="unm-message" style="color: var(--cl-subtext); margin-bottom: 1.8rem; font-size: 1rem; line-height: 1.5;">
+        </p>
+        <button onclick="closeUniversalNotification()" class="submit-btn" id="unm-btn"
+            style="font-size: 1.05rem; padding: 0.75rem 2.5rem; border-radius: 8px; width: auto; display: inline-block;">
+            ОК
+        </button>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
+    <script src="/static/modules/checklists/checklists.js?v=20261105_v1"></script>
+{% endblock %}

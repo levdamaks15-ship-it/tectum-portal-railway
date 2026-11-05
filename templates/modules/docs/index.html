@@ -1,0 +1,656 @@
+{% extends "core/base.html" %}
+
+{% block title %}База знаний и регламентов предприятия | Tectum{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="/static/modules/docs/docs.css?v=20261105_v1">
+{% endblock %}
+
+{% block content %}
+<div class="docs-module-wrapper">
+<!-- Mobile Top Navigation Header (Canonical TECTUM Header) -->
+    <div class="mobile-docs-header" id="mobile-docs-header">
+        <div class="planner-brand-left" onclick="toggleDocsSidebar(true)" style="cursor: pointer;" title="Открыть разделы цеха">
+            <span class="brand-title-tectum">TECTUM</span>
+            <span class="brand-badge-docs" id="header-mobile-docs-badge">
+                БАЗА ЗНАНИЙ <i class="fa-solid fa-chevron-down" style="font-size: 0.62rem; margin-left: 2px;"></i>
+            </span>
+        </div>
+        <div class="mobile-header-user-wrap" style="display: inline-flex; align-items: center; gap: 6px;">
+            <div id="mobile-docs-user-badge" class="user-session-badge-modern anonymous" onclick="promptDocsUserAuth()"
+                title="Нажмите для входа по PIN-коду">
+                <i class="fa-solid fa-user-lock" id="mobile-docs-user-icon" style="font-size: 0.78rem;"></i>
+                <span id="mobile-docs-user-name">Войти (PIN)</span>
+                <button type="button" id="mobile-btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из сессии"
+                    style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 1rem; cursor: pointer; padding: 0 2px; line-height: 1;">
+                    &times;
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backdrop for mobile drawer -->
+    <div class="docs-sidebar-backdrop" id="docs-sidebar-backdrop" onclick="toggleDocsSidebar(false)"></div>
+
+    <!-- Sidebar Tree Navigation -->
+    <div class="docs-sidebar" id="docs-sidebar">
+        <div class="sidebar-header-row" style="margin-bottom: 0.85rem; display: flex; align-items: center; justify-content: space-between;">
+            <div class="sidebar-brand-stitch" onclick="navigateToRootFolder()" title="Перейти в корень Базы Знаний" style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                <span class="brand-title-tectum">TECTUM</span>
+                <span class="brand-badge-sidebar" id="header-shop-badge">РАЗДЕЛЫ ЦЕХА</span>
+            </div>
+            <button class="mobile-sidebar-close" onclick="toggleDocsSidebar(false)" aria-label="Закрыть" title="Закрыть меню">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="folder-tree-title">
+            <span>Разделы цеха</span>
+            <span class="dirs-count" id="sidebar-dirs-count">директории</span>
+        </div>
+        <div id="sidebar-folders">
+            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
+        </div>
+
+        <div class="sidebar-footer">
+            <!-- User Auth Badge -->
+            <div class="sidebar-user-section" style="margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--docs-sidebar-border); display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                <button class="sidebar-home-link" id="sidebar-docs-user-badge" onclick="promptDocsUserAuth()"
+                    style="flex: 1; justify-content: flex-start; padding: 0.55rem 0.75rem; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; border-radius: 8px;"
+                    title="Нажмите для входа по PIN-коду">
+                    <i class="fa-solid fa-user" style="color: #2563eb;"></i> <span id="sidebar-docs-user-name">Войти (PIN)</span>
+                </button>
+                <button id="sidebar-btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из сессии"
+                    style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 0.4rem 0.6rem; border-radius: 6px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <a href="/tasks" class="sidebar-home-link sidebar-planner-link"
+                style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; border-radius: 8px; justify-content: flex-start; padding: 0.6rem 0.85rem;"
+                title="Перейти в Планнер задач">
+                <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер задач</span>
+            </a>
+            <a href="/" class="sidebar-home-link"
+                style="background: #ffffff; color: #334155; border: 1px solid #cbd5e1; font-weight: 600; border-radius: 8px; justify-content: flex-start; padding: 0.6rem 0.85rem;"
+                title="На главную страницу портала">
+                <i class="fas fa-house" style="color: #64748b;"></i> <span>На главный портал</span>
+            </a>
+        </div></div>
+
+    <!-- Main Content Area -->
+    <div class="docs-content" id="main-content-area" oncontextmenu="handleAreaContextMenu(event)">
+        <!-- Floating White Workspace Card (Stitch Canonical Target) -->
+        <div class="docs-workspace-card">
+
+            <!-- Top Unified Command Bar matching Stitch -->
+            <div class="docs-top-command-bar">
+                <div class="docs-command-left" style="display: flex; align-items: center; gap: 8px;">
+                    <!-- Back Button placed cleanly at the start of breadcrumbs -->
+                    <button id="btn-folder-back" class="btn-folder-back" type="button" style="display: none;" onclick="goUp()" title="Назад в родительскую папку">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; display:inline-block; vertical-align:middle;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        <span>Назад</span>
+                    </button>
+                    <!-- Breadcrumbs Bar -->
+                    <div class="docs-breadcrumbs-stitch" id="docs-breadcrumbs">
+                        <span class="crumb-btn" onclick="navigateToRootFolder()"><i class="fa-solid fa-house"></i> Главная</span>
+                        <span class="crumb-sep">/</span>
+                        <span class="crumb-btn" onclick="navigateToRootFolder()">Документы цеха</span>
+                        <span class="crumb-sep">/</span>
+                        <span class="crumb-current" id="breadcrumb-current-folder"><i class="fa-regular fa-folder-open" style="color: #f59e0b;"></i> <span id="breadcrumb-current-text">Все документы</span></span>
+                    </div>
+                </div>
+
+                <!-- Stitch Center/Right Omnibar Search + Actions -->
+                <div class="docs-command-right" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="stitch-search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="search-input" class="stitch-search-input" placeholder="Поиск в Базе Знаний..."
+                            oninput="handleSearch(this.value)" onkeydown="if(event.key==='Escape') clearSearch()" autocomplete="off">
+                        <button type="button" id="search-clear-btn" class="stitch-search-clear-btn" onclick="clearSearch()" title="Очистить поиск" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <span class="stitch-kbd-shortcut">Ctrl+K</span>
+                    </div>
+
+                    <div class="docs-command-buttons-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <!-- Split Dropdown Add Button -->
+                        <div class="dropdown-menu-create" style="position: relative;">
+                            <button class="btn-modern-add" onclick="toggleCreateDropdown(event)" title="Добавить файл, ссылку или папку">
+                                <i class="fas fa-plus"></i> <span>Добавить</span> <i class="fas fa-chevron-down" style="font-size: 0.72rem; margin-left: 3px;"></i>
+                            </button>
+                            <div id="create-dropdown" class="dropdown-content-create" style="border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; min-width: 230px;">
+                                <div class="dropdown-item" onclick="triggerLocalFileUpload()" style="font-weight: 600;">
+                                    <i class="fas fa-file-pdf" style="color: #ef4444; width: 20px; text-align: center;"></i>
+                                    Загрузить PDF документ
+                                </div>
+                                <div class="dropdown-item" onclick="showFolderModal()">
+                                    <i class="fas fa-folder-plus" style="color: #f59e0b; width: 20px; text-align: center;"></i>
+                                    Создать новую папку
+                                </div>
+                                <div class="context-menu-separator"></div>
+                                <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
+                                    <i class="fab fa-google" style="color: #4285f4; width: 20px; text-align: center;"></i>
+                                    Ссылка Google (Docs / Sheets)
+                                </div>
+                                <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
+                                    <i class="fab fa-microsoft" style="color: #0078d4; width: 20px; text-align: center;"></i>
+                                    Ссылка Microsoft (OneDrive / Excel)
+                                </div>
+                            </div>
+                        </div>
+                        <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none !important; position: absolute; left: -9999px; opacity: 0; pointer-events: none;"
+                            onchange="handleLocalFileSelected(event)">
+
+                        <!-- Refresh / Sync Button -->
+                        <button class="btn-modern-secondary" onclick="syncFolderTitles()" id="btn-sync-titles"
+                            title="Синхронизировать заголовки Google / OneDrive и обновить">
+                            <i class="fas fa-arrows-rotate"></i>
+                        </button>
+
+                        <!-- Planner Link -->
+                        <a href="/tasks" class="btn-modern-secondary docs-top-planner-link"
+                            style="background: #eff6ff !important; color: #1d4ed8 !important; border-color: #bfdbfe !important;"
+                            title="Открыть Планнер задач">
+                            <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
+                        </a>
+
+                        <!-- User Session Badge -->
+                        <div class="user-session-wrapper" style="display: flex; align-items: center; gap: 4px;">
+                            <div class="user-session-badge-modern anonymous" id="docs-user-badge" onclick="promptDocsUserAuth()"
+                                title="Нажмите для входа по PIN-коду">
+                                <i class="fa-solid fa-user-lock" style="font-size: 0.8rem;"></i>
+                                <span id="docs-user-name">Войти (PIN)</span>
+                                <button type="button" id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из сессии"
+                                    style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0 2px; line-height: 1;">
+                                    &times;
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Folder Title & Action Header matching Stitch -->
+            <div class="stitch-folder-header">
+                <div class="stitch-title-left">
+                    <div class="stitch-folder-icon-circle">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </div>
+                    <div class="stitch-title-meta">
+                        <h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            
+                            <span id="current-folder-name">Все документы</span>
+                        </h1>
+                        <p id="current-folder-desc">Официальные производственные бланки, чек-листы Kaizen и типовые формы цеха</p>
+                    </div>
+                </div>
+
+                </div>
+
+            <!-- Filter Chips Deck + Sort Dropdown -->
+            <div class="docs-filter-chips" id="docs-filter-chips">
+                <div class="docs-chip active" id="chip-filter-all" onclick="setDocTypeFilter('all')">
+                    <span>Все</span> <span class="docs-chip-count" id="count-chip-all">0</span>
+                </div>
+                <div class="docs-chip" id="chip-filter-pdf" onclick="setDocTypeFilter('pdf')">
+                    <i class="fas fa-file-pdf" style="color: #ef4444;"></i>
+                    <span>PDF Документы</span> <span class="docs-chip-count" id="count-chip-pdf">0</span>
+                </div>
+                <div class="docs-chip" id="chip-filter-sheets" onclick="setDocTypeFilter('sheets')">
+                    <i class="fas fa-file-excel" style="color: #10b981;"></i>
+                    <span>Google Таблицы & Excel</span> <span class="docs-chip-count" id="count-chip-sheets">0</span>
+                </div>
+                <div class="docs-chip" id="chip-filter-docs" onclick="setDocTypeFilter('docs')">
+                    <i class="fas fa-file-word" style="color: #2563eb;"></i>
+                    <span>Регламенты & Word</span> <span class="docs-chip-count" id="count-chip-docs">0</span>
+                </div>
+                <div class="docs-chip" id="chip-filter-folders" onclick="setDocTypeFilter('folders')">
+                    <i class="fas fa-folder" style="color: #f59e0b;"></i>
+                    <span>Папки</span> <span class="docs-chip-count" id="count-chip-folders">0</span>
+                </div>
+
+                <div class="docs-sort-container-stitch">
+                    <i class="fa-solid fa-arrow-down-short-wide" style="font-size: 0.78rem; color: #64748b; flex-shrink: 0;"></i>
+                    <span>Сортировка:</span>
+                    <select id="docs-sort" onchange="applySort()" title="Сортировка списка">
+                        <option value="date_desc">По дате обновления ▼</option>
+                        <option value="date_asc">По дате обновления ▲</option>
+                        <option value="name_asc">По имени (А-Я)</option>
+                        <option value="name_desc">По имени (Я-А)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Documents Table Container -->
+            <div id="files-container"></div>
+
+        </div> <!-- /.docs-workspace-card -->
+    </div> <!-- /.docs-content -->
+
+    <!-- Модальные окна -->
+    <div id="folder-modal" class="modal">
+        <div class="modal-content">
+            <h3>Создать новую папку</h3>
+            <div class="form-group">
+                <label>Название папки</label>
+                <input type="text" id="new-folder-name" placeholder="Например: Отдел кадров"
+                    onkeydown="if(event.key==='Enter') createFolder()">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeFolderModal()">Отмена</button>
+                <button class="btn-action btn-upload-file" onclick="createFolder()">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка переименования -->
+    <div id="rename-modal" class="modal">
+        <div class="modal-content">
+            <h3>Переименовать</h3>
+            <div class="form-group">
+                <label>Новое имя</label>
+                <input type="text" id="rename-input" placeholder="Введите имя..."
+                    onkeydown="if(event.key==='Enter') submitRename()">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeRenameModal()">Отмена</button>
+                <button class="btn-action btn-upload-file" onclick="submitRename()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Перемещение файла или папки -->
+    <div id="move-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                <h3 id="move-modal-title"
+                    style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
+                    <i class="fas fa-folder-tree" style="color: #3b82f6;"></i> <span>Переместить в папку</span>
+                </h3>
+                <button onclick="closeMoveModal()"
+                    style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <p
+                style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                Перемещение: <strong style="color: var(--docs-text-primary);" id="move-modal-item-text"></strong>
+            </p>
+
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+                <input type="text" id="move-folder-search" class="move-search-input"
+                    placeholder="🔍 Быстрый поиск папки..." oninput="filterMoveFolders(this.value)">
+            </div>
+
+            <div id="move-folder-tree" class="move-tree-container">
+                <!-- Загружается динамически -->
+            </div>
+
+            <div
+                style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; color: var(--docs-text-secondary); margin-bottom: 1.2rem; background: var(--docs-btn-bg); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--docs-btn-border);">
+                <span>Назначение:</span>
+                <span id="move-selected-label"
+                    style="font-weight: 600; color: #38bdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">📁
+                    Главная директория (Корень)</span>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeMoveModal()">Отмена</button>
+                <button class="btn-action" id="btn-submit-move" onclick="submitMoveItem()"
+                    style="background: #2563eb; color: #fff; min-height: 44px;">
+                    <i class="fas fa-arrow-right-to-bracket"></i> Переместить сюда
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Добавить ссылку на облачный документ -->
+    <div id="add-link-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="add-link-modal-title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-link" style="color: #3b82f6;"></i> Прикрепить онлайн-документ
+                </h3>
+                <button onclick="closeAddLinkModal()"
+                    style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label>Ссылка на файл / таблицу (Google Docs, Sheets, OneDrive, Excel)</label>
+                <input type="url" id="add-link-url"
+                    placeholder="Вставьте ссылку (https://docs.google.com/... или https://1drv.ms/...)"
+                    oninput="onLinkUrlInput(this.value)" onkeydown="if(event.key==='Enter') submitAddLink()">
+            </div>
+
+            <div class="form-group">
+                <label>Название документа (подтягивается автоматически)</label>
+                <input type="text" id="add-link-title" placeholder="Название файла..."
+                    onkeydown="if(event.key==='Enter') submitAddLink()">
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeAddLinkModal()">Отмена</button>
+                <button class="btn-action" id="btn-submit-add-link" onclick="submitAddLink()"
+                    style="background: #2563eb;">
+                    <i class="fas fa-link"></i> Прикрепить ссылку (Enter)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Ввод пароля к защищенному разделу / действию -->
+    <div id="password-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div
+                style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin: 0 auto 1rem auto;">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h3 style="margin-bottom: 0.5rem;">Доступ защищен</h3>
+            <p style="font-size: 0.88rem; color: var(--docs-text-muted); margin-bottom: 1.25rem;">Введите пароль для
+                доступа к этому разделу или документу:</p>
+            <div class="form-group" style="text-align: left;">
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="password" id="folder-password-input" placeholder="Введите пароль..."
+                        style="padding-right: 40px;" onkeydown="if(event.key==='Enter') submitPasswordModal(true)">
+                    <button type="button" onclick="togglePasswordVisibility('folder-password-input', this)"
+                        style="position: absolute; right: 10px; background: none; border: none; color: var(--docs-text-muted); cursor: pointer; padding: 4px; font-size: 0.95rem;">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-actions" style="justify-content: center; gap: 0.75rem; margin-top: 1.25rem;">
+                <button class="btn-cancel" onclick="submitPasswordModal(false)">Отмена</button>
+                <button class="btn-action" onclick="submitPasswordModal(true)"
+                    style="background: #ef4444; color: #fff;">
+                    <i class="fas fa-key"></i> Подтвердить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: История версий и архив документа -->
+    <div id="versions-modal" class="modal">
+        <div class="modal-content" style="max-width: 680px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
+                    <i class="fas fa-clock-rotate-left" style="color: #2563eb;"></i> <span>История версий и архив</span>
+                </h3>
+                <button onclick="closeVersionsModal()"
+                    style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <p
+                style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                Документ: <strong style="color: var(--docs-text-primary);" id="versions-modal-doc-title"></strong>
+            </p>
+
+            <div id="versions-list-container"
+                style="max-height: 380px; overflow-y: auto; border: 1px solid var(--docs-panel-border); border-radius: 8px; margin-bottom: 1rem;">
+                <!-- Список версий загружается динамически -->
+            </div>
+
+            <div class="modal-actions" style="justify-content: space-between;">
+                <button class="btn-action" onclick="openSaveVersionModalFromHistory()"
+                    style="background: #10b981; color: #fff;">
+                    <i class="fas fa-file-arrow-up"></i> Загрузить новую версию
+                </button>
+                <button class="btn-cancel" onclick="closeVersionsModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Загрузка новой версии документа -->
+    <div id="save-version-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
+                    <i class="fas fa-file-arrow-up" style="color: #10b981;"></i> <span>Загрузить новую версию</span>
+                </h3>
+                <button onclick="closeSaveVersionModal()"
+                    style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <p
+                style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                Обновление: <strong style="color: var(--docs-text-primary);" id="save-version-doc-title"></strong>
+            </p>
+
+            <div class="form-group">
+                <label>Выберите обновленный файл (Word / Excel / PDF)</label>
+                <input type="file" id="version-file-input"
+                    style="padding: 0.4rem; border: 1px dashed var(--docs-input-border); border-radius: 8px; width: 100%;">
+            </div>
+
+            <div class="form-group">
+                <label>Кто вносит изменения (Сотрудник из Планнера)</label>
+                <select id="version-employee-select"
+                    style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--docs-input-border); background: var(--docs-input-bg); color: var(--docs-input-color); font-family: inherit;">
+                    <option value="">-- Выберите сотрудника --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Комментарий к правкам (что изменилось?)</label>
+                <input type="text" id="version-comment-input"
+                    placeholder="Например: Обновлены нормативы расхода цемента">
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeSaveVersionModal()">Отмена</button>
+                <button class="btn-action" id="btn-submit-save-version" onclick="submitSaveNewVersion()"
+                    style="background: #10b981; color: #fff;">
+                    <i class="fas fa-check"></i> Сохранить версию
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Полноценный онлайн просмотр PDF регламентов и документов -->
+    <div id="doc-preview-modal" class="modal" style="z-index: 10000;">
+        <div class="modal-content"
+            style="max-width: 1200px; width: 96vw; height: 94vh; display: flex; flex-direction: column; padding: 1rem 1.2rem;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.7rem; border-bottom: 1px solid var(--docs-panel-border); min-height: 42px;">
+                <div
+                    style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 68%;">
+                    <button onclick="closeDocPreviewModal()" class="btn-action"
+                        style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 0.35rem 0.65rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;"
+                        title="Назад к списку документов">
+                        <i class="fas fa-chevron-left"></i> <span style="font-weight: 600;">Назад</span>
+                    </button>
+                    <i class="fas fa-file-pdf" id="preview-modal-icon"
+                        style="color: #ef4444; font-size: 1.2rem; flex-shrink: 0;"></i>
+                    <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                        id="preview-modal-title">Просмотр документа</h3>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <button id="preview-modal-newtab-btn" class="btn-action"
+                        style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 0.35rem 0.65rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 5px;"
+                        title="Открыть во весь экран в новой вкладке">
+                        <i class="fas fa-arrow-up-right-from-square"></i> <span class="hide-on-mobile">Во весь
+                            экран</span>
+                    </button>
+                    <button onclick="closeDocPreviewModal()"
+                        style="background: rgba(241, 245, 249, 0.8); border: 1px solid #cbd5e1; border-radius: 6px; color: #64748b; cursor: pointer; font-size: 1.2rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;"
+                        title="Закрыть (Esc)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="preview-modal-body"
+                style="display: flex; flex: 1; margin-top: 0.7rem; min-height: 0; overflow: hidden;">
+                <!-- Main Preview Frame: full width & height -->
+                <div
+                    style="flex: 1; width: 100%; position: relative; border-radius: 8px; overflow: hidden; background: #525659; border: 1px solid var(--docs-panel-border); min-height: 0; display: flex; flex-direction: column;">
+                    <iframe id="preview-modal-iframe" src=""
+                        style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                    <!-- Mobile Canvas PDF Viewer -->
+                    <div id="preview-modal-pdf-container"
+                        style="display: none; width: 100%; height: 100%; overflow-y: auto; overflow-x: auto; background: #525659; padding: 10px; box-sizing: border-box; text-align: center; -webkit-overflow-scrolling: touch;">
+                        <div id="pdf-viewer-spinner" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #fff; font-size: 1rem; gap: 10px;">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Загрузка PDF документа...
+                        </div>
+                        <div id="pdf-pages-wrapper" style="display: flex; flex-direction: column; align-items: center; gap: 12px;"></div>
+                    </div>
+                    <div id="preview-modal-fallback"
+                        style="display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; background: #f8fafc;">
+                        <i class="fas fa-file-pdf" id="preview-fallback-icon"
+                            style="font-size: 4.5rem; color: #ef4444; margin-bottom: 1.2rem;"></i>
+                        <h4 id="preview-fallback-filename"
+                            style="margin-bottom: 0.5rem; font-size: 1.2rem; color: var(--docs-text-primary);">Файл
+                            документа</h4>
+                        <p
+                            style="color: var(--docs-text-secondary); max-width: 480px; margin-bottom: 1.5rem; font-size: 0.95rem;">
+                            Нажмите кнопку ниже, чтобы открыть PDF-документ на весь экран на вашем устройстве.
+                        </p>
+                        <a id="preview-fallback-download-link" href="#" target="_blank" class="btn-action"
+                            style="background: #2563eb; color: #fff; padding: 0.75rem 1.6rem; font-size: 1rem; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.6rem;">
+                            <i class="fas fa-arrow-up-right-from-square"></i> Открыть PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- @canonical-pattern PersonPickerPopover & Apple Auth Modal -->
+    <div id="docs-pin-modal" class="modal" style="z-index: 10050;">
+        <div class="modal-content" style="max-width: 440px; padding: 2rem 1.8rem; text-align: center; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1rem; border: 1px solid #bfdbfe;">
+                <i class="fa-solid fa-id-badge"></i>
+            </div>
+            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;">Вход сотрудника</h3>
+            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.4rem; line-height: 1.4;">
+                Выберите своё имя и введите 4-значный PIN-код для работы с Базой Знаний и Планнером
+            </p>
+
+            <!-- PersonPickerPopover Field -->
+            <div class="form-group" style="text-align: left; margin-bottom: 1.2rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: block;">Сотрудник *</label>
+                <div class="person-picker-wrapper">
+                    <input type="hidden" id="docs-pin-user-input" value="">
+                    <select id="docs-pin-user-select" style="display: none;"></select>
+                    <div class="person-select-modern" id="docs-user-picker-trigger" onclick="toggleDocsUserPickerPopover(event)" tabindex="0" title="Нажмите для выбора сотрудника">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="author-avatar-circle" id="docs-user-picker-avatar" style="background: #eff6ff; color: #2563eb;">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <span id="docs-user-picker-display-text" style="font-size: 0.88rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите сотрудника --</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down" id="docs-user-picker-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                    </div>
+                    <div class="person-picker-popover" id="docs-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="filter-popover-search-wrap">
+                            <input type="text" class="filter-popover-search-input" id="search-docs-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderDocsUserPickerList(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true">
+                        </div>
+                        <div class="filter-popover-list" id="list-docs-user-picker"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4-Box PIN Input -->
+            <div class="form-group" id="docs-pin-input-group" style="text-align: left; margin-bottom: 1.6rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-key" style="color: #f59e0b; margin-right: 4px;"></i> 4-значный PIN-код *</span>
+                    <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">только цифры</span>
+                </label>
+                <input type="hidden" id="docs-pin-input" value="">
+                <div class="pin-boxes-container">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-1" maxlength="1" autocomplete="off" oninput="handlePinBoxInput(1, event)" onkeydown="handlePinBoxKeydown(1, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-2" maxlength="1" autocomplete="off" oninput="handlePinBoxInput(2, event)" onkeydown="handlePinBoxKeydown(2, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-3" maxlength="1" autocomplete="off" oninput="handlePinBoxInput(3, event)" onkeydown="handlePinBoxKeydown(3, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-4" maxlength="1" autocomplete="off" oninput="handlePinBoxInput(4, event)" onkeydown="handlePinBoxKeydown(4, event)">
+                </div>
+            </div>
+
+            <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" class="btn-cancel" onclick="closeDocsPinModal()" style="flex: 1; min-height: 44px; border-radius: 10px; font-weight: 600;">Отмена</button>
+                <button type="button" class="btn-action" id="btn-submit-docs-pin" onclick="submitDocsPinAuth()" style="flex: 1.3; min-height: 44px; background: #2563eb; color: #fff; justify-content: center; border-radius: 10px; font-weight: 600; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drag & Drop экран -->
+    <div id="drag-overlay" class="drag-overlay">
+        <i class="fas fa-cloud-arrow-up" style="font-size: 3.5rem;"></i>
+        <span>Перетащите файлы сюда для загрузки в Базу Знаний</span>
+    </div>
+
+
+    <!-- Контекстное меню (Google Drive Style / Mobile Bottom Sheet) -->
+    <div id="context-menu-backdrop" class="context-menu-backdrop" onclick="hideContextMenu()"></div>
+    <div id="custom-context-menu" class="context-menu"></div>
+
+    <!-- Toast уведомление -->
+    <div id="toast" class="toast-msg">
+        <i class="fas fa-check-circle" style="color: #10b981;"></i>
+        <span id="toast-text">Ссылка скопирована в буфер</span>
+    </div>
+
+    <!-- Плавающий постоянный монитор операций (Загрузка / Удаление / Синхронизация в реальном времени) -->
+    <div id="upload-progress-widget"
+        style="display: none; position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; background: var(--docs-panel-bg, #1e293b); border: 1px solid var(--docs-panel-border, #334155); border-radius: 16px; box-shadow: 0 14px 40px rgba(0,0,0,0.45); padding: 1rem 1.3rem; width: 380px; max-width: 92vw; backdrop-filter: blur(16px); color: var(--docs-text-primary, #fff); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem;">
+                <i class="fas fa-spinner fa-spin" id="upload-widget-icon"
+                    style="color: #3b82f6; font-size: 1.1rem;"></i>
+                <span id="upload-widget-title">Операция...</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span id="upload-widget-counter"
+                    style="font-size: 0.82rem; font-weight: 700; color: #3b82f6; background: rgba(59, 130, 246, 0.15); padding: 0.2rem 0.6rem; border-radius: 20px;">0
+                    / 0</span>
+                <button onclick="toggleWidgetDetails()" id="upload-widget-toggle-btn"
+                    style="background: none; border: none; color: var(--docs-text-secondary, #94a3b8); cursor: pointer; padding: 2px 4px; font-size: 0.85rem;"
+                    title="Подробнее">
+                    <i class="fas fa-chevron-down" id="upload-widget-chevron"></i>
+                </button>
+                <button onclick="closeWidget()"
+                    style="background: none; border: none; color: var(--docs-text-secondary, #94a3b8); cursor: pointer; padding: 2px 4px; font-size: 0.85rem;"
+                    title="Закрыть">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div
+            style="font-size: 0.82rem; color: var(--docs-text-secondary, #94a3b8); margin-bottom: 0.2rem; display: flex; justify-content: space-between; gap: 0.5rem;">
+            <span id="upload-widget-target-folder"
+                style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; color: #38bdf8;">Папка:
+                Главная</span>
+            <span id="upload-widget-speed" style="font-weight: 600;">0%</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--docs-text-primary, #fff); margin-bottom: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace;"
+            id="upload-widget-filename">
+            Подготовка...
+        </div>
+        <div
+            style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 0.3rem;">
+            <div id="upload-widget-bar"
+                style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #10b981); border-radius: 4px; transition: width 0.25s ease;">
+            </div>
+        </div>
+
+        <!-- Разворачиваемый лог операций в реальном времени -->
+        <div id="upload-widget-log-container"
+            style="display: none; margin-top: 0.8rem; border-top: 1px solid var(--docs-panel-border, #334155); padding-top: 0.6rem; max-height: 140px; overflow-y: auto; font-size: 0.75rem; font-family: monospace;">
+            <div id="upload-widget-log-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
+    <script src="/static/modules/docs/docs.js?v=20261105_v1"></script>
+{% endblock %}

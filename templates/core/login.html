@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Авторизация сотрудника | Tectum Enterprise</title>
+    <link rel="icon" type="image/png" href="/static/img/Logo.png">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261105_v1">
+    <link rel="stylesheet" href="/static/modules/shifts/shifts.css?v=20261105_v1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 100%; max-width: 440px;">
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <span style="font-size: 1.8rem; font-weight: 800; color: #950405; letter-spacing: -0.02em;">TECTUM</span>
+            <span style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; letter-spacing: 0.08em; text-transform: uppercase;">ОПЕРАЦИОННЫЙ ПОРТАЛ</span>
+        </div>
+        <div id="login-screen" style="max-width: 440px; width: 100%; margin: 0 auto; padding: 2.2rem 2rem; text-align: center; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0,0,0,0.04); background: #ffffff; border: 1px solid #e2e8f0; animation: authModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); box-sizing: border-box;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1rem; border: 1px solid #bfdbfe;">
+                <i class="fa-solid fa-id-badge"></i>
+            </div>
+            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;">Вход сотрудника</h3>
+            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.4rem; line-height: 1.4;">
+                Выберите своё имя и введите 4-значный PIN-код для входа в рабочий кабинет
+            </p>
+
+            <!-- PersonPickerPopover Field -->
+            <div class="form-group" style="text-align: left; margin-bottom: 1.2rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: block;">Сотрудник *</label>
+                <div class="person-picker-wrapper">
+                    <input type="hidden" id="login-user-input" value="">
+                    <div class="person-select-modern" id="login-user-picker-trigger" onclick="toggleLoginUserPickerPopover(event)" tabindex="0" title="Нажмите для выбора сотрудника">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="author-avatar-circle" id="login-user-picker-avatar" style="background: #eff6ff; color: #2563eb;">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <span id="login-user-picker-display-text" style="font-size: 0.88rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите сотрудника --</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down person-picker-chevron" id="login-user-picker-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                    </div>
+                    <div class="person-picker-popover" id="login-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="filter-popover-search-wrap">
+                            <input type="text" class="filter-popover-search-input" id="search-login-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderLoginUserPickerList(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true">
+                        </div>
+                        <div class="filter-popover-list" id="list-login-user-picker"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4-Box PIN Input -->
+            <div class="form-group" id="login-pin-input-group" style="text-align: left; margin-bottom: 1.6rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-key" style="color: #f59e0b; margin-right: 4px;"></i> 4-значный PIN-код *</span>
+                    <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">только цифры</span>
+                </label>
+                <input type="hidden" id="login-pin-hidden" value="">
+                <div class="pin-boxes-container">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-1" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(1, event)" onkeydown="handleLoginPinKeydown(1, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-2" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(2, event)" onkeydown="handleLoginPinKeydown(2, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-3" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(3, event)" onkeydown="handleLoginPinKeydown(3, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-4" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(4, event)" onkeydown="handleLoginPinKeydown(4, event)">
+                </div>
+            </div>
+
+            <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" class="btn-action" id="btn-submit-login" onclick="submitCanonicalLogin()" style="width: 100%; min-height: 44px; background: #2563eb; color: #fff; justify-content: center; border-radius: 10px; font-weight: 600; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти</span>
+                </button>
+            </div>
+            <p id="login-error-msg" style="color: #ef4444; font-size: 0.85rem; margin-top: 0.85rem; display: none; font-weight: 600;"></p>
+        </div>
+
+        <!-- Main App Screen -->
+    </div>
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
+    <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
+    <script src="/static/modules/shifts/shifts.js?v=20261105_v1"></script>
+</body>
+</html>
