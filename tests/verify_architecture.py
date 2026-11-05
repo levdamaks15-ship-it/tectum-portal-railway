@@ -86,7 +86,7 @@ try:
     # ========================================================
     print("\n--- [Блок 1: Канонические редиректы верхнего уровня] ---")
     redirects_to_test = [
-        ("/admin", "/p/shymkent/w/all/admin"),
+        ("/admin", "/p/shymkent/w/xci/admin"),
         ("/tasks", "/p/shymkent/w/xci/tasks"),
         ("/planner", "/p/shymkent/w/xci/tasks"),
         ("/docs", "/p/shymkent/w/all/docs"),
@@ -95,7 +95,7 @@ try:
         ("/checklists", "/p/shymkent/w/xci/checklists"),
         ("/qcd", "/p/shymkent/w/skk/shifts"),
         ("/lkc", "/p/shymkent/w/lkc/shifts"),
-        ("/analytics", "/p/shymkent/w/xci/analytics")
+        ("/analytics", "/p/shymkent/w/xci/technologist")
     ]
     for url, expected_loc in redirects_to_test:
         r = client.get(url)

@@ -92,7 +92,7 @@
                             <div id="workshop-dropdown-popover" class="workshop-popover-menu" style="display: none; z-index: 10002;">
                                 <div class="workshop-popover-header">Переключение цеха</div>
                                 {% for ws in accessible_workshops %}
-                                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ ws.id }}/{{ current_module or 'shifts' }}" 
+                                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ ws.id }}/shifts" 
                                        hx-boost="false"
                                        class="workshop-popover-item {% if ws.id == (current_workshop.id or workshop_id) %}active{% endif %}">
                                         <span class="brand-badge-shop {{ ws.badge_class }}">{{ ws.short_name }}</span>
@@ -128,26 +128,26 @@
             <!-- Вторая строка шапки: Быстрые ссылки-чипы (центрированы ровно посередине) -->
             <div class="header-quick-links" style="display: flex; justify-content: center; align-items: center; gap: 0.6rem; width: 100%; margin-top: 0.6rem;">
                 {% if current_module != 'shifts' %}
-                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/shifts" hx-boost="false" class="header-chip-btn" title="Сменные рапорты цеха">
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ 'xci' if workshop_id == 'all' else (workshop_id or 'xci') }}/shifts" hx-boost="false" class="header-chip-btn" title="Сменные рапорты цеха">
                     📋 <span>Смены</span>
                 </a>
                 {% endif %}
-                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/tasks" hx-boost="false" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ 'xci' if workshop_id == 'all' else (workshop_id or 'xci') }}/tasks" hx-boost="false" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
                     🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                 </a>
-                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/checklists" hx-boost="false" class="header-chip-btn chip-checklists" id="header-checklists-btn" title="Чек-листы смен и ТО">
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ 'xci' if workshop_id == 'all' else (workshop_id or 'xci') }}/checklists" hx-boost="false" class="header-chip-btn chip-checklists" id="header-checklists-btn" title="Чек-листы смен и ТО">
                     ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                 </a>
-                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/docs" hx-boost="false" class="header-chip-btn chip-docs" title="База знаний и регламентов">
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ 'xci' if workshop_id == 'all' else (workshop_id or 'xci') }}/docs" hx-boost="false" class="header-chip-btn chip-docs" title="База знаний и регламентов">
                     📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                 </a>
-                {% if can_switch_workshops and current_module != 'analytics' %}
-                <a href="/p/{{ plant_id or 'shymkent' }}/w/all/analytics" hx-boost="false" class="header-chip-btn" title="Аналитика завода">
+                {% if can_switch_workshops and current_module != 'technologist' %}
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/xci/technologist" hx-boost="false" class="header-chip-btn" title="Аналитика простоев (Кабинет Главного технолога)">
                     📊 <span>Аналитика</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                 </a>
                 {% endif %}
                 {% if is_admin and current_module != 'admin' %}
-                <a href="/p/{{ plant_id or 'shymkent' }}/w/all/admin" hx-boost="false" class="header-chip-btn" style="background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ 'xci' if workshop_id == 'all' else (workshop_id or 'xci') }}/admin" hx-boost="false" class="header-chip-btn" style="background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
                     ⚙️ <span>Админка</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                 </a>
                 {% endif %}

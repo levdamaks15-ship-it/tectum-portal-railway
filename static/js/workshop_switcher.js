@@ -44,16 +44,16 @@
             id: 'admin',
             title: 'Панель администратора',
             subtitle: 'Справочники, сотрудники, нормативы',
-            url: '/p/shymkent/w/all/admin',
+            url: '/p/shymkent/w/xci/admin',
             icon: 'fa-sliders',
             bg: '#f1f5f9',
             color: '#0f172a'
         },
         {
             id: 'analytics',
-            title: 'Аналитика производства',
-            subtitle: 'OEE, выработка, простои, баланс',
-            url: '/p/shymkent/w/all/analytics',
+            title: 'Аналитика простоев (Главный технолог)',
+            subtitle: 'Оперативный аудит простоев и баланс',
+            url: '/p/shymkent/w/xci/technologist',
             icon: 'fa-chart-line',
             bg: '#fffbeb',
             color: '#d97706'

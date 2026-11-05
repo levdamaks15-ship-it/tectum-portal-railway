@@ -236,11 +236,11 @@ def serve_service_worker():
 # ==========================================
 @app.get("/admin", include_in_schema=False)
 def redirect_admin():
-    return RedirectResponse("/p/shymkent/w/all/admin", status_code=302)
+    return RedirectResponse("/p/shymkent/w/xci/admin", status_code=302)
 
 @app.get("/analytics", include_in_schema=False)
 def redirect_analytics():
-    return RedirectResponse("/p/shymkent/w/xci/analytics", status_code=302)
+    return RedirectResponse("/p/shymkent/w/xci/technologist", status_code=302)
 
 @app.get("/tasks", include_in_schema=False)
 @app.get("/planner", include_in_schema=False)
