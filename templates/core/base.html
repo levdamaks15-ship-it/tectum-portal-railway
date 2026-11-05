@@ -66,9 +66,10 @@
     <!-- Индикатор прогресса перехода HTMX -->
     <div id="global-progress" class="htmx-indicator"></div>
 
-    <!-- Общий центрирующий контейнер портала (1360px канонический скелет) -->
-    <div class="container" id="app-container" style="max-width: 1360px; margin: 0 auto; padding: 1.25rem 2rem 2rem 2rem; min-height: 90vh; display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
-        <header class="header-main" style="margin-bottom: 1.75rem; width: 100%;">
+    <!-- Общий центрирующий контейнер портала (Канонический скелет min(96vw, 1620px)) -->
+    <div class="container" id="app-container" style="max-width: min(96vw, 1620px); margin: 0 auto; padding: 1.5rem 2rem; min-height: 90vh; display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
+        <header class="header-main" style="margin-bottom: 2rem; width: 100%;">
+            <!-- Верхняя строка шапки: Бренд слева, Профиль сотрудника справа (всегда на одном уровне!) -->
             <div class="header-top-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 1rem;">
                 <!-- 1. Слева: Бренд + Цеховой бейдж + Название цеха -->
                 <div class="header-brand-left" style="display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;">
@@ -110,45 +111,45 @@
                     <span class="brand-subtitle" id="header-shop-subtitle">{{ current_workshop.name or 'цех хризотилцементных изделий' }}</span>
                 </div>
 
-                <!-- 2. По центру: Быстрые ссылки-чипы (равномерно между брендом и профилем) -->
-                <div class="header-quick-links" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; flex: 1;">
-                    {% if current_module != 'shifts' %}
-                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/shifts" hx-boost="false" class="header-chip-btn" title="Сменные рапорты цеха">
-                        📋 <span>Смены</span>
-                    </a>
-                    {% endif %}
-                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/tasks" hx-boost="false" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
-                        🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
-                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/checklists" hx-boost="false" class="header-chip-btn chip-checklists" id="header-checklists-btn" title="Чек-листы смен и ТО">
-                        ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
-                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/docs" hx-boost="false" class="header-chip-btn chip-docs" title="База знаний и регламентов">
-                        📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
-                    {% if can_switch_workshops and current_module != 'analytics' %}
-                    <a href="/p/{{ plant_id or 'shymkent' }}/w/all/analytics" hx-boost="false" class="header-chip-btn" title="Аналитика завода">
-                        📊 <span>Аналитика</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
-                    {% endif %}
-                    {% if is_admin and current_module != 'admin' %}
-                    <a href="/p/{{ plant_id or 'shymkent' }}/w/all/admin" hx-boost="false" class="header-chip-btn" style="background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
-                        ⚙️ <span>Админка</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
-                    {% endif %}
-                </div>
-
-                <!-- 3. Справа: Блок пользователя и кнопка выхода -->
+                <!-- 2. Справа: Блок пользователя и кнопка выхода (всегда справа на одной линии!) -->
                 <div id="user-info-container" class="header-user-container" style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.75rem; flex-shrink: 0;">
                     <div class="user-greeting-text" style="text-align: right;">
-                        <p id="user-greeting-name" style="margin: 0; font-weight: 700; font-size: 0.85rem; color: #0f172a;">{{ user_name or 'Сотрудник' }}</p>
-                        <p id="user-greeting-role" style="margin: 0; font-size: 0.72rem; color: #64748b; font-weight: 600; text-transform: uppercase;">{{ role_name or 'МАСТЕР' }}</p>
+                        <p id="user-greeting-name" style="margin: 0; font-weight: 700; font-size: 0.88rem; color: #0f172a;">{{ user_name or 'Сотрудник' }}</p>
+                        <p id="user-greeting-role" style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase;">{{ role_name or 'МАСТЕР' }}</p>
                     </div>
                     <button type="button" onclick="doUnifiedLogout()" class="btn-logout" title="Выйти из системы">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                         <span>Выйти</span>
                     </button>
                 </div>
+            </div>
+
+            <!-- Вторая строка шапки: Быстрые ссылки-чипы (центрированы ровно посередине) -->
+            <div class="header-quick-links" style="display: flex; justify-content: center; align-items: center; gap: 0.6rem; width: 100%; margin-top: 0.6rem;">
+                {% if current_module != 'shifts' %}
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/shifts" hx-boost="false" class="header-chip-btn" title="Сменные рапорты цеха">
+                    📋 <span>Смены</span>
+                </a>
+                {% endif %}
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/tasks" hx-boost="false" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
+                    🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/checklists" hx-boost="false" class="header-chip-btn chip-checklists" id="header-checklists-btn" title="Чек-листы смен и ТО">
+                    ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/docs" hx-boost="false" class="header-chip-btn chip-docs" title="База знаний и регламентов">
+                    📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                {% if can_switch_workshops and current_module != 'analytics' %}
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/all/analytics" hx-boost="false" class="header-chip-btn" title="Аналитика завода">
+                    📊 <span>Аналитика</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                {% endif %}
+                {% if is_admin and current_module != 'admin' %}
+                <a href="/p/{{ plant_id or 'shymkent' }}/w/all/admin" hx-boost="false" class="header-chip-btn" style="background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
+                    ⚙️ <span>Админка</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                {% endif %}
             </div>
         </header>
 
