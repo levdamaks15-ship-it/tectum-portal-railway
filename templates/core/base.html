@@ -68,7 +68,7 @@
 
     <!-- Общий центрирующий контейнер портала (Канонический скелет min(96vw, 1620px)) -->
     <div class="container" id="app-container" style="max-width: min(96vw, 1620px); margin: 0 auto; padding: 1.5rem 2rem; min-height: 90vh; display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
-        <header class="header-main" style="margin-bottom: 2rem; width: 100%;">
+        <header class="header-main" style="margin-bottom: 2rem; width: 100%; position: relative; z-index: 1000;">
             <!-- Верхняя строка шапки: Бренд слева, Профиль сотрудника справа (всегда на одном уровне!) -->
             <div class="header-top-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 1rem;">
                 <!-- 1. Слева: Бренд + Цеховой бейдж + Название цеха -->
@@ -79,7 +79,7 @@
                     
                     {% if can_switch_workshops %}
                         <!-- Интерактивный переключатель только для руководства/админа -->
-                        <div class="workshop-switcher-container">
+                        <div class="workshop-switcher-container" style="position: relative; z-index: 1001;">
                             <button type="button" 
                                     class="brand-badge-shop {{ current_workshop.badge_class or 'badge-shop-portal' }} workshop-switcher-trigger" 
                                     id="header-shop-badge"
@@ -89,7 +89,7 @@
                                 <i class="fa-solid fa-chevron-down" style="font-size: 0.62rem; margin-left: 3px;"></i>
                             </button>
                             <!-- Server-rendered dropdown popover -->
-                            <div id="workshop-dropdown-popover" class="workshop-popover-menu" style="display: none;">
+                            <div id="workshop-dropdown-popover" class="workshop-popover-menu" style="display: none; z-index: 10002;">
                                 <div class="workshop-popover-header">Переключение цеха</div>
                                 {% for ws in accessible_workshops %}
                                     <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ ws.id }}/{{ current_module or 'shifts' }}" 
