@@ -22,35 +22,9 @@
     activeTab = 'docs';
   }
 
-  // 2. Inject Splash Screen into DOM if not present
+  // 2. Inject Splash Screen into DOM if not present (Disabled per user requirement & Law 6: no distracting splash/animations)
   function ensureSplashScreen() {
-    if (window.location.search && window.location.search.includes('no_splash')) return;
-    if (document.getElementById('tectum-splash-screen')) return;
-
-    // Smart Splash Guard: Do NOT block screen on internal navigation for authenticated users
-    try {
-      const hasAuth = localStorage.getItem('tectum_auth_user') || localStorage.getItem('tectum_portal_user');
-      if (hasAuth && !window.location.search.includes('force_splash')) {
-        return; // Skip splash screen during internal transitions
-      }
-    } catch(e) {}
-
-    const splash = document.createElement('div');
-    splash.id = 'tectum-splash-screen';
-    splash.innerHTML = `
-      <div class="tectum-splash-content">
-        <div class="tectum-splash-logo-wrap">
-          <img src="/static/img/tectum_animated_logo.svg" alt="Tectum Engineering" width="380" height="307" />
-        </div>
-        <div class="tectum-splash-loader">
-          <div class="tectum-splash-progress">
-            <div class="tectum-splash-progress-bar"></div>
-          </div>
-          <div class="tectum-splash-status" id="tectum-splash-status-text">Инициализация Tectum Enterprise...</div>
-        </div>
-      </div>
-    `;
-    document.body.prepend(splash);
+    return;
   }
 
   // 3. Inject Unified Mobile Bottom Navigation & App Hub Drawer
