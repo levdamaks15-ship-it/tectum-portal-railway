@@ -2231,6 +2231,92 @@ input[type="text"][readonly] {
     border: 1px solid #fde68a !important;
 }
 
+.badge-shop-agb {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+    border: 1px solid #fde68a !important;
+}
+
+.badge-shop-stmo {
+    background: #ffedd5 !important;
+    color: #c2410c !important;
+    border: 1px solid #fed7aa !important;
+}
+
+/* Server-rendered Workshop Switcher Popover */
+.workshop-switcher-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.workshop-switcher-trigger {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    padding: 3px 8px !important;
+}
+
+.workshop-switcher-trigger:hover {
+    filter: brightness(0.95);
+    transform: translateY(-1px);
+}
+
+.workshop-popover-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 280px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.18), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 10000;
+    padding: 0.4rem;
+    animation: popoverFadeIn 0.15s ease;
+}
+
+@keyframes popoverFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.workshop-popover-header {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #94a3b8;
+    letter-spacing: 0.06em;
+    padding: 0.4rem 0.6rem 0.25rem;
+}
+
+.workshop-popover-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.45rem 0.6rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #334155;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: background 0.15s ease;
+}
+
+.workshop-popover-item:hover {
+    background: #f1f5f9;
+}
+
+.workshop-popover-item.active {
+    background: #fef2f2;
+    color: #991b1b;
+    font-weight: 600;
+}
+
 .brand-divider {
     height: 16px !important;
     width: 1px !important;

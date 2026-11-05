@@ -40,57 +40,6 @@
             view-transition-name: persistent-header;
         }
 
-        /* Workshop Navigation Strip */
-        .workshop-nav-bar {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1.5rem;
-            background: #ffffff;
-            border-bottom: 1px solid #e2e8f0;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-
-        .workshop-tab-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.4rem 0.85rem;
-            border-radius: 8px;
-            font-size: 0.84rem;
-            font-weight: 600;
-            color: #475569;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            border: 1px solid transparent;
-        }
-
-        .workshop-tab-item:hover {
-            background: #f1f5f9;
-            color: #0f172a;
-        }
-
-        .workshop-tab-item.active {
-            background: #fef2f2;
-            color: #950405;
-            border-color: #fecaca;
-        }
-
-        .plant-badge-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            background: #0f172a;
-            color: #ffffff;
-            font-size: 0.72rem;
-            font-weight: 700;
-            padding: 0.25rem 0.55rem;
-            border-radius: 6px;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
-
         /* HTMX Loading Indicator */
         .htmx-indicator {
             opacity: 0;
@@ -117,73 +66,89 @@
     <!-- Индикатор прогресса перехода HTMX -->
     <div id="global-progress" class="htmx-indicator"></div>
 
-    <header class="header-main">
-        <!-- 1. Верхняя строка: Бренд, Завод Шымкент, Профиль пользователя и Выход -->
-        <div class="header-top-row">
-            <div class="header-brand-left">
-                <a href="/" hx-boost="false" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem;">
+    <header class="header-main" style="margin-bottom: 1.25rem;">
+        <div class="header-top-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 1rem;">
+            <!-- Слева: Бренд + Цеховой бейдж + Название цеха -->
+            <div class="header-brand-left" style="display: inline-flex; align-items: center; gap: 8px;">
+                <a href="/" hx-boost="false" style="text-decoration: none; display: inline-flex; align-items: center;">
                     <span class="brand-title-tectum">TECTUM</span>
-                    <span class="plant-badge-pill"><i class="fa-solid fa-industry"></i> ШЫМКЕНТ</span>
                 </a>
+                
+                {% if can_switch_workshops %}
+                    <!-- Интерактивный переключатель только для руководства/админа -->
+                    <div class="workshop-switcher-container">
+                        <button type="button" 
+                                class="brand-badge-shop {{ current_workshop.badge_class or 'badge-shop-portal' }} workshop-switcher-trigger" 
+                                id="header-shop-badge"
+                                onclick="toggleWorkshopPopover(event)"
+                                title="Переключить производственный цех">
+                            <span>{{ current_workshop.short_name or (workshop_id|upper) }}</span>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 0.62rem; margin-left: 3px;"></i>
+                        </button>
+                        <!-- Server-rendered dropdown popover -->
+                        <div id="workshop-dropdown-popover" class="workshop-popover-menu" style="display: none;">
+                            <div class="workshop-popover-header">Переключение цеха</div>
+                            {% for ws in accessible_workshops %}
+                                <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ ws.id }}/{{ current_module or 'shifts' }}" 
+                                   class="workshop-popover-item {% if ws.id == (current_workshop.id or workshop_id) %}active{% endif %}">
+                                    <span class="brand-badge-shop {{ ws.badge_class }}">{{ ws.short_name }}</span>
+                                    <span class="workshop-popover-name">{{ ws.name }}</span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Статический монолитный бейдж цеха для мастера смены (Screenshot 2) -->
+                    <span class="brand-badge-shop {{ current_workshop.badge_class or 'badge-shop-xci' }}" id="header-shop-badge">
+                        {{ current_workshop.short_name or (workshop_id|upper) }}
+                    </span>
+                {% endif %}
+
                 <span class="brand-divider"></span>
-                <span class="brand-subtitle">ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ</span>
+                <span class="brand-subtitle" id="header-shop-subtitle">{{ current_workshop.name or 'цех хризотилцементных изделий' }}</span>
             </div>
 
-            <!-- Блок пользователя -->
-            <div id="user-info-container" class="header-user-container" style="display: flex;">
-                <div class="user-greeting-text">
-                    <p id="user-greeting-name">{{ user_name or 'Сотрудник' }}</p>
-                    <p id="user-greeting-role">{{ role_name or 'Мастер' }}</p>
+            <!-- Справа: Чипы модулей и Профиль сотрудника строго на одной линии -->
+            <div class="header-actions" style="display: flex; align-items: center; justify-content: flex-end; gap: 0.85rem;">
+                <div class="header-quick-links" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                    {% if current_module != 'shifts' %}
+                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/shifts" hx-boost="false" class="header-chip-btn" title="Сменные рапорты цеха">
+                        📋 <span>Смены</span>
+                    </a>
+                    {% endif %}
+                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/tasks" hx-boost="false" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
+                        🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/checklists" hx-boost="false" class="header-chip-btn chip-checklists" id="header-checklists-btn" title="Чек-листы смен и ТО">
+                        ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                    <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/docs" hx-boost="false" class="header-chip-btn chip-docs" title="База знаний и регламентов">
+                        📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                    {% if can_switch_workshops and current_module != 'analytics' %}
+                    <a href="/p/{{ plant_id or 'shymkent' }}/w/all/analytics" hx-boost="false" class="header-chip-btn" title="Аналитика завода">
+                        📊 <span>Аналитика</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                    {% endif %}
+                    {% if is_admin and current_module != 'admin' %}
+                    <a href="/p/{{ plant_id or 'shymkent' }}/w/all/admin" hx-boost="false" class="header-chip-btn" style="background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
+                        ⚙️ <span>Админка</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                    {% endif %}
                 </div>
-                <button type="button" onclick="doUnifiedLogout()" class="btn-logout" title="Выйти из системы">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                    <span>Выйти</span>
-                </button>
+
+                <!-- Блок пользователя -->
+                <div id="user-info-container" class="header-user-container" style="display: inline-flex; align-items: center; gap: 0.75rem;">
+                    <div class="user-greeting-text" style="text-align: right;">
+                        <p id="user-greeting-name" style="margin: 0; font-weight: 700; font-size: 0.85rem; color: #0f172a;">{{ user_name or 'Сотрудник' }}</p>
+                        <p id="user-greeting-role" style="margin: 0; font-size: 0.72rem; color: #64748b; font-weight: 600; text-transform: uppercase;">{{ role_name or 'МАСТЕР' }}</p>
+                    </div>
+                    <button type="button" onclick="doUnifiedLogout()" class="btn-logout" title="Выйти из системы">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Выйти</span>
+                    </button>
+                </div>
             </div>
-        </div>
-
-        <!-- 2. Линейка переключения 5 цехов Шымкента -->
-        <nav class="workshop-nav-bar">
-            <span style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-right: 0.3rem;">ЦЕХ:</span>
-            <a href="/p/shymkent/w/xci/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if (workshop_id or 'xci') == 'xci' %}active{% endif %}">
-                <i class="fa-solid fa-shapes"></i> ХЦИ
-            </a>
-            <a href="/p/shymkent/w/agb/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if workshop_id == 'agb' %}active{% endif %}">
-                <i class="fa-solid fa-cubes"></i> АГБ
-            </a>
-            <a href="/p/shymkent/w/lkc/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if workshop_id == 'lkc' %}active{% endif %}">
-                <i class="fa-solid fa-paint-roller"></i> ЛКЦ
-            </a>
-            <a href="/p/shymkent/w/stmo/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if workshop_id == 'stmo' %}active{% endif %}">
-                <i class="fa-solid fa-fire-burner"></i> СТМО
-            </a>
-            <a href="/p/shymkent/w/skk/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if workshop_id == 'skk' %}active{% endif %}">
-                <i class="fa-solid fa-clipboard-check"></i> СКК
-            </a>
-        </nav>
-
-        <!-- 3. Быстрые ссылки по модулям портала -->
-        <div class="header-quick-links">
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/shifts" class="header-chip-btn {% if (current_module or 'shifts') == 'shifts' %}chip-active{% endif %}" title="Сменные рапорты цеха">
-                📋 <span>Смены цеха</span>
-            </a>
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/tasks" hx-boost="false" class="header-chip-btn chip-tasks" title="Планнер задач">
-                🎯 <span>Планнер задач</span>
-            </a>
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/checklists" hx-boost="false" class="header-chip-btn chip-checklists" title="Чек-листы">
-                ✅ <span>Чек-листы</span>
-            </a>
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/docs" hx-boost="false" class="header-chip-btn chip-docs" title="База знаний">
-                📚 <span>База знаний</span>
-            </a>
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/analytics" hx-boost="false" class="header-chip-btn" title="Аналитика цеха">
-                📊 <span>Аналитика</span>
-            </a>
-            {% if is_admin %}
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/all/admin" hx-boost="false" class="header-chip-btn" style="background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
-                ⚙️ <span>Админка</span>
-            </a>
-            {% endif %}
         </div>
     </header>
 
@@ -220,6 +185,25 @@
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
                 window.location.reload();
+            }
+        });
+
+        // 4. Интерактивный выпадающий поповер переключения цехов (только для руководства/админа)
+        function toggleWorkshopPopover(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const pop = document.getElementById('workshop-dropdown-popover');
+            if (pop) {
+                pop.style.display = (pop.style.display === 'block') ? 'none' : 'block';
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            const pop = document.getElementById('workshop-dropdown-popover');
+            if (pop && !e.target.closest('.workshop-switcher-container')) {
+                pop.style.display = 'none';
             }
         });
 

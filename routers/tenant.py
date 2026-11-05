@@ -106,7 +106,10 @@ def serve_tenant_module(
             "current_module": clean_module,
             "user_name": ctx.user_name,
             "role_name": ROLE_LABELS.get(ctx.role_code, ctx.role_code),
-            "is_admin": ctx.is_admin
+            "is_admin": ctx.is_admin,
+            "can_switch_workshops": ctx.can_switch_workshops,
+            "accessible_workshops": ctx.accessible_workshops,
+            "current_workshop": ctx.current_workshop
         }
         resp = templates.TemplateResponse(
             request=request,

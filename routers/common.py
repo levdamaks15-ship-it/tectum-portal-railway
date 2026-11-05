@@ -1,5 +1,5 @@
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List
 from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session, selectinload
@@ -21,6 +21,46 @@ ROLE_PRIORITY = [
     "operator",
 ]
 
+# Канонический реестр производственных цехов Tectum
+WORKSHOPS_METADATA = {
+    "xci": {
+        "id": "xci",
+        "short_name": "ХЦИ",
+        "name": "цех хризотилцементных изделий",
+        "badge_class": "badge-shop-xci"
+    },
+    "agb": {
+        "id": "agb",
+        "short_name": "АГБ",
+        "name": "цех автоклавного газобетона",
+        "badge_class": "badge-shop-agb"
+    },
+    "lkc": {
+        "id": "lkc",
+        "short_name": "ЛКЦ",
+        "name": "лакокрасочный цех",
+        "badge_class": "badge-shop-lkc"
+    },
+    "stmo": {
+        "id": "stmo",
+        "short_name": "СТМО",
+        "name": "цех СТМО",
+        "badge_class": "badge-shop-stmo"
+    },
+    "skk": {
+        "id": "skk",
+        "short_name": "СКК",
+        "name": "служба контроля качества",
+        "badge_class": "badge-shop-skk"
+    },
+    "all": {
+        "id": "all",
+        "short_name": "ПОРТАЛ",
+        "name": "корпоративный портал",
+        "badge_class": "badge-shop-portal"
+    }
+}
+
 @dataclass
 class TenantContext:
     plant_id: str
@@ -29,6 +69,9 @@ class TenantContext:
     user_name: str
     role_code: str
     is_admin: bool
+    can_switch_workshops: bool = False
+    accessible_workshops: List[dict] = field(default_factory=list)
+    current_workshop: dict = field(default_factory=dict)
     user: Optional[models.User] = None
 
 def get_primary_role(user: Optional[models.User]) -> str:
@@ -776,6 +819,10 @@ def resolve_tenant_context(
         s.role_code == "admin" for s in (user.scopes or []) if getattr(s, "is_active", True)
     )
 
+    # Подготовка метаданных цехов
+    cur_ws = WORKSHOPS_METADATA.get(workshop_slug.lower(), WORKSHOPS_METADATA["xci"])
+    all_workshops = [WORKSHOPS_METADATA[k] for k in ["xci", "agb", "lkc", "stmo", "skk"]]
+
     # Админ имеет доступ ко всем заводам и цехам
     if is_admin:
         _update_last_visited_scope(request, db, plant_slug, workshop_slug)
@@ -786,6 +833,9 @@ def resolve_tenant_context(
             user_name=user.name,
             role_code="admin",
             is_admin=True,
+            can_switch_workshops=True,
+            accessible_workshops=all_workshops,
+            current_workshop=cur_ws,
             user=user
         )
 
@@ -815,6 +865,23 @@ def resolve_tenant_context(
             detail=f"Доступ запрещен: у вас нет прав на просмотр цеха '{workshop_slug}' завода '{plant_slug}'"
         )
 
+    # Проверка прав на переключение между цехами (директор, техдиректор, нач. производства, гл. технолог)
+    can_switch = any(
+        (s.workshop_id is None or (s.role_code or "").strip().lower() in ("director", "tech_director", "production_head", "technologist"))
+        for s in sorted_scopes
+    )
+    if can_switch:
+        accessible_workshops = all_workshops
+        can_switch_workshops = True
+    else:
+        user_ws_ids = {s.workshop_id.lower() for s in sorted_scopes if s.workshop_id}
+        if not user_ws_ids:
+            user_ws_ids = {workshop_slug.lower()}
+        accessible_workshops = [WORKSHOPS_METADATA[w] for w in user_ws_ids if w in WORKSHOPS_METADATA]
+        if not accessible_workshops:
+            accessible_workshops = [cur_ws]
+        can_switch_workshops = len(accessible_workshops) > 1
+
     _update_last_visited_scope(request, db, plant_slug, workshop_slug)
     return TenantContext(
         plant_id=plant_slug,
@@ -823,6 +890,9 @@ def resolve_tenant_context(
         user_name=user.name,
         role_code=matched_role,
         is_admin=False,
+        can_switch_workshops=can_switch_workshops,
+        accessible_workshops=accessible_workshops,
+        current_workshop=cur_ws,
         user=user
     )
 
