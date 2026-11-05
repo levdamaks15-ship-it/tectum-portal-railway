@@ -38,6 +38,7 @@ let activeDefectsState = {};
 
 // Инициализация
 async function initQcdWorkbenchApp() {
+    if (!document.getElementById('view-qcd-sorting') && !document.querySelector('.qcd-page-container')) return;
     initDefectsPickerItems();
     await loadRecentBatches();
     setupGlobalPickerClickOutside();

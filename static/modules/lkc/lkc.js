@@ -65,14 +65,22 @@ document.addEventListener('input', function(e) {
     }
 });
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function initLKCModule() {
+    if (!document.getElementById('tab-report') && !document.querySelector('.lkc-wrapper')) return;
     initDatePicker();
     initSheetGestures();
     await loadCatalog();
     await checkCurrentUser();
     await loadReportForDate(getTodayDateStr());
     loadLKCDowntimes();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLKCModule);
+} else {
+    initLKCModule();
+}
+document.addEventListener('htmx:afterSwap', initLKCModule);
 
 // --- DATEPICKER ---
 function getTodayDateStr() {

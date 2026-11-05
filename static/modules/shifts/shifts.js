@@ -1079,12 +1079,12 @@ async function login() {
         }
 
         if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
-            window.location.href = '/static/qcd.html';
+            window.location.href = '/p/shymkent/w/skk/shifts';
             return;
         }
 
         if (currentUser.role === 'lkc_master' || currentUser.name.includes('Миркасимов') || currentUser.name === 'Мастер ЛКЦ') {
-            window.location.href = '/static/lkc.html';
+            window.location.href = '/p/shymkent/w/lkc/shifts';
             return;
         }
 
@@ -4586,11 +4586,11 @@ async function init() {
             return;
         }
         if (cachedUser.role === 'qcd' || cachedUser.name.includes('Мусаилова') || cachedUser.name === 'Зарина') {
-            window.location.replace('/static/qcd.html');
+            window.location.replace('/p/shymkent/w/skk/shifts');
             return;
         }
         if (cachedUser.role === 'lkc_master' || cachedUser.name.includes('Миркасимов') || cachedUser.name === 'Мастер ЛКЦ') {
-            window.location.replace('/static/lkc.html');
+            window.location.replace('/p/shymkent/w/lkc/shifts');
             return;
         }
         currentUser = cachedUser;
@@ -4619,11 +4619,11 @@ async function init() {
                 }
                 
                 if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
-                    window.location.replace('/static/qcd.html');
+                    window.location.replace('/p/shymkent/w/skk/shifts');
                     return;
                 }
                 if (currentUser.role === 'lkc_master' || currentUser.name.includes('Миркасимов') || currentUser.name === 'Мастер ЛКЦ') {
-                    window.location.replace('/static/lkc.html');
+                    window.location.replace('/p/shymkent/w/lkc/shifts');
                     return;
                 }
                 
@@ -5701,12 +5701,12 @@ async function submitCanonicalLogin() {
         }
 
         if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
-            window.location.replace('/static/qcd.html');
+            window.location.replace('/p/shymkent/w/skk/shifts');
             return;
         }
 
         if (currentUser.role === 'lkc_master' || currentUser.name.includes('Миркасимов') || currentUser.name === 'Мастер ЛКЦ') {
-            window.location.replace('/static/lkc.html');
+            window.location.replace('/p/shymkent/w/lkc/shifts');
             return;
         }
 

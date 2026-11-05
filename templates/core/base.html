@@ -93,6 +93,7 @@
                                 <div class="workshop-popover-header">Переключение цеха</div>
                                 {% for ws in accessible_workshops %}
                                     <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ ws.id }}/{{ current_module or 'shifts' }}" 
+                                       hx-boost="false"
                                        class="workshop-popover-item {% if ws.id == (current_workshop.id or workshop_id) %}active{% endif %}">
                                         <span class="brand-badge-shop {{ ws.badge_class }}">{{ ws.short_name }}</span>
                                         <span class="workshop-popover-name">{{ ws.name }}</span>
