@@ -345,9 +345,46 @@
         <header class="header-main">
             <!-- Верхняя строка шапки: Бренд слева, Профиль сотрудника справа (всегда на одном уровне!) -->
             <div class="header-top-row">
-                <div class="header-brand-left">
-                    <span class="brand-title-tectum">TECTUM</span>
-                    <span class="brand-badge-shop badge-shop-xci" id="header-shop-badge">хци</span>
+                <div class="header-brand-left" style="display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <a href="/" style="text-decoration: none; display: inline-flex; align-items: center;">
+                        <span class="brand-title-tectum">TECTUM</span>
+                    </a>
+                    
+                    <div class="workshop-switcher-container" style="position: relative; z-index: 1001;">
+                        <button type="button" 
+                                class="brand-badge-shop badge-shop-xci workshop-switcher-trigger" 
+                                id="header-shop-badge"
+                                onclick="toggleWorkshopPopover(event)"
+                                title="Переключить производственный цех">
+                            <span>ХЦИ</span>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 0.62rem; margin-left: 3px;"></i>
+                        </button>
+                        <!-- Server-rendered dropdown popover -->
+                        <div id="workshop-dropdown-popover" class="workshop-popover-menu" style="display: none; z-index: 10002;">
+                            <div class="workshop-popover-header">Переключение цеха</div>
+                            <a href="/p/shymkent/w/xci/shifts" class="workshop-popover-item active">
+                                <span class="brand-badge-shop badge-shop-xci">ХЦИ</span>
+                                <span class="workshop-popover-name">цех хризотилцементных изделий</span>
+                            </a>
+                            <a href="/p/shymkent/w/agb/shifts" class="workshop-popover-item">
+                                <span class="brand-badge-shop badge-shop-agb">АГБ</span>
+                                <span class="workshop-popover-name">цех автоклавного газобетона</span>
+                            </a>
+                            <a href="/p/shymkent/w/lkc/shifts" class="workshop-popover-item">
+                                <span class="brand-badge-shop badge-shop-lkc">ЛКЦ</span>
+                                <span class="workshop-popover-name">лакокрасочный цех</span>
+                            </a>
+                            <a href="/p/shymkent/w/stmo/shifts" class="workshop-popover-item">
+                                <span class="brand-badge-shop badge-shop-stmo">СТМО</span>
+                                <span class="workshop-popover-name">цех СТМО</span>
+                            </a>
+                            <a href="/p/shymkent/w/skk/shifts" class="workshop-popover-item">
+                                <span class="brand-badge-shop badge-shop-skk">СКК</span>
+                                <span class="workshop-popover-name">служба контроля качества</span>
+                            </a>
+                        </div>
+                    </div>
+
                     <span class="brand-divider"></span>
                     <span class="brand-subtitle" id="header-shop-subtitle">цех хризотилцементных изделий</span>
                 </div>
@@ -370,14 +407,17 @@
                 <a href="/p/shymkent/w/xci/shifts" class="header-chip-btn" title="Сменные рапорты цеха">
                     📋 <span>Смены</span>
                 </a>
-                <a href="/tasks" target="_blank" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
+                <a href="/p/shymkent/w/xci/tasks" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
                     🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                 </a>
-                <a href="/checklists" target="_blank" class="header-chip-btn chip-checklists" id="header-checklists-btn" style="display: inline-flex;" title="Чек-листы смен и ТО">
+                <a href="/p/shymkent/w/xci/checklists" class="header-chip-btn chip-checklists" id="header-checklists-btn" style="display: inline-flex;" title="Чек-листы смен и ТО">
                     ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                 </a>
-                <a href="/docs" target="_blank" class="header-chip-btn chip-docs" title="База знаний и регламентов">
+                <a href="/p/shymkent/w/xci/docs" class="header-chip-btn chip-docs" title="База знаний и регламентов">
                     📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                <a href="/p/shymkent/w/xci/admin" class="header-chip-btn" id="header-tech-admin-btn" style="display: none; background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
+                    ⚙️ <span>Админка</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                 </a>
             </div>
         </header>
@@ -1485,11 +1525,39 @@
 
     <script src="/static/js/downtimes_tab.js?v=20261104_actual_hours_v4"></script>
     <script>
+        // Canonical Workshop Popover Toggle
+        function toggleWorkshopPopover(e) {
+            if (e) e.stopPropagation();
+            const popover = document.getElementById('workshop-dropdown-popover');
+            if (!popover) return;
+            const isVisible = popover.style.display === 'block';
+            popover.style.display = isVisible ? 'none' : 'block';
+        }
+        document.addEventListener('click', function(e) {
+            const popover = document.getElementById('workshop-dropdown-popover');
+            if (popover && popover.style.display === 'block') {
+                if (!popover.contains(e.target) && !e.target.closest('#header-shop-badge')) {
+                    popover.style.display = 'none';
+                }
+            }
+        });
+
+        function checkAdminForTechnologist() {
+            try {
+                const stored = localStorage.getItem('tectum_auth_user');
+                if (stored) {
+                    const u = JSON.parse(stored);
+                    if (u && (u.role === 'admin' || (u.name && u.name.includes('Левда')))) {
+                        const btn = document.getElementById('header-tech-admin-btn');
+                        if (btn) btn.style.display = 'inline-flex';
+                    }
+                }
+            } catch(e) {}
+        }
+
         // Custom Technologist SwitchTab & Initializer
         window.addEventListener('DOMContentLoaded', () => {
-            // Set role styling
-            
-            
+            checkAdminForTechnologist();
             // Handle URL Hash
             const rawHash = window.location.hash ? window.location.hash.replace('#', '') : 'tech-downtimes';
             switchTab(rawHash);
