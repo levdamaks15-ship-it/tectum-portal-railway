@@ -2325,7 +2325,7 @@
                                 style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer;"
                                 title="Установить текущее время">Сейчас</button>
                         </div>
-                        <input type="text" id="edit-downtime-time" placeholder="--:--"
+                        <input type="text" inputmode="numeric" class="time-mask-input" id="edit-downtime-time" placeholder="--:--" maxlength="5" autocomplete="off"
                             oninput="calcAdminDowntimeDuration()" onchange="calcAdminDowntimeDuration()"
                             style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 1rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; text-align: center; height: 38px;">
                     </div>
@@ -2336,7 +2336,7 @@
                                 style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer;"
                                 title="Установить текущее время">Сейчас</button>
                         </div>
-                        <input type="text" id="edit-downtime-end-time" placeholder="--:--"
+                        <input type="text" inputmode="numeric" class="time-mask-input" id="edit-downtime-end-time" placeholder="--:--" maxlength="5" autocomplete="off"
                             oninput="calcAdminDowntimeDuration()" onchange="calcAdminDowntimeDuration()"
                             style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 1rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; text-align: center; height: 38px;">
                     </div>
@@ -2729,6 +2729,6 @@
 
 {% block scripts %}
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
-    <script src="/static/modules/admin/admin.js?v=20261105_v1"></script>
+    <script src="/static/modules/admin/admin.js?v=20261106_time_mask_v1"></script>
     <script src="/static/modules/admin/ai_assistant.js?v=20261105_v1"></script>
 {% endblock %}
