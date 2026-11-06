@@ -2349,6 +2349,11 @@ function renderSummaryDashboards(rows) {
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     const textCol = isDark ? '#f8fafc' : '#1e293b';
 
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js не загружен, графики выполнения планов пропущены.');
+        return;
+    }
+
     const sortedRows = [...validRows].reverse();
     const labels = sortedRows.map(r => `${r.date.split('-').slice(1).join('.')}\n(${r.shift_name[0]})`);
 
@@ -2483,6 +2488,10 @@ function renderMaterialsTable(totals) {
 }
 
 function renderMaterialsCharts(data) {
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js не загружен, графики материалов пропущены.');
+        return;
+    }
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     const textCol = isDark ? '#f8fafc' : '#1e293b';
 
@@ -3570,6 +3579,10 @@ function renderAnalyticsKPIs(data) {
 }
 
 function renderAnalyticsCharts(data) {
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js не загружен, графики аналитики пропущены.');
+        return;
+    }
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     const textCol = isDark ? '#f8fafc' : '#1e293b';
 
@@ -3910,6 +3923,10 @@ async function loadDailyReport() {
 }
 
 function renderDailyReportCharts(days, planNorms) {
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js не загружен, графики месячной сводки пропущены.');
+        return;
+    }
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     const textCol = isDark ? '#f8fafc' : '#1e293b';
 
