@@ -1129,7 +1129,26 @@
             'unclassified': 'banner-unclass'
         };
 
+        function parseRuDateTimestamp(str) {
+            if (!str || str === 'Н/Д') return 0;
+            const p = str.split('.');
+            if (p.length === 3) {
+                return new Date(parseInt(p[2], 10), parseInt(p[1], 10) - 1, parseInt(p[0], 10)).getTime();
+            }
+            return 0;
+        }
+
         cats.forEach(c => {
+            if (Array.isArray(c.items)) {
+                c.items.sort((a, b) => {
+                    const da = parseRuDateTimestamp(a.date);
+                    const db = parseRuDateTimestamp(b.date);
+                    if (da !== db) return da - db;
+                    const ta = a.start_time || '';
+                    const tb = b.start_time || '';
+                    return ta.localeCompare(tb);
+                });
+            }
             const bClass = bannerClassMap[c.key] || 'banner-mech';
             const cAnn = c.annualized || {};
             const isUnclass = (c.key === 'unclassified');

@@ -1282,6 +1282,13 @@ def get_downtimes_report_summary(
             )
         )
 
+    # Строгая календарная хронология (от начала периода к концу)
+    dts_q = dts_q.order_by(
+        effective_dt_date.asc(),
+        models.Downtime.start_time.asc(),
+        models.Downtime.id.asc()
+    )
+
     all_dts = dts_q.all()
 
     # Физический расчет формования:
@@ -1421,6 +1428,10 @@ def get_downtimes_report_summary(
                     "annual_lost_hours": round(((dur / 60.0) / num_days) * 365.0, 1),
                     "percentage_of_pure_time": round(pct_time, 4)
                 })
+        c_items.sort(key=lambda x: (
+            datetime.strptime(x["date"], "%d.%m.%Y").date() if x.get("date") and x["date"] != "Н/Д" else date.min,
+            x.get("start_time") or ""
+        ))
         annual_margin = round((c_margin / num_days) * 365.0, 2)
         annual_revenue = round((c_revenue / num_days) * 365.0, 2)
         annual_sheets = int(round((c_sheets / num_days) * 365.0))
@@ -1522,6 +1533,10 @@ def get_downtimes_report_summary(
                 "duration_minutes": dur,
                 "duration_formatted": format_minutes_hh_mm_ss(dur)
             })
+    unclass_items.sort(key=lambda x: (
+        datetime.strptime(x["date"], "%d.%m.%Y").date() if x.get("date") and x["date"] != "Н/Д" else date.min,
+        x.get("start_time") or ""
+    ))
 
     potential_sheets = fact_sheets + total_lost_sheets_all
     capacity_loss_percent = round((total_lost_sheets_all / potential_sheets * 100.0), 2) if potential_sheets > 0 else 0.0

@@ -3660,15 +3660,14 @@ def export_downtime_technologist_report_to_google_sheets(db, start_date_str: str
             fact_sheets = int(lfm_sum or 0)
         overprod = max(0, fact_sheets - plan_sheets)
 
-        # Простои
+        # Простои (с учетом actual_date и строгой календарной хронологии)
+        effective_dt_date = func.coalesce(models.Downtime.actual_date, models.Downtime.date, models.Shift.date)
         dts_q = db.query(models.Downtime).options(
             joinedload(models.Downtime.shift),
             joinedload(models.Downtime.master)
         ).outerjoin(models.Shift, models.Downtime.shift_id == models.Shift.id).filter(
-            or_(
-                and_(models.Downtime.date >= sd, models.Downtime.date <= ed),
-                and_(models.Downtime.date.is_(None), models.Shift.date >= sd, models.Shift.date <= ed)
-            )
+            effective_dt_date >= sd,
+            effective_dt_date <= ed
         )
         if target["line_filter"]:
             dts_q = dts_q.filter(
@@ -3677,6 +3676,11 @@ def export_downtime_technologist_report_to_google_sheets(db, start_date_str: str
                     and_(models.Downtime.line.is_(None), models.Shift.line == target["line_filter"])
                 )
             )
+        dts_q = dts_q.order_by(
+            effective_dt_date.asc(),
+            models.Downtime.start_time.asc(),
+            models.Downtime.id.asc()
+        )
         all_dts = dts_q.all()
 
         # Расчет сумм по категориям
