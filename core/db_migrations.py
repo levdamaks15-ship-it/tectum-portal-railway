@@ -4,6 +4,7 @@
 """
 
 import os
+import re
 import sqlite3
 import requests
 from sqlalchemy import text, or_
@@ -302,6 +303,27 @@ def setup_telegram_webhook():
         pass
 
 
+def cleanup_legacy_reschedule_comments():
+    """Очищает устаревшие технические штампы [Перенос на...] из поля comment задач."""
+    db = SessionLocal()
+    try:
+        tasks = db.query(models.Task).filter(models.Task.comment.like('%[Перенос%')).all()
+        for t in tasks:
+            raw = t.comment or ""
+            cleaned = re.sub(r'\[Перенос[^\]]*\]\s*:?\s*', '', raw).strip()
+            cleaned = re.sub(r'\|\s*\|+', '|', cleaned)
+            cleaned = re.sub(r'^\s*\|\s*', '', cleaned)
+            cleaned = re.sub(r'\s*\|\s*$', '', cleaned).strip()
+            if cleaned != raw:
+                t.comment = cleaned
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[Cleanup Reschedule Comments] Error: {e}")
+    finally:
+        db.close()
+
+
 def run_startup_migrations():
     """Главный вход автомиграций и предстартовой инициализации."""
     try:
@@ -309,6 +331,7 @@ def run_startup_migrations():
         run_sqlite_migrations()
         run_database_migrations()
         cleanup_document_titles()
+        cleanup_legacy_reschedule_comments()
         seed_masters_and_roles()
         seed_norms.seed_norms()
 

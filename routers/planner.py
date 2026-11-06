@@ -3119,11 +3119,14 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
 
         if "due_date_str" in update_dict and update_dict.get("due_date_str"):
             new_due_val = update_dict["due_date_str"].strip()
-            if task.due_date_str != new_due_val or update_dict.get("status") == "🔵 Перенесено":
-                if not task.initial_due_date_str:
-                    task.initial_due_date_str = task.due_date_str or new_due_val
-                if not task.initial_week_label:
-                    task.initial_week_label = task.week_label or ""
+            # Фиксируем исходный срок, если он ещё не был задан
+            if not task.initial_due_date_str:
+                task.initial_due_date_str = task.due_date_str or new_due_val
+            if not task.initial_week_label:
+                task.initial_week_label = task.week_label or ""
+
+            # Инкремент счетчика переносов фиксируется ТОЛЬКО при явном переходе в статус '🔵 Перенесено'
+            if update_dict.get("status") == "🔵 Перенесено" and task.status != "🔵 Перенесено":
                 task.reschedule_count = (task.reschedule_count or 0) + 1
                 db.add(models.TaskComment(
                     task_id=task.id,
@@ -3681,12 +3684,11 @@ def reschedule_task(
             created_at=datetime.utcnow()
         ))
 
-        # 6. Обновление комментария задачи
-        note = f"[Перенос №{current_count} на {new_due_date}: {reason}]"
-        if task.comment:
-            task.comment = f"{task.comment} | {note}"
-        else:
-            task.comment = note
+        # 6. Обновление комментария задачи (сохраняем понятную суть, не засоряя техническими тегами дат)
+        if not task.comment or not task.comment.strip():
+            task.comment = reason
+        elif reason and reason not in task.comment:
+            task.comment = f"{task.comment} | {reason}"
 
         task.updated_at = datetime.utcnow()
 

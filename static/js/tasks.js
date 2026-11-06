@@ -4179,13 +4179,15 @@ function renderTasksTable(tasks) {
             const canInteract = canInteractWithTask(t);
             const canDelete = canDeleteProjectOrTask(t);
 
+            const rawComment = t.comment || '';
+            const displayComment = rawComment.replace(/\[Перенос[^\]]*\]\s*:?\s*/gi, '').replace(/^\s*\|\s*/, '').trim();
             const commentCell = (isLocked || !canInteract) ? `
                 <span class="comment-locked" title="${isLocked ? (isCancelled ? 'Отменённая задача заблокирована' : 'Завершённая задача заблокирована') : 'Только для исполнителя/руководства'}">
-                    ${t.comment || '—'}
+                    ${escapeHtml(displayComment || '—')}
                 </span>
             ` : `
-                <span onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" style="cursor: pointer; border-bottom: 1px dashed rgba(0,0,0,0.25);" title="Кликните для редактирования">
-                    ${t.comment || '—'}
+                <span onclick="inlineEditComment(${t.id}, '${escapeHtml(displayComment || '')}')" style="cursor: pointer; border-bottom: 1px dashed rgba(0,0,0,0.25);" title="Кликните для редактирования">
+                    ${escapeHtml(displayComment || '—')}
                 </span>
             `;
 
@@ -4312,22 +4314,20 @@ function renderTasksTable(tasks) {
 
             const isTaskRescheduled = (t.status === '🔵 Перенесено');
             const resCount = t.reschedule_count || (isTaskRescheduled ? 1 : 0);
-            const rescheduleBadge = (resCount > 0 || isTaskRescheduled) ? `
-                <div style="margin-top: 3px;">
-                    <span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 4px; padding: 1px 5px; font-weight: 600; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" onclick="event.stopPropagation(); openRescheduleTaskModal(${t.id});" title="Исходный срок: ${escapeHtml(t.initial_due_date_str || t.due_date_str || '—')}. Перенесено раз: ${resCount}. Нажмите для повторного переноса">
-                        <i class="fa-solid fa-clock-rotate-left"></i> ${resCount}-й перенос
-                    </span>
-                </div>
+            const rescheduleIndicator = (resCount > 0 || isTaskRescheduled) ? `
+                <span class="reschedule-mini-badge" onclick="event.stopPropagation(); openRescheduleTaskModal(${t.id});" style="font-size: 0.72rem; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 4px; padding: 1px 5px; font-weight: 700; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; vertical-align: middle;" title="Перенесено раз: ${resCount}. Исходный срок: ${escapeHtml(t.initial_due_date_str || t.due_date_str || '—')}. Нажмите для изменения срока">
+                    <i class="fa-solid fa-clock-rotate-left" style="font-size: 0.65rem;"></i> ${resCount}
+                </span>
             ` : '';
 
             const dueDateCell = t.is_deadline_week ? `
-                <div>
+                <div style="display: inline-flex; align-items: center; justify-content: center; gap: 2px;">
                     <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str || ''}">
                         <i class="fa-solid fa-bullseye"></i> ${t.due_date_str || 'Дедлайн'}
                     </span>
-                    ${rescheduleBadge}
+                    ${rescheduleIndicator}
                 </div>
-            ` : `<div><span style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</span>${rescheduleBadge}</div>`;
+            ` : `<div style="display: inline-flex; align-items: center; justify-content: center; gap: 2px;"><span style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</span>${rescheduleIndicator}</div>`;
 
             const isBulk = isBulkHorizon();
             const isChecked = selectedServiceTaskIds.has(t.id);
@@ -4377,13 +4377,6 @@ function renderTasksTable(tasks) {
                             ${(t.status === '🔵 Перенесено' && !isLocked) ? '<option value="🔵 Перенести ещё раз">🔄 Перенести ещё раз...</option>' : ''}
                             <option value="🔴 Отменено" ${t.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
                         </select>
-                        ${(t.status === '🔵 Перенесено' && !isLocked) ? `
-                            <div style="margin-top: 4px;">
-                                <button type="button" onclick="event.stopPropagation(); openRescheduleTaskModal(${t.id});" style="font-size: 0.72rem; padding: 2px 7px; border-radius: 4px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap;" title="Перенести срок задачи повторно">
-                                    <i class="fa-solid fa-clock-rotate-left"></i> Перенести снова
-                                </button>
-                            </div>
-                        ` : ''}
                     </td>
                     <td style="font-size: 0.82rem; color: #334155; max-width: 260px; word-break: break-word;">
                         ${commentCell}
@@ -4597,11 +4590,6 @@ function renderTasksCards(tasks) {
                             <i class="fa-regular fa-calendar"></i> ${escapeHtml(dueStr)}
                             ${(t.reschedule_count > 0 || t.status === '🔵 Перенесено') ? `<span style="font-size: 0.68rem; background: #e0f2fe; color: #0284c7; padding: 1px 4px; border-radius: 3px; font-weight: 700; margin-left: 3px;"><i class="fa-solid fa-clock-rotate-left" style="font-size: 0.65rem;"></i> №${t.reschedule_count || 1}</span>` : ''}
                         </span>
-                        ${(t.status === '🔵 Перенесено') ? `
-                            <button type="button" onclick="event.stopPropagation(); openRescheduleTaskModal(${t.id});" style="font-size: 0.7rem; padding: 2px 6px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; font-weight: 600; cursor: pointer;">
-                                <i class="fa-solid fa-calendar-plus"></i> Перенести снова
-                            </button>
-                        ` : ''}
                         <span style="color: #94a3b8; font-size: 0.74rem;">
                             ${t.assignee_name ? escapeHtml(t.assignee_name) : ''}
                         </span>
@@ -5032,20 +5020,32 @@ function openRescheduleTaskModal(taskId) {
     const currentDue = task.due_date_str || "В теч. недели";
     const resCount = task.reschedule_count || (task.status === '🔵 Перенесено' ? 1 : 0);
     
-    const initialDueEl = document.getElementById("reschedule-task-initial-due");
-    if (initialDueEl) initialDueEl.textContent = initialDue;
-    
-    const currentDueEl = document.getElementById("reschedule-task-current-due");
-    if (currentDueEl) currentDueEl.textContent = currentDue;
-
+    const initialBoxEl = document.getElementById("reschedule-initial-box");
+    const currentBoxEl = document.getElementById("reschedule-current-box");
     const countBadgeEl = document.getElementById("reschedule-task-count-badge");
-    if (countBadgeEl) {
-        if (resCount === 0) {
-            countBadgeEl.textContent = "1-й перенос (первичный)";
+
+    const isIdentical = (!task.initial_due_date_str || task.initial_due_date_str === task.due_date_str);
+
+    if (resCount === 0 || isIdentical) {
+        if (initialBoxEl) initialBoxEl.style.display = "none";
+        if (currentBoxEl) {
+            currentBoxEl.innerHTML = `Действующий срок: <span id="reschedule-task-current-due" style="font-weight: 700; color: #0284c7;">${escapeHtml(currentDue)}</span>`;
+        }
+        if (countBadgeEl) {
+            countBadgeEl.textContent = (resCount === 0) ? "Первичный перенос" : `Перенос №${resCount + 1}`;
             countBadgeEl.style.background = "#e0f2fe";
             countBadgeEl.style.color = "#0369a1";
-        } else {
-            countBadgeEl.textContent = `Очередной перенос (№${resCount + 1})`;
+        }
+    } else {
+        if (initialBoxEl) {
+            initialBoxEl.style.display = "block";
+            initialBoxEl.innerHTML = `Исходный срок: <span id="reschedule-task-initial-due" style="font-weight: 700; color: #475569;">${escapeHtml(initialDue)}</span>`;
+        }
+        if (currentBoxEl) {
+            currentBoxEl.innerHTML = `Текущий срок: <span id="reschedule-task-current-due" style="font-weight: 700; color: #0284c7;">${escapeHtml(currentDue)}</span>`;
+        }
+        if (countBadgeEl) {
+            countBadgeEl.textContent = `Перенос №${resCount + 1}`;
             countBadgeEl.style.background = "#fef3c7";
             countBadgeEl.style.color = "#92400e";
         }
