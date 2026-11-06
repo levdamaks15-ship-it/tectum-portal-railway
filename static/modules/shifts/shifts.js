@@ -991,6 +991,12 @@ async function loadMasters() {
                     mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
                 if (prevRepMaster && Array.from(repMaster.options).some(o => o.value == prevRepMaster)) {
                     repMaster.value = prevRepMaster;
+                } else if (!repMaster.value && currentUser && currentUser.role === 'master') {
+                    const match = mastersList.find(m => m.name === currentUser.name || m.id === currentUser.id);
+                    if (match) {
+                        repMaster.value = String(match.id);
+                        repMaster.dataset.autoSelected = 'true';
+                    }
                 }
                 repMaster.dispatchEvent(new Event('change', { bubbles: true }));
             }
@@ -1088,11 +1094,16 @@ async function login() {
             return;
         }
 
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('main-app').style.display = 'block';
-        document.getElementById('user-info-container').style.display = 'flex';
-        document.getElementById('user-greeting-name').innerText = currentUser.name;
-        document.getElementById('user-greeting-role').innerText = currentUser.role;
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) loginScreen.style.display = 'none';
+        const mainApp = document.getElementById('main-app');
+        if (mainApp) mainApp.style.display = 'block';
+        const userInfo = document.getElementById('user-info-container');
+        if (userInfo) userInfo.style.display = 'flex';
+        const greetingName = document.getElementById('user-greeting-name');
+        if (greetingName && currentUser?.name) greetingName.innerText = currentUser.name;
+        const greetingRole = document.getElementById('user-greeting-role');
+        if (greetingRole && currentUser?.role) greetingRole.innerText = currentUser.role;
         
         applyRoleVisibility();
         loadData();
@@ -4527,6 +4538,8 @@ window.addEventListener('DOMContentLoaded', () => {
         attachDowntimeContextListeners();
         loadDowntimeContext();
         if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints(!hasDraftNumbers);
+    }).catch(err => {
+        console.error("Unhandled init error:", err);
     });
 });
 
@@ -4594,11 +4607,16 @@ async function init() {
             return;
         }
         currentUser = cachedUser;
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('main-app').style.display = 'block';
-        document.getElementById('user-info-container').style.display = 'flex';
-        document.getElementById('user-greeting-name').innerText = currentUser.name;
-        document.getElementById('user-greeting-role').innerText = currentUser.role;
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) loginScreen.style.display = 'none';
+        const mainApp = document.getElementById('main-app');
+        if (mainApp) mainApp.style.display = 'block';
+        const userInfo = document.getElementById('user-info-container');
+        if (userInfo) userInfo.style.display = 'flex';
+        const greetingName = document.getElementById('user-greeting-name');
+        if (greetingName && currentUser?.name) greetingName.innerText = currentUser.name;
+        const greetingRole = document.getElementById('user-greeting-role');
+        if (greetingRole && currentUser?.role) greetingRole.innerText = currentUser.role;
         applyRoleVisibility();
     }
 
@@ -4631,11 +4649,16 @@ async function init() {
                 const bNavRestore = document.querySelector('.tectum-mobile-bottom-nav');
                 if (bNavRestore) bNavRestore.style.display = '';
 
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('main-app').style.display = 'block';
-                document.getElementById('user-info-container').style.display = 'flex';
-                document.getElementById('user-greeting-name').innerText = currentUser.name;
-                document.getElementById('user-greeting-role').innerText = currentUser.role;
+                const loginScreen = document.getElementById('login-screen');
+                if (loginScreen) loginScreen.style.display = 'none';
+                const mainApp = document.getElementById('main-app');
+                if (mainApp) mainApp.style.display = 'block';
+                const userInfo = document.getElementById('user-info-container');
+                if (userInfo) userInfo.style.display = 'flex';
+                const greetingName = document.getElementById('user-greeting-name');
+                if (greetingName && currentUser?.name) greetingName.innerText = currentUser.name;
+                const greetingRole = document.getElementById('user-greeting-role');
+                if (greetingRole && currentUser?.role) greetingRole.innerText = currentUser.role;
                 
                 const checklistsBtn = document.getElementById('header-checklists-btn');
                 if (checklistsBtn) checklistsBtn.style.display = 'inline-flex';
@@ -4663,9 +4686,12 @@ async function init() {
                 localStorage.removeItem('tectum_portal_user');
             } catch(e) {}
             currentUser = null;
-            document.getElementById('user-info-container').style.display = 'none';
-            document.getElementById('main-app').style.display = 'none';
-            document.getElementById('login-screen').style.display = 'block';
+            const userInfo = document.getElementById('user-info-container');
+            if (userInfo) userInfo.style.display = 'none';
+            const mainApp = document.getElementById('main-app');
+            if (mainApp) mainApp.style.display = 'none';
+            const loginScreen = document.getElementById('login-screen');
+            if (loginScreen) loginScreen.style.display = 'block';
         }
         
         // Hide mobile bottom navigation until user logs in
