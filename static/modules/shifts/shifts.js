@@ -1147,7 +1147,12 @@ async function logout() {
         console.error('Logout error:', e);
     }
 
-    // Полный безусловный переход на чистый экран авторизации
+    // Полный безусловный переход на чистый экран авторизации без хвостов хэшей
+    try {
+        if (window.location.hash) {
+            history.replaceState(null, '', window.location.pathname);
+        }
+    } catch(e) {}
     window.location.replace('/?unauthorized=true');
 }
 
@@ -4697,6 +4702,14 @@ async function init() {
         const userInfo = document.getElementById('user-info-container');
         if (userInfo) userInfo.style.display = 'none';
         document.body.classList.add('not-authenticated');
+
+        // Санация адресной строки: очищаем сбойные параметры и легаси-хэш (#production)
+        try {
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, '', window.location.pathname || '/');
+            }
+        } catch(e) {}
+
         // Фоновая неблокирующая предзагрузка сотрудников для мгновенного отклика дропдауна
         loadUserGrid();
         return; // Explicitly stop initialization, do NOT call /api/me/
@@ -5900,7 +5913,7 @@ async function submitCanonicalLogin() {
             return;
         }
 
-        const targetScope = currentUser.scope || currentUser.target_scope || '/p/shymkent/w/xci/shifts#production';
+        const targetScope = currentUser.scope || currentUser.target_scope || '/p/shymkent/w/xci/shifts';
         if (targetScope && !window.location.pathname.startsWith(targetScope.split('#')[0])) {
             window.location.replace(targetScope);
             return;
@@ -5913,8 +5926,8 @@ async function submitCanonicalLogin() {
         }
 
         // Очищаем поисковые параметры если уже находимся в нужном модуле
-        if (window.location.search) {
-            history.replaceState(null, '', window.location.pathname + (window.location.hash || '#production'));
+        if (window.location.search || window.location.hash) {
+            history.replaceState(null, '', window.location.pathname);
         }
 
         // Switch header brand to XCI workshop

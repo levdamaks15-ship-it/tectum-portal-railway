@@ -105,7 +105,13 @@
                 if (this.isOpen) this.updatePosition();
             }, true);
 
-            // Читаем текущего пользователя из localStorage
+            // На экране логина никогда не монтируем из localStorage
+            if (this.isLoginScreen()) {
+                this.dismantle();
+                return;
+            }
+
+            // Читаем текущего пользователя из localStorage только вне экрана логина
             try {
                 const stored = localStorage.getItem('tectum_auth_user');
                 if (stored) {
@@ -120,7 +126,21 @@
             this.verifyServerSession();
         }
 
+        isLoginScreen() {
+            if (document.body.classList.contains('not-authenticated')) return true;
+            if (window.location.search && window.location.search.includes('unauthorized')) return true;
+            const loginScreen = document.getElementById('login-screen');
+            if (loginScreen && window.getComputedStyle(loginScreen).display !== 'none') return true;
+            return false;
+        }
+
         async verifyServerSession() {
+            if (this.isLoginScreen()) {
+                this.currentUser = null;
+                this.dismantle();
+                return;
+            }
+
             try {
                 const res = await fetch('/api/me/');
                 if (res.ok) {
@@ -133,9 +153,12 @@
                 }
             } catch (e) { }
 
-            if (!this.currentUser || !ALLOWED_ROLES.includes(this.currentUser.role)) {
-                this.dismantle();
-            }
+            // Сессия не подтверждена или роль не разрешена: аппаратный сброс и демонтаж
+            this.currentUser = null;
+            try {
+                localStorage.removeItem('tectum_auth_user');
+            } catch (e) { }
+            this.dismantle();
         }
 
         findTriggerBadge() {
@@ -147,6 +170,12 @@
         }
 
         mount() {
+            // Строгая изоляция экрана логина: запрет показа меню цехов неавторизованным пользователям
+            if (this.isLoginScreen()) {
+                this.dismantle();
+                return;
+            }
+
             // Если в DOM уже есть серверный поповер ядра (base.html), то JS-свитчер не нужен
             const existingServerPopover = document.getElementById('workshop-dropdown-popover');
             if (existingServerPopover && existingServerPopover.closest('.workshop-switcher-container')) {
@@ -156,6 +185,11 @@
             this.triggerEl = this.findTriggerBadge();
             if (!this.triggerEl) {
                 setTimeout(() => this.mount(), 250);
+                return;
+            }
+
+            // Никогда не привязываться к нейтральному бейджу портала
+            if (this.triggerEl.classList.contains('badge-shop-portal')) {
                 return;
             }
 
@@ -195,11 +229,12 @@
                 this.popoverEl.parentNode.removeChild(this.popoverEl);
                 this.popoverEl = null;
             }
-            if (this.triggerEl) {
-                this.triggerEl.classList.remove('workshop-switcher-trigger');
-                this.triggerEl.onclick = null;
-                const chevron = this.triggerEl.querySelector('.fa-chevron-down');
-                if (chevron) chevron.remove();
+            const badge = this.triggerEl || this.findTriggerBadge();
+            if (badge) {
+                badge.classList.remove('workshop-switcher-trigger');
+                badge.onclick = null;
+                const chevrons = badge.querySelectorAll('.fa-chevron-down');
+                chevrons.forEach(ch => ch.remove());
             }
             this.isMounted = false;
             this.isOpen = false;
