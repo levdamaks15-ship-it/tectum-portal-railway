@@ -1086,20 +1086,11 @@ def get_downtimes_feed(
             try: e_date = datetime.strptime(end_date.strip(), "%d.%m.%Y").date()
             except Exception: pass
 
+    effective_dt_date = func.coalesce(models.Downtime.actual_date, models.Downtime.date, models.Shift.date)
     if s_date:
-        query = query.filter(
-            or_(
-                models.Downtime.date >= s_date,
-                and_(models.Downtime.date.is_(None), models.Shift.date >= s_date)
-            )
-        )
+        query = query.filter(effective_dt_date >= s_date)
     if e_date:
-        query = query.filter(
-            or_(
-                models.Downtime.date <= e_date,
-                and_(models.Downtime.date.is_(None), models.Shift.date <= e_date)
-            )
-        )
+        query = query.filter(effective_dt_date <= e_date)
 
     # Фильтр линии
     if line and line not in ("all", "Все линии", "Все", "СВОД"):
@@ -1273,15 +1264,14 @@ def get_downtimes_report_summary(
 
     overproduction_sheets = max(0, fact_sheets - plan_sheets)
 
-    # 2. Загружаем простои
+    # 2. Загружаем простои (с учетом фактической даты actual_date, даты простоя и даты смены)
+    effective_dt_date = func.coalesce(models.Downtime.actual_date, models.Downtime.date, models.Shift.date)
     dts_q = db.query(models.Downtime).options(
         joinedload(models.Downtime.shift),
         joinedload(models.Downtime.master)
     ).outerjoin(models.Shift, models.Downtime.shift_id == models.Shift.id).filter(
-        or_(
-            and_(models.Downtime.date >= sd, models.Downtime.date <= ed),
-            and_(models.Downtime.date.is_(None), models.Shift.date >= sd, models.Shift.date <= ed)
-        )
+        effective_dt_date >= sd,
+        effective_dt_date <= ed
     )
     if line and line not in ("all", "Все линии", "Все", "СВОД"):
         clean_line = "Линия 1" if "1" in line else ("Линия 2" if "2" in line else line)

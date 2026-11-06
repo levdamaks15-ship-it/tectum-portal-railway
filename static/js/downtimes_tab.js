@@ -106,7 +106,21 @@
 
     function updateDtMonthLabel() {
         const lbl = document.getElementById('label-dt-month');
-        if (lbl) {
+        if (!lbl) return;
+
+        if (dtActiveDateMode === 'custom' && dtCurrentFilter.start_date && dtCurrentFilter.end_date) {
+            const sParts = dtCurrentFilter.start_date.split('-');
+            const eParts = dtCurrentFilter.end_date.split('-');
+            const sM = parseInt(sParts[1], 10);
+            const eM = parseInt(eParts[1], 10);
+            const sY = parseInt(sParts[0], 10);
+            const eY = parseInt(eParts[0], 10);
+            if (sM === eM && sY === eY) {
+                lbl.textContent = `${MONTH_NAMES_RU[sM - 1]} ${sY}`;
+            } else {
+                lbl.textContent = `${MONTH_NAMES_RU[sM - 1]} — ${MONTH_NAMES_RU[eM - 1]}`;
+            }
+        } else {
             lbl.textContent = `${MONTH_NAMES_RU[dtCurrentMonth - 1]} ${dtCurrentYear}`;
         }
     }
@@ -155,7 +169,7 @@
 
         MONTH_NAMES_RU.forEach((mName, idx) => {
             const mNum = idx + 1;
-            const isSel = (dtCurrentMonth === mNum);
+            const isSel = (dtActiveDateMode !== 'custom' && dtCurrentMonth === mNum);
             html += `
                 <div class="filter-option-item ${isSel ? 'selected week-option-active' : ''}" 
                      onclick="selectDtMonth(${mNum})" style="padding: 6px 10px;">
@@ -179,6 +193,8 @@
 
     window.selectDtMonth = function (monthNum) {
         dtCurrentMonth = monthNum;
+        dtActiveDateMode = 'week';
+        hideDtRangeActiveIndicator();
         closeAllDtPopovers();
         updateDtMonthLabel();
 
@@ -383,6 +399,8 @@
         dtActiveDateMode = 'custom';
         dtSelectedWeek = null;
 
+        updateDtMonthLabel();
+
         const indicator = document.getElementById('dt-range-active-indicator');
         if (indicator) indicator.style.display = 'inline-block';
         const rangeBtn = document.getElementById('btn-dt-custom-range');
@@ -392,7 +410,11 @@
         const tParts = eVal.split('-');
         const weekLabel = document.getElementById('label-dt-week');
         if (weekLabel) {
-            weekLabel.textContent = `${fParts[2]}.${fParts[1]} - ${tParts[2]}.${tParts[1]}`;
+            weekLabel.textContent = `Период: ${fParts[2]}.${fParts[1]} — ${tParts[2]}.${tParts[1]}`;
+        }
+        const rangeBtnLabel = document.getElementById('dt-range-btn-label');
+        if (rangeBtnLabel) {
+            rangeBtnLabel.textContent = `${fParts[2]}.${fParts[1]} — ${tParts[2]}.${tParts[1]}`;
         }
 
         closeDtCustomRangePopover();
@@ -400,6 +422,7 @@
     };
 
     window.resetDtCustomRange = function () {
+        hideDtRangeActiveIndicator();
         closeDtCustomRangePopover();
         const curW = findCurrentWeek(dtCurrentYear, dtCurrentMonth);
         if (curW) {
@@ -414,6 +437,8 @@
         if (indicator) indicator.style.display = 'none';
         const rangeBtn = document.getElementById('btn-dt-custom-range');
         if (rangeBtn) rangeBtn.classList.remove('active');
+        const rangeBtnLabel = document.getElementById('dt-range-btn-label');
+        if (rangeBtnLabel) rangeBtnLabel.textContent = 'Диапазон дат';
     }
 
     window.applyDtQuickPreset = function (preset) {
@@ -453,7 +478,28 @@
     };
 
     // Инициализация вкладки
-    function initDowntimesWorkspace() {
+    function initDowntimesWorkspace(forceReset = false) {
+        // Если уже выбран произвольный диапазон дат и не запрошен принудительный сброс, сохраняем его!
+        if (!forceReset && dtActiveDateMode === 'custom' && dtCurrentFilter.start_date && dtCurrentFilter.end_date) {
+            updateDtMonthLabel();
+            const sInput = document.getElementById('dt-date-from');
+            const eInput = document.getElementById('dt-date-to');
+            if (sInput) sInput.value = dtCurrentFilter.start_date;
+            if (eInput) eInput.value = dtCurrentFilter.end_date;
+            const fParts = dtCurrentFilter.start_date.split('-');
+            const tParts = dtCurrentFilter.end_date.split('-');
+            const weekLabel = document.getElementById('label-dt-week');
+            if (weekLabel) weekLabel.textContent = `Период: ${fParts[2]}.${fParts[1]} — ${tParts[2]}.${tParts[1]}`;
+            const rangeBtn = document.getElementById('btn-dt-custom-range');
+            if (rangeBtn) rangeBtn.classList.add('active');
+            const indicator = document.getElementById('dt-range-active-indicator');
+            if (indicator) indicator.style.display = 'inline-block';
+            const rangeBtnLabel = document.getElementById('dt-range-btn-label');
+            if (rangeBtnLabel) rangeBtnLabel.textContent = `${fParts[2]}.${fParts[1]} — ${tParts[2]}.${tParts[1]}`;
+            loadDowntimesData();
+            return;
+        }
+
         const today = new Date();
         dtCurrentYear = today.getFullYear();
         dtCurrentMonth = today.getMonth() + 1;
@@ -474,17 +520,20 @@
             dtCurrentFilter.end_date = curW.endStr;
         }
 
-        // Закрытие поповеров при клике вне
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.popover-anchor-wrap') && !e.target.closest('.toolbar-date-chip') && !e.target.closest('.date-range-popover')) {
-                closeAllDtPopovers();
-                closeDtCustomRangePopover();
-            }
-            if (activePopover && !e.target.closest('.dt-popover-menu') && !e.target.closest('.dt-cat-picker-btn')) {
-                activePopover.style.display = 'none';
-                activePopover = null;
-            }
-        });
+        // Закрытие поповеров при клике вне (вешаем один раз)
+        if (!window.__dtClickOutsideAttached) {
+            window.__dtClickOutsideAttached = true;
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.popover-anchor-wrap') && !e.target.closest('.toolbar-date-chip') && !e.target.closest('.date-range-popover')) {
+                    closeAllDtPopovers();
+                    closeDtCustomRangePopover();
+                }
+                if (activePopover && !e.target.closest('.dt-popover-menu') && !e.target.closest('.dt-cat-picker-btn')) {
+                    activePopover.style.display = 'none';
+                    activePopover = null;
+                }
+            });
+        }
 
         loadDowntimesData();
     }
@@ -564,6 +613,11 @@
 
     // 1. Загрузка ленты быстрой разметки
     async function loadDowntimesFeed(highlightId = null) {
+        const sInput = document.getElementById('dt-date-from');
+        const eInput = document.getElementById('dt-date-to');
+        if (sInput && sInput.value) dtCurrentFilter.start_date = sInput.value;
+        if (eInput && eInput.value) dtCurrentFilter.end_date = eInput.value;
+
         const tbody = document.getElementById('dt-feed-tbody');
         if (tbody) {
             tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #64748b;">
@@ -833,6 +887,11 @@
 
     // 2. Загрузка сводного отчета по категориям (Вид Excel)
     async function loadDowntimesSummary() {
+        const sInput = document.getElementById('dt-date-from');
+        const eInput = document.getElementById('dt-date-to');
+        if (sInput && sInput.value) dtCurrentFilter.start_date = sInput.value;
+        if (eInput && eInput.value) dtCurrentFilter.end_date = eInput.value;
+
         const container = document.getElementById('dt-summary-content');
         if (container) {
             container.innerHTML = `<div style="text-align: center; padding: 3rem; color: #64748b;">
