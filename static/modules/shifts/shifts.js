@@ -4582,6 +4582,8 @@ async function init() {
         const userInfo = document.getElementById('user-info-container');
         if (userInfo) userInfo.style.display = 'none';
         document.body.classList.add('not-authenticated');
+        // Фоновая неблокирующая предзагрузка сотрудников для мгновенного отклика дропдауна
+        loadUserGrid();
         return; // Explicitly stop initialization, do NOT call /api/me/
     }
 
@@ -5376,7 +5378,18 @@ function renderCrewPlansTable() {
 /* ==========================================================================
    CANONICAL PERSON PICKER & 4-BOX PIN AUTHENTICATION SYSTEM
    ========================================================================== */
-let portalEmployeesList = [];
+let portalEmployeesList = (() => {
+    try {
+        const cached = localStorage.getItem('tectum_cached_portal_employees');
+        if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch(e) {}
+    return [];
+})();
+
+let _employeesLoadingPromise = null;
 
 function getInitialsAvatar(name) {
     if (!name) return '??';
@@ -5395,44 +5408,66 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-async function loadPortalEmployeesOnce() {
-    if (portalEmployeesList.length > 0) return portalEmployeesList;
+async function loadPortalEmployeesOnce(forceRefresh = false) {
+    if (!forceRefresh && portalEmployeesList.length > 0 && !_employeesLoadingPromise) {
+        // Запускаем тихое обновление в фоне (Stale-While-Revalidate), не блокируя UI
+        _fetchAndCacheEmployees().catch(() => {});
+        return portalEmployeesList;
+    }
+    if (_employeesLoadingPromise) {
+        return _employeesLoadingPromise;
+    }
+    _employeesLoadingPromise = _fetchAndCacheEmployees();
     try {
-        const res = await fetch('/api/planner/employees');
-        const data = await res.json();
+        return await _employeesLoadingPromise;
+    } finally {
+        _employeesLoadingPromise = null;
+    }
+}
+
+async function _fetchAndCacheEmployees() {
+    try {
+        // Параллельный опрос сотрудников планнера и мастеров
+        const [plannerRes, mastersRes] = await Promise.allSettled([
+            fetch('/api/planner/employees').then(r => r.ok ? r.json() : null),
+            fetch('/api/masters/').then(r => r.ok ? r.json() : null)
+        ]);
+
         let rawList = [];
-        if (Array.isArray(data)) {
-            rawList = data;
-        } else if (data.employees && Array.isArray(data.employees)) {
-            rawList = data.employees;
+        const plannerData = plannerRes.status === 'fulfilled' ? plannerRes.value : null;
+        if (Array.isArray(plannerData)) {
+            rawList = plannerData;
+        } else if (plannerData && Array.isArray(plannerData.employees)) {
+            rawList = plannerData.employees;
         }
-        
+
         // Exclude system offices or non-person titles
         const stopWords = ['офис', 'огэ', 'огм', 'служба', 'цех', 'отдел', 'участок'];
-        portalEmployeesList = rawList.filter(emp => {
+        let mergedList = rawList.filter(emp => {
             const name = (emp.name || '').trim().toLowerCase();
             if (!name) return false;
             return !stopWords.some(w => name.includes(w));
         });
 
-        // Also merge with Masters if available
-        try {
-            const mRes = await fetch('/api/masters/');
-            if (mRes.ok) {
-                const masters = await mRes.json();
-                masters.forEach(m => {
-                    if (!portalEmployeesList.some(e => e.name === m.name)) {
-                        portalEmployeesList.push({
-                            id: m.id,
-                            name: m.name,
-                            position: m.role === 'master' ? 'Мастер смены' : (m.role === 'lkc_master' ? 'Мастер ЛКЦ' : (m.role === 'qcd' ? 'Контролер СКК' : m.role))
-                        });
-                    }
-                });
-            }
-        } catch(me) {}
+        const mastersData = mastersRes.status === 'fulfilled' ? mastersRes.value : null;
+        if (Array.isArray(mastersData)) {
+            mastersData.forEach(m => {
+                if (m && m.name && !mergedList.some(e => e.name === m.name)) {
+                    mergedList.push({
+                        id: m.id,
+                        name: m.name,
+                        position: m.role === 'master' ? 'Мастер смены' : (m.role === 'lkc_master' ? 'Мастер ЛКЦ' : (m.role === 'qcd' ? 'Контролер СКК' : m.role))
+                    });
+                }
+            });
+        }
 
-        if (portalEmployeesList.length === 0) {
+        if (mergedList.length > 0) {
+            portalEmployeesList = mergedList;
+            try {
+                localStorage.setItem('tectum_cached_portal_employees', JSON.stringify(portalEmployeesList));
+            } catch(e) {}
+        } else if (portalEmployeesList.length === 0) {
             portalEmployeesList = [
                 { id: 1, name: "Левда М.", position: "Администратор" },
                 { id: 2, name: "Булеханов К.", position: "Начальник производства" },
@@ -5445,15 +5480,17 @@ async function loadPortalEmployeesOnce() {
         }
     } catch (e) {
         console.error("Could not load portal employees:", e);
-        portalEmployeesList = [
-            { id: 1, name: "Левда М.", position: "Администратор" },
-            { id: 2, name: "Булеханов К.", position: "Начальник производства" },
-            { id: 8, name: "Герлинг С.", position: "Технический директор" },
-            { id: 10, name: "Туматов Д.", position: "Директор" },
-            { id: 9, name: "Косумов Р.", position: "Главный технолог" },
-            { id: 11, name: "Миркасимов И.М.", position: "Мастер ЛКЦ" },
-            { id: 12, name: "Мусаилова З.", position: "Руководитель СКК" }
-        ];
+        if (portalEmployeesList.length === 0) {
+            portalEmployeesList = [
+                { id: 1, name: "Левда М.", position: "Администратор" },
+                { id: 2, name: "Булеханов К.", position: "Начальник производства" },
+                { id: 8, name: "Герлинг С.", position: "Технический директор" },
+                { id: 10, name: "Туматов Д.", position: "Директор" },
+                { id: 9, name: "Косумов Р.", position: "Главный технолог" },
+                { id: 11, name: "Миркасимов И.М.", position: "Мастер ЛКЦ" },
+                { id: 12, name: "Мусаилова З.", position: "Руководитель СКК" }
+            ];
+        }
     }
     return portalEmployeesList;
 }
@@ -5468,17 +5505,29 @@ async function toggleLoginUserPickerPopover(event) {
     if (isOpen) {
         closeLoginUserPickerPopover();
     } else {
-        if (!portalEmployeesList || portalEmployeesList.length === 0) {
-            await loadPortalEmployeesOnce();
-        }
-        renderLoginUserPickerList("");
+        // МГНОВЕННЫЙ ОТКЛИК UI (0 мс): сразу открываем поповер и позиционируем
         popover.style.display = "block";
         trigger.classList.add("popover-open");
         positionLoginUserPickerPopover();
+
         const searchInput = document.getElementById("search-login-user-picker");
         if (searchInput) {
             searchInput.value = "";
             setTimeout(() => { searchInput.focus(); }, 50);
+        }
+
+        // Если список уже есть в памяти / кэше — мгновенно рендерим его (0 мс)
+        if (portalEmployeesList && portalEmployeesList.length > 0) {
+            renderLoginUserPickerList("");
+        } else {
+            // Если первый холодный старт без кэша — показываем аккуратный лоадер
+            const listContainer = document.getElementById("list-login-user-picker");
+            if (listContainer) {
+                listContainer.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: #64748b; font-size: 0.88rem;"><i class="fa-solid fa-spinner fa-spin" style="margin-right: 8px; color: #2563eb;"></i> Загрузка списка сотрудников...</div>';
+            }
+            await loadPortalEmployeesOnce();
+            renderLoginUserPickerList(searchInput ? searchInput.value : "");
+            positionLoginUserPickerPopover();
         }
     }
 }
