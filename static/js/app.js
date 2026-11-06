@@ -2719,6 +2719,121 @@ function parseDurationMinutes(startTime, endTime) {
     return Math.max(0, total2 - total1);
 }
 
+/**
+ * @canonical-pattern TimeDigitMask
+ * @established 2026-11-06
+ * @description Цифровая маска ввода времени ЧЧ:ММ без нативных всплывающих пикеров.
+ * При вводе цифр автоматически форматирует 4 цифры в HH:MM (после 2 цифр ставит ':'),
+ * поддерживает Backspace без залипания двоеточия и валидацию на blur (00-23 : 00-59).
+ */
+function isTimeMaskTarget(el) {
+    if (!el || el.tagName !== 'INPUT') return false;
+    if (el.classList.contains('time-mask-input')) return true;
+    const id = el.id || '';
+    return id === 'journal-dt-start' || id === 'journal-dt-end' ||
+           id === 'edit-dt-start' || id === 'edit-dt-end' ||
+           id === 'tech-edit-dt-start' || id === 'tech-edit-dt-end';
+}
+
+function handleTimeMaskInput(e) {
+    const input = e.target;
+    if (!isTimeMaskTarget(input)) return;
+
+    // Если удаление через Backspace/Delete, не форматируем заново
+    if (e.inputType && e.inputType.startsWith('delete')) {
+        return;
+    }
+
+    let val = input.value || '';
+    let digits = val.replace(/\D/g, '');
+    if (digits.length > 4) digits = digits.slice(0, 4);
+
+    let formatted = '';
+    if (digits.length >= 3) {
+        let hh = digits.slice(0, 2);
+        let mm = digits.slice(2);
+        if (parseInt(hh, 10) > 23) hh = '23';
+        formatted = hh + ':' + mm;
+    } else if (digits.length === 2) {
+        let hh = digits;
+        if (parseInt(hh, 10) > 23) hh = '23';
+        formatted = hh + ':';
+    } else {
+        formatted = digits;
+    }
+
+    if (input.value !== formatted) {
+        input.value = formatted;
+    }
+}
+
+function handleTimeMaskKeydown(e) {
+    const input = e.target;
+    if (!isTimeMaskTarget(input)) return;
+
+    if (e.key === 'Backspace') {
+        const val = input.value || '';
+        // Если поле вида "12:", при нажатии Backspace удаляем двоеточие и последнюю цифру -> "1"
+        if (val.length === 3 && val.endsWith(':')) {
+            e.preventDefault();
+            input.value = val.slice(0, 1);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+}
+
+function handleTimeMaskBlur(e) {
+    const input = e.target;
+    if (!isTimeMaskTarget(input)) return;
+
+    let val = (input.value || '').trim();
+    if (!val) return;
+
+    let digits = val.replace(/\D/g, '');
+    if (digits.length === 0) {
+        input.value = '';
+        return;
+    }
+
+    let hh = 0;
+    let mm = 0;
+
+    if (digits.length === 1) {
+        hh = parseInt(digits, 10);
+        mm = 0;
+    } else if (digits.length === 2) {
+        hh = parseInt(digits, 10);
+        mm = 0;
+    } else if (digits.length === 3) {
+        hh = parseInt(digits.slice(0, 2), 10);
+        mm = parseInt(digits.slice(2) + '0', 10);
+    } else {
+        hh = parseInt(digits.slice(0, 2), 10);
+        mm = parseInt(digits.slice(2, 4), 10);
+    }
+
+    if (isNaN(hh) || hh > 23) hh = 23;
+    if (isNaN(mm) || mm > 59) mm = 59;
+
+    input.value = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+
+    if (input.id.startsWith('journal-dt-')) {
+        calcJournalDowntimeDuration();
+    } else if (input.id.startsWith('edit-dt-')) {
+        calcEditDowntimeDuration();
+    } else if (input.id.startsWith('tech-edit-dt-') && typeof calcTechEditDowntimeDuration === 'function') {
+        calcTechEditDowntimeDuration();
+    }
+}
+
+// Глобальная регистрация делегированных слушателей маски времени
+if (!window.__timeMaskListenersAttached) {
+    window.__timeMaskListenersAttached = true;
+    document.addEventListener('input', handleTimeMaskInput, true);
+    document.addEventListener('keydown', handleTimeMaskKeydown, true);
+    document.addEventListener('blur', handleTimeMaskBlur, true);
+}
+
 function setTimeNow(inputId) {
     const now = new Date();
     const h = String(now.getHours()).padStart(2, '0');

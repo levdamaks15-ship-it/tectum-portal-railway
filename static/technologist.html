@@ -1020,7 +1020,7 @@
                                         style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;"
                                         title="Установить текущее время">Сейчас</button>
                                 </div>
-                                <input type="time" id="journal-dt-start"
+                                <input type="text" inputmode="numeric" class="time-mask-input" id="journal-dt-start" placeholder="--:--" maxlength="5" autocomplete="off"
                                     oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()"
                                     style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
                             </div>
@@ -1033,7 +1033,7 @@
                                         style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;"
                                         title="Установить текущее время">Сейчас</button>
                                 </div>
-                                <input type="time" id="journal-dt-end"
+                                <input type="text" inputmode="numeric" class="time-mask-input" id="journal-dt-end" placeholder="--:--" maxlength="5" autocomplete="off"
                                     oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()"
                                     style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
                             </div>
@@ -1405,11 +1405,11 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; align-items: end;">
                 <div class="dt-filter-field">
                     <label for="tech-edit-dt-start" style="font-size: 0.8rem; font-weight: 600; color: #334155;">Время начала *</label>
-                    <input type="time" id="tech-edit-dt-start" oninput="calcTechEditDowntimeDuration()" onchange="calcTechEditDowntimeDuration()" style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #cbd5e1; padding: 0 8px; font-family: monospace; font-weight: 700; text-align: center;">
+                    <input type="text" inputmode="numeric" class="time-mask-input" id="tech-edit-dt-start" placeholder="--:--" maxlength="5" autocomplete="off" oninput="calcTechEditDowntimeDuration()" onchange="calcTechEditDowntimeDuration()" style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #cbd5e1; padding: 0 8px; font-family: monospace; font-weight: 700; text-align: center;">
                 </div>
                 <div class="dt-filter-field">
                     <label for="tech-edit-dt-end" style="font-size: 0.8rem; font-weight: 600; color: #334155;">Время окончания</label>
-                    <input type="time" id="tech-edit-dt-end" oninput="calcTechEditDowntimeDuration()" onchange="calcTechEditDowntimeDuration()" style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #cbd5e1; padding: 0 8px; font-family: monospace; font-weight: 700; text-align: center;">
+                    <input type="text" inputmode="numeric" class="time-mask-input" id="tech-edit-dt-end" placeholder="--:--" maxlength="5" autocomplete="off" oninput="calcTechEditDowntimeDuration()" onchange="calcTechEditDowntimeDuration()" style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #cbd5e1; padding: 0 8px; font-family: monospace; font-weight: 700; text-align: center;">
                 </div>
                 <div class="dt-filter-field">
                     <label style="font-size: 0.8rem; font-weight: 600; color: #334155;">Длительность</label>
@@ -1518,7 +1518,7 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=20261106_fast_auth_v1"></script>
+    <script src="/static/js/app.js?v=20261106_time_mask_v1"></script>
     <script src="/static/js/workshop_switcher.js?v=20261103_v7"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js?v=20261101_v2"></script>

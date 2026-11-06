@@ -1378,7 +1378,7 @@
                                         style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;"
                                         title="Установить текущее время">Сейчас</button>
                                 </div>
-                                <input type="time" id="journal-dt-start"
+                                <input type="text" inputmode="numeric" class="time-mask-input" id="journal-dt-start" placeholder="--:--" maxlength="5" autocomplete="off"
                                     oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()"
                                     style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
                             </div>
@@ -1391,7 +1391,7 @@
                                         style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;"
                                         title="Установить текущее время">Сейчас</button>
                                 </div>
-                                <input type="time" id="journal-dt-end"
+                                <input type="text" inputmode="numeric" class="time-mask-input" id="journal-dt-end" placeholder="--:--" maxlength="5" autocomplete="off"
                                     oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()"
                                     style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
                             </div>
@@ -1832,7 +1832,7 @@
                         style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;"
                         title="Текущее время">Сейчас</button>
                 </div>
-                <input type="time" id="edit-dt-start"
+                <input type="text" inputmode="numeric" class="time-mask-input" id="edit-dt-start" placeholder="--:--" maxlength="5" autocomplete="off"
                     oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()"
                     style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center; color-scheme: dark; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff;">
             </div>
@@ -1845,7 +1845,7 @@
                         style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;"
                         title="Текущее время">Сейчас</button>
                 </div>
-                <input type="time" id="edit-dt-end"
+                <input type="text" inputmode="numeric" class="time-mask-input" id="edit-dt-end" placeholder="--:--" maxlength="5" autocomplete="off"
                     oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()"
                     style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center; color-scheme: dark; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff;">
             </div>
@@ -1902,6 +1902,6 @@
 {% block scripts %}
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/modules/shifts/shifts.js?v=20261106_v1"></script>
+    <script src="/static/modules/shifts/shifts.js?v=20261106_time_mask_v1"></script>
     <script src="/static/modules/shifts/downtimes_tab.js?v=20261105_v1"></script>
 {% endblock %}
