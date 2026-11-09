@@ -447,8 +447,8 @@ def get_daily_report(
             total_s += r.lfm_sheets
             
         for b in s.batches:
-            total_1st += (b.ds_first_grade or 0)
-            total_def += (b.ds_defect or 0)
+            total_1st += (b.qcd_first_grade if b.qcd_verified else ((b.ds_first_grade or 0) + (b.prev_first_grade or 0)))
+            total_def += (b.qcd_defect if b.qcd_verified else ((b.ds_defect or 0) + (b.prev_defect or 0)))
             
         slot_key = (line_key, day_key, s_name)
         if slot_key not in processed_slots:
@@ -1147,11 +1147,11 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
                         ds_first = pb.first_grade
                         ds_defect = pb.defect
                     else:
-                        ds_first = sum(b.ds_first_grade for sh in slot_shifts for b in sh.batches)
-                        ds_defect = sum(b.ds_defect for sh in slot_shifts for b in sh.batches)
+                        ds_first = sum((b.qcd_first_grade if b.qcd_verified else ((b.ds_first_grade or 0) + (b.prev_first_grade or 0))) for sh in slot_shifts for b in sh.batches)
+                        ds_defect = sum((b.qcd_defect if b.qcd_verified else ((b.ds_defect or 0) + (b.prev_defect or 0))) for sh in slot_shifts for b in sh.batches)
                         
-                    qcd_first = sum(b.ds_first_grade for sh in slot_shifts for b in sh.batches)
-                    qcd_defect = sum(b.ds_defect for sh in slot_shifts for b in sh.batches)
+                    qcd_first = sum((b.qcd_first_grade if b.qcd_verified else ((b.ds_first_grade or 0) + (b.prev_first_grade or 0))) for sh in slot_shifts for b in sh.batches)
+                    qcd_defect = sum((b.qcd_defect if b.qcd_verified else ((b.ds_defect or 0) + (b.prev_defect or 0))) for sh in slot_shifts for b in sh.batches)
                     
                     sanitary_note = ""
                     for dt in s.downtimes:
@@ -1383,8 +1383,8 @@ def get_report_summary(
             warehouse_gp = warehouse_gp_check if not is_other_master else 0
             curr_warehouse_gp = curr_warehouse_gp_check if not is_other_master else 0
             prev_condition = prev_warehouse_gp_check if not is_other_master else 0
-            first_grade = sum((b.ds_first_grade or 0) for b in batches) if (batches and not is_other_master) else 0
-            qcd_defect = sum((b.ds_defect or 0) for b in batches) if (batches and not is_other_master) else 0
+            first_grade = sum((b.qcd_first_grade if b.qcd_verified else ((b.ds_first_grade or 0) + (b.prev_first_grade or 0))) for b in batches) if (batches and not is_other_master) else 0
+            qcd_defect = sum((b.qcd_defect if b.qcd_verified else ((b.ds_defect or 0) + (b.prev_defect or 0))) for b in batches) if (batches and not is_other_master) else 0
         
             ds_defects = {
                 "ds_defect_chip": sum((b.ds_defect_chip or 0) for b in batches) if (batches and not is_other_master) else 0,
