@@ -86,6 +86,20 @@ def serve_tenant_module(
     if clean_module == "admin" and not ctx.is_admin:
         raise HTTPException(status_code=403, detail="Доступ в панель администратора запрещен")
 
+    # Модули с широкой табличной сеткой и автономной навигацией (без сплющивания до 1360px и без дублирующих вкладок)
+    base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+    if clean_module in ("tasks", "planner"):
+        resp = FileResponse(os.path.join(base_dir, "tasks.html"), headers=HTML_NO_CACHE_HEADERS)
+        resp.headers["X-Plant-ID"] = plant_slug
+        resp.headers["X-Workshop-ID"] = workshop_slug
+        return resp
+
+    if clean_module in ("docs", "kb", "knowledge"):
+        resp = FileResponse(os.path.join(base_dir, "docs.html"), headers=HTML_NO_CACHE_HEADERS)
+        resp.headers["X-Plant-ID"] = plant_slug
+        resp.headers["X-Workshop-ID"] = workshop_slug
+        return resp
+
     template_relative = f"modules/{clean_module}/index.html"
     template_full = os.path.join(templates_dir, "modules", clean_module, "index.html")
 

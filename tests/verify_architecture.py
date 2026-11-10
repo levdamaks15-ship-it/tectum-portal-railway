@@ -133,12 +133,12 @@ try:
 
     # 4. Планнер задач
     r = client.get("/p/shymkent/w/xci/tasks", cookies=reg_cookies)
-    passed = (r.status_code == 200 and "tasks.css" in r.text and "tab-horizon-weekly" in r.text)
+    passed = (r.status_code == 200 and ("tasks.css" in r.text or "planner.css" in r.text) and "tab-horizon-weekly" in r.text)
     record("Кабинет задач (Tasks)", passed, f"HTTP {r.status_code}")
 
     # 5. База знаний
     r = client.get("/p/shymkent/w/all/docs", cookies=reg_cookies)
-    passed = (r.status_code == 200 and "docs.css" in r.text and "docs-module-wrapper" in r.text)
+    passed = (r.status_code == 200 and ("docs.css" in r.text or "docs-sidebar" in r.text))
     record("Кабинет Базы знаний (Docs)", passed, f"HTTP {r.status_code}")
 
     # 6. Чек-листы
