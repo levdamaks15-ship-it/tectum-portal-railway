@@ -3740,11 +3740,6 @@ let currentFolderId = null;
                 }
             }
         });
-    </script>
-    <script src="/static/js/version_guard.js?v=20261101_v6"></script>
-    <script src="/static/js/splash.js?v=20261101_v6"></script>
-    <script src="/static/js/toast.js?v=20261101_v6"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261103_v7">
 
 // HTMX Seamless Navigation Support (Tectum Law 6)
 document.addEventListener('htmx:afterSwap', function(evt) {

@@ -1,5 +1,5 @@
 // Tectum Enterprise Service Worker (PWA & Offline Resilience)
-const CACHE_NAME = 'tectum-pwa-v2.0.1';
+const CACHE_NAME = 'tectum-pwa-v2.0.2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
