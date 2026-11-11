@@ -1426,7 +1426,8 @@ def get_downtimes_report_summary(
                     "annual_revenue_loss_tenge": round((p["lost_revenue"] / num_days) * 365.0, 2),
                     "annual_lost_sheets": int(round((p["lost_sheets"] / num_days) * 365.0)),
                     "annual_lost_hours": round(((dur / 60.0) / num_days) * 365.0, 1),
-                    "percentage_of_pure_time": round(pct_time, 4)
+                    "percentage_of_pure_time": round(pct_time, 4),
+                    "share_of_downtime": round((dur / total_downtime_minutes) * 100.0, 2) if total_downtime_minutes > 0 else 0.0
                 })
         c_items.sort(key=lambda x: (
             datetime.strptime(x["date"], "%d.%m.%Y").date() if x.get("date") and x["date"] != "Н/Д" else date.min,
@@ -1450,6 +1451,7 @@ def get_downtimes_report_summary(
             "lost_margin_tenge": round(c_margin, 2),
             "lost_revenue_tenge": round(c_revenue, 2),
             "percentage_of_pure_time": round(c_mins / (total_operating_hours * 60), 4) if total_operating_hours > 0 else 0.0,
+            "share_of_downtime": round((c_mins / total_downtime_minutes) * 100.0, 2) if total_downtime_minutes > 0 else 0.0,
             "count": len(c_items),
             "annualized": {
                 "annual_margin_loss_tenge": annual_margin,
@@ -1637,4 +1639,223 @@ def export_downtimes_to_google_endpoint(
         raise HTTPException(status_code=500, detail=result.get("error", "Ошибка экспорта в Google Sheets"))
 
     return result
+
+
+def compute_weekly_productivity(
+    db: Session,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    line: Optional[str] = "all"
+) -> list:
+    """
+    Вычисляет понедельный производственный баланс и производительность технологических линий (ЛФМ 1 / ЛФМ 2)
+    по утвержденному заводскому стандарту (двухуровневая модель сопоставления плана/факта и простоев).
+    """
+    from datetime import timedelta
+    from sqlalchemy.orm import selectinload, joinedload
+    from sqlalchemy import func, or_, and_
+    from routers.common import get_product_finished_weight_kg
+
+    # 1. Определение диапазона дат
+    if not start_date or not end_date:
+        min_d = db.query(func.min(models.Shift.date)).scalar()
+        max_d = db.query(func.max(models.Shift.date)).scalar()
+        if not min_d:
+            return []
+        start_date = start_date or min_d
+        end_date = end_date or max_d
+
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    # 2. Определение целевых линий
+    if not line or line in ("all", "Все линии", "Все", "СВОД"):
+        target_lines = ["Линия 1", "Линия 2"]
+    elif "1" in str(line):
+        target_lines = ["Линия 1"]
+    else:
+        target_lines = ["Линия 2"]
+
+    # 3. Формирование недельных интервалов (Пн - Вс)
+    cur_monday = start_date - timedelta(days=start_date.weekday())
+    end_sunday = end_date + timedelta(days=(6 - end_date.weekday()))
+
+    # 4. Загрузка смен и простоев в память (защита от N+1)
+    all_shifts = db.query(models.Shift).options(
+        selectinload(models.Shift.lfm_reports)
+    ).filter(
+        models.Shift.date >= cur_monday,
+        models.Shift.date <= end_sunday
+    ).all()
+
+    eff_dt_date = func.coalesce(models.Downtime.actual_date, models.Downtime.date, models.Shift.date)
+    all_dts = db.query(models.Downtime).options(
+        joinedload(models.Downtime.shift)
+    ).outerjoin(models.Shift, models.Downtime.shift_id == models.Shift.id).filter(
+        eff_dt_date >= cur_monday,
+        eff_dt_date <= end_sunday
+    ).all()
+
+    def fmt_hm(mins: int) -> str:
+        return f"{mins // 60}:{mins % 60:02d}"
+
+    def fmt_hms(mins: int) -> str:
+        return f"{mins // 60}:{mins % 60:02d}:00"
+
+    results = []
+    cur = cur_monday
+
+    while cur <= end_sunday:
+        week_end = cur + timedelta(days=6)
+
+        for l_name in target_lines:
+            s_list = [s for s in all_shifts if s.line == l_name and cur <= s.date <= week_end]
+            d_list = []
+            for d in all_dts:
+                d_line = d.line or (d.shift.line if d.shift else None)
+                if d_line != l_name:
+                    continue
+                d_date = d.effective_actual_date or d.record_date
+                if d_date and cur <= d_date <= week_end:
+                    d_list.append(d)
+
+            # Если по линии не было ни смен, ни зафиксированных простоев — пропускаем строку
+            if not s_list and not d_list:
+                continue
+
+            calendar_hours = 168  # 7 суток * 24 ч
+
+            # Факт производства
+            fact_sheets = 0
+            fact_tons = 0.0
+            for s in s_list:
+                w_kg = get_product_finished_weight_kg(db, s.product_name or "Шифер 8 волн рифленый")
+                for lfm in s.lfm_reports:
+                    cnt = lfm.lfm_sheets or 0
+                    fact_sheets += cnt
+                    fact_tons += (cnt * w_kg) / 1000.0
+            fact_tons = round(fact_tons, 2)
+
+            # План производства (Заводской норматив: ЛФМ 2 = 39 000 шт / 764.4 т; ЛФМ 1 = 13 000 шт / 254.8 т)
+            is_l2 = ("2" in l_name)
+            plan_sheets = 39000 if is_l2 else 13000
+            plan_tons = 764.4 if is_l2 else 254.8
+
+            # Агрегация простоев по 5 категориям
+            mech_mins = 0
+            energy_mins = 0
+            tech_mins = 0
+            maint_mins = 0
+            no_stop_mins = 0
+
+            for d in d_list:
+                dur = d.duration or 0
+                is_stop = (d.is_equipment_downtime is not False)
+                c_low = (d.category or "").strip().lower()
+
+                if any(k in c_low for k in ["без простоя", "не связан"]) or (not is_stop):
+                    no_stop_mins += dur
+                elif any(k in c_low for k in ["механ"]):
+                    mech_mins += dur
+                elif any(k in c_low for k in ["энерг", "электр"]):
+                    energy_mins += dur
+                elif any(k in c_low for k in ["то и ппр", "ппр", "санитарный"]):
+                    maint_mins += dur
+                else:
+                    tech_mins += dur
+
+            total_dt_mins = mech_mins + energy_mins + tech_mins + maint_mins + no_stop_mins
+            total_dt_hours = round(total_dt_mins / 60.0, 2)
+
+            # Чистое время работы оборудования
+            clean_hours = max(0.0, round(calendar_hours - total_dt_hours, 2))
+
+            # Недопроизводство
+            underprod_tons = round(plan_tons - fact_tons, 2)
+            underprod_sheets = int(round(plan_sheets - fact_sheets))
+
+            # Производительность (тонн/час и листов/час по формуле Факт / Чистое_время)
+            prod_tons_per_hour = round(fact_tons / clean_hours, 2) if clean_hours > 0 else 0.0
+            prod_sheets_per_hour = round(fact_sheets / clean_hours, 1) if clean_hours > 0 else 0.0
+
+            # Выполнение плана (%)
+            plan_fulfillment_pct = round((fact_tons / plan_tons) * 100.0, 1) if plan_tons > 0 else 0.0
+
+            # Процент простоя от отработанного фонда времени (%)
+            downtime_pct = round((total_dt_hours / calendar_hours) * 100.0, 2) if calendar_hours > 0 else 0.0
+
+            line_display = "ЛФМ 2" if is_l2 else "ЛФМ 1"
+
+            results.append({
+                "start_date": cur.strftime("%d.%m.%Y"),
+                "end_date": week_end.strftime("%d.%m.%Y"),
+                "plan_tons": plan_tons,
+                "plan_sheets": plan_sheets,
+                "fact_tons": fact_tons,
+                "fact_sheets": fact_sheets,
+                "clean_hours": clean_hours,
+                "underprod_tons": underprod_tons,
+                "underprod_sheets": underprod_sheets,
+                "prod_tons_per_hour": prod_tons_per_hour,
+                "prod_sheets_per_hour": prod_sheets_per_hour,
+                "plan_fulfillment_pct": plan_fulfillment_pct,
+                "calendar_hours": calendar_hours,
+                "mech_minutes": mech_mins,
+                "mech_formatted": fmt_hm(mech_mins),
+                "energy_minutes": energy_mins,
+                "energy_formatted": fmt_hm(energy_mins),
+                "tech_minutes": tech_mins,
+                "tech_formatted": fmt_hm(tech_mins),
+                "maint_minutes": maint_mins,
+                "maint_formatted": fmt_hm(maint_mins),
+                "no_stop_minutes": no_stop_mins,
+                "no_stop_formatted": fmt_hm(no_stop_mins),
+                "total_downtime_minutes": total_dt_mins,
+                "total_downtime_hours": total_dt_hours,
+                "total_downtime_formatted": fmt_hms(total_dt_mins),
+                "downtime_pct": downtime_pct,
+                "line": line_display
+            })
+
+        cur += timedelta(days=7)
+
+    return results
+
+
+@router.get("/api/downtimes/weekly-productivity")
+def get_weekly_productivity_endpoint(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    line: Optional[str] = "all",
+    db: Session = Depends(get_db)
+):
+    """
+    API эндпоинт получения данных недельной производительности и баланса времени ЛФМ 1 / ЛФМ 2.
+    """
+    sd = None
+    ed = None
+    if start_date:
+        try:
+            sd = datetime.strptime(start_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            try:
+                sd = datetime.strptime(start_date.strip(), "%d.%m.%Y").date()
+            except Exception:
+                pass
+    if end_date:
+        try:
+            ed = datetime.strptime(end_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            try:
+                ed = datetime.strptime(end_date.strip(), "%d.%m.%Y").date()
+            except Exception:
+                pass
+
+    weeks_data = compute_weekly_productivity(db, start_date=sd, end_date=ed, line=line)
+    return {
+        "success": True,
+        "weeks": weeks_data,
+        "count": len(weeks_data)
+    }
+
 

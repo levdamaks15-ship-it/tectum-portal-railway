@@ -929,6 +929,117 @@
         }
     }
 
+    // Загрузка и рендер интерактивной таблицы недельной производительности
+    async function loadAndRenderWeeklyProductivity(startDate, endDate, line) {
+        const wrapper = document.getElementById('dt-weekly-table-wrapper');
+        const badge = document.getElementById('dt-weekly-loading-badge');
+        if (!wrapper) return;
+        if (badge) badge.style.display = 'inline-block';
+
+        try {
+            const params = new URLSearchParams();
+            if (startDate) params.set('start_date', startDate);
+            if (endDate) params.set('end_date', endDate);
+            if (line && line !== 'all') params.set('line', line);
+
+            const res = await fetch(`/api/downtimes/weekly-productivity?${params.toString()}`);
+            if (!res.ok) throw new Error('Сбой загрузки недельной производительности');
+            const json = await res.json();
+            const weeks = json.weeks || [];
+
+            if (weeks.length === 0) {
+                wrapper.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #94a3b8; font-size: 0.95rem;">
+                        <i class="fa-solid fa-calendar-xmark" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.5;"></i>
+                        За выбранный период производственные недели не найдены
+                    </div>
+                `;
+                return;
+            }
+
+            let tableHtml = `
+            <table class="dt-matrix-table" style="font-size: 0.88rem; width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #e2e8f0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3px;">
+                        <th rowspan="2" style="text-align: center; width: 95px; border-right: 1px solid #cbd5e1;">Начало</th>
+                        <th rowspan="2" style="text-align: center; width: 95px; border-right: 1px solid #cbd5e1;">Конец</th>
+                        <th colspan="2" style="text-align: center; border-right: 1px solid #cbd5e1; background: #e0e7ff; color: #3730a3;">План на неделю</th>
+                        <th colspan="2" style="text-align: center; border-right: 1px solid #cbd5e1; background: #dcfce7; color: #166534;">Произведено</th>
+                        <th rowspan="2" style="text-align: center; width: 90px; border-right: 1px solid #cbd5e1; background: #fef9c3; color: #854d0e;">Чистое время (ч)</th>
+                        <th colspan="2" style="text-align: center; border-right: 1px solid #cbd5e1; background: #fee2e2; color: #991b1b;">Недопроизвели</th>
+                        <th colspan="2" style="text-align: center; border-right: 1px solid #cbd5e1; background: #f1f5f9; color: #0f172a;">Производительность</th>
+                        <th rowspan="2" style="text-align: center; width: 85px; border-right: 1px solid #cbd5e1;">План %</th>
+                        <th rowspan="2" style="text-align: center; width: 70px; border-right: 1px solid #cbd5e1;">Фонд ч</th>
+                        <th rowspan="2" style="text-align: center; width: 65px; border-right: 1px solid #cbd5e1;">Мех</th>
+                        <th rowspan="2" style="text-align: center; width: 65px; border-right: 1px solid #cbd5e1;">Энерг</th>
+                        <th rowspan="2" style="text-align: center; width: 65px; border-right: 1px solid #cbd5e1;">Техн</th>
+                        <th rowspan="2" style="text-align: center; width: 70px; border-right: 1px solid #cbd5e1;">ТО/ППР</th>
+                        <th rowspan="2" style="text-align: center; width: 70px; border-right: 1px solid #cbd5e1;">Без ост</th>
+                        <th rowspan="2" style="text-align: center; width: 85px; border-right: 1px solid #cbd5e1; color: #dc2626;">Простой</th>
+                        <th rowspan="2" style="text-align: center; width: 80px; border-right: 1px solid #cbd5e1;">% простоя</th>
+                        <th rowspan="2" style="text-align: center; width: 80px;">Линия</th>
+                    </tr>
+                    <tr style="background: #f8fafc; font-size: 0.76rem; font-weight: 700; color: #475569;">
+                        <th style="text-align: right; width: 70px; border-right: 1px solid #cbd5e1;">т</th>
+                        <th style="text-align: right; width: 75px; border-right: 1px solid #cbd5e1;">л</th>
+                        <th style="text-align: right; width: 70px; border-right: 1px solid #cbd5e1;">т</th>
+                        <th style="text-align: right; width: 75px; border-right: 1px solid #cbd5e1;">л</th>
+                        <th style="text-align: right; width: 70px; border-right: 1px solid #cbd5e1;">т</th>
+                        <th style="text-align: right; width: 75px; border-right: 1px solid #cbd5e1;">л</th>
+                        <th style="text-align: right; width: 70px; border-right: 1px solid #cbd5e1;">т/ч</th>
+                        <th style="text-align: right; width: 70px; border-right: 1px solid #cbd5e1;">л/ч</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            weeks.forEach(w => {
+                const planPillColor = w.plan_fulfillment_pct >= 100 ? '#059669' : (w.plan_fulfillment_pct >= 85 ? '#2563eb' : '#dc2626');
+                const underTonsColor = w.underprod_tons > 0 ? '#dc2626' : '#059669';
+                const underSheetsColor = w.underprod_sheets > 0 ? '#dc2626' : '#059669';
+                const lineBadge = w.line === 'ЛФМ 1' ? 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;' : 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;';
+
+                tableHtml += `
+                    <tr>
+                        <td style="text-align: center; font-weight: 600; font-family: monospace;">${w.start_date}</td>
+                        <td style="text-align: center; font-weight: 600; font-family: monospace;">${w.end_date}</td>
+                        <td style="text-align: right; font-family: monospace; color: #4338ca;">${w.plan_tons}</td>
+                        <td style="text-align: right; font-family: monospace; color: #4338ca;">${w.plan_sheets.toLocaleString()}</td>
+                        <td style="text-align: right; font-family: monospace; font-weight: 700; color: #047857;">${w.fact_tons}</td>
+                        <td style="text-align: right; font-family: monospace; font-weight: 700; color: #047857;">${w.fact_sheets.toLocaleString()}</td>
+                        <td style="text-align: center; font-family: monospace; font-weight: 700; background: #fffbeb; color: #92400e;">${w.clean_hours} ч</td>
+                        <td style="text-align: right; font-family: monospace; font-weight: 600; color: ${underTonsColor};">${w.underprod_tons}</td>
+                        <td style="text-align: right; font-family: monospace; font-weight: 600; color: ${underSheetsColor};">${w.underprod_sheets.toLocaleString()}</td>
+                        <td style="text-align: right; font-family: monospace; font-weight: 800; color: #0f172a;">${w.prod_tons_per_hour.toFixed(2)}</td>
+                        <td style="text-align: right; font-family: monospace; font-weight: 800; color: #0f172a;">${w.prod_sheets_per_hour.toFixed(1)}</td>
+                        <td style="text-align: center; font-family: monospace; font-weight: 800; color: ${planPillColor};">${w.plan_fulfillment_pct}%</td>
+                        <td style="text-align: center; font-family: monospace; color: #64748b;">${w.calendar_hours}</td>
+                        <td style="text-align: center; font-family: monospace; color: #64748b;">${w.mech_formatted}</td>
+                        <td style="text-align: center; font-family: monospace; color: #64748b;">${w.energy_formatted}</td>
+                        <td style="text-align: center; font-family: monospace; color: #64748b;">${w.tech_formatted}</td>
+                        <td style="text-align: center; font-family: monospace; color: #64748b;">${w.maint_formatted}</td>
+                        <td style="text-align: center; font-family: monospace; color: #64748b;">${w.no_stop_formatted}</td>
+                        <td style="text-align: center; font-family: monospace; font-weight: 700; color: #dc2626;">${w.total_downtime_formatted}</td>
+                        <td style="text-align: center; font-family: monospace; font-weight: 700; color: #dc2626;">${w.downtime_pct}%</td>
+                        <td style="text-align: center;"><span style="padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; ${lineBadge}">${w.line}</span></td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += `</tbody></table>`;
+            wrapper.innerHTML = tableHtml;
+        } catch (err) {
+            console.error('Ошибка загрузки недельной производительности:', err);
+            wrapper.innerHTML = `
+                <div style="text-align: center; padding: 1.5rem; color: #ef4444; font-size: 0.9rem;">
+                    Не удалось загрузить недельную производительность (${err.message})
+                </div>
+            `;
+        } finally {
+            if (badge) badge.style.display = 'none';
+        }
+    }
+
     // Рендер сводного отчета
     function renderSummaryReport(data) {
         const container = document.getElementById('dt-summary-content');
@@ -990,16 +1101,16 @@
                     </div>
                 </div>
 
-                <!-- 4. Годовой эквивалент потерь (Annual Risk) -->
-                <div class="dt-kpi-card-item annual-risk">
+                <!-- 4. Часы простоев линии -->
+                <div class="dt-kpi-card-item" style="border-left: 4px solid #dc2626;">
                     <div class="kpi-label">
-                        <span>Годовой риск потерь</span>
-                        <span class="dt-annual-pill">365 дней</span>
+                        <span>Всего часов простоев</span>
+                        <span class="dt-annual-pill" style="background: #fee2e2; color: #991b1b;">Стоп: ${k.total_stop_formatted || '0:00:00'}</span>
                     </div>
-                    <div class="kpi-val">-${Math.round(ann.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</div>
-                    <div class="dt-sub-metric" style="color: #9f1239;">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>-${(ann.annual_lost_sheets || 0).toLocaleString()} шт/год · ${(ann.annual_lost_hours || 0)} ч/год</span>
+                    <div class="kpi-val" style="color: #dc2626;">${k.total_downtime_formatted || '0:00:00'}</div>
+                    <div class="dt-sub-metric" style="color: #991b1b;">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <span>Потери фонда: <b>${((k.total_downtime_minutes || 0) / Math.max(1, (k.total_operating_hours || 1) * 60) * 100).toFixed(2)}%</b> времени</span>
                     </div>
                 </div>
             </div>
@@ -1032,13 +1143,13 @@
 
         html += `</div></div>`;
 
-        // 2. СВОДНАЯ МАТРИЦА: Связь категорий простоев с производительностью и финансами
+        // 2. СВОДНАЯ МАТРИЦА: Связь простоев по категориям с выработкой (без тенге, доли сходятся в 100%)
         html += `
         <div class="dt-summary-matrix-card">
             <div class="dt-summary-matrix-header">
                 <div>
                     <h4 style="margin: 0; font-size: 1.08rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                        <span>📈</span> Связь простоев по категориям с выработкой и финансами
+                        <span>📈</span> Связь простоев по категориям с выработкой продукции
                     </h4>
                     <span style="font-size: 0.84rem; color: #64748b; margin-top: 3px; display: inline-block;">
                         Расчет формования: 1 накат = 24 с (6 об.) = 2 листа · Скорость линии = 5 листов/мин (300 шт/ч)
@@ -1055,8 +1166,7 @@
                             <th style="text-align: right; width: 105px;">Накатов</th>
                             <th style="text-align: right; width: 130px;">Потеряно листов</th>
                             <th style="text-align: right; width: 115px;">Потеряно тонн</th>
-                            <th style="text-align: right; width: 185px; color: #9f1239;">Годовой эквивалент (₸/год)</th>
-                            <th style="text-align: right; width: 90px;">Доля</th>
+                            <th style="text-align: right; width: 120px;">Доля в простоях</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1065,8 +1175,10 @@
         let sumRolls = 0;
         cats.forEach(c => {
             sumRolls += (c.lost_rolls || 0);
-            const cAnn = c.annualized || {};
             const isUnclass = (c.key === 'unclassified');
+            const cShare = (c.share_of_downtime !== undefined && c.share_of_downtime !== null)
+                ? c.share_of_downtime
+                : ((k.total_downtime_minutes > 0) ? ((c.total_minutes / k.total_downtime_minutes) * 100) : 0);
 
             html += `
             <tr style="${isUnclass && c.count > 0 ? 'background: #fff5f5;' : ''}">
@@ -1090,11 +1202,8 @@
                 <td style="text-align: right; font-family: monospace; color: #475569;">
                     ${c.lost_tons ? '-' + c.lost_tons.toFixed(2) + ' т' : '0.00 т'}
                 </td>
-                <td style="text-align: right; font-family: monospace; font-weight: 800; color: ${cAnn.annual_margin_loss_tenge ? '#9f1239' : '#64748b'};">
-                    ${cAnn.annual_margin_loss_tenge ? '-' + Math.round(cAnn.annual_margin_loss_tenge).toLocaleString() + ' ₸/год' : '0 ₸'}
-                </td>
-                <td style="text-align: right; font-family: monospace; font-weight: 600; color: #64748b;">
-                    ${((c.percentage_of_pure_time || 0) * 100).toFixed(2)}%
+                <td style="text-align: right; font-family: monospace; font-weight: 700; color: #0f172a;">
+                    ${cShare.toFixed(2)}%
                 </td>
             </tr>
             `;
@@ -1110,11 +1219,32 @@
                             <td style="text-align: right; font-family: monospace;">${sumRolls.toLocaleString()}</td>
                             <td style="text-align: right; font-family: monospace; color: #dc2626;">-${(k.total_lost_sheets || 0).toLocaleString()} шт</td>
                             <td style="text-align: right; font-family: monospace; color: #ea580c;">-${(k.total_lost_tons || 0)} т</td>
-                            <td style="text-align: right; font-family: monospace; font-weight: 800; color: #9f1239;">-${Math.round(ann.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</td>
-                            <td style="text-align: right; font-family: monospace;">100%</td>
+                            <td style="text-align: right; font-family: monospace; font-weight: 800; color: #059669;">100%</td>
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+        </div>
+
+        <!-- 2.5. Блок Недельной производительности (по эталону со скриншота технолога) -->
+        <div class="dt-summary-matrix-card" id="dt-weekly-productivity-container" style="margin-top: 1.25rem;">
+            <div class="dt-summary-matrix-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <h4 style="margin: 0; font-size: 1.08rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                        <span>⏱️</span> Недельная производительность и баланс времени ЛФМ 1 / ЛФМ 2
+                    </h4>
+                    <span style="font-size: 0.84rem; color: #64748b; margin-top: 3px; display: inline-block;">
+                        Сопоставление плановой и фактической выработки, чистого машинного времени и темпа формовки (т/ч, л/ч)
+                    </span>
+                </div>
+                <div id="dt-weekly-loading-badge" style="display: none; font-size: 0.82rem; color: #2563eb; font-weight: 600;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Загрузка недель...
+                </div>
+            </div>
+            <div class="dt-table-responsive" id="dt-weekly-table-wrapper" style="overflow-x: auto;">
+                <div style="text-align: center; padding: 1.5rem; color: #64748b; font-size: 0.9rem;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Подготовка данных недельной производительности...
+                </div>
             </div>
         </div>
         `;
@@ -1164,7 +1294,7 @@
                         ` : ''}
                     </div>
                     <span style="font-size: 0.92rem; font-family: monospace;">
-                        Итого: <b>${c.total_formatted}</b> · Потери: <b>-${(c.lost_sheets || 0).toLocaleString()} шт</b> (${(c.percentage_of_pure_time * 100).toFixed(2)}% времени) · Риск: <b>-${Math.round(cAnn.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</b>
+                        Итого: <b>${c.total_formatted}</b> · Потери: <b>-${(c.lost_sheets || 0).toLocaleString()} шт</b> (${(c.lost_tons ? '-' + Number(c.lost_tons).toFixed(2) + ' т' : '0.00 т')}) · Доля: <b>${(c.share_of_downtime !== undefined && c.share_of_downtime !== null ? c.share_of_downtime : ((k.total_downtime_minutes > 0) ? (c.total_minutes / k.total_downtime_minutes * 100) : 0)).toFixed(1)}% в простоях</b>
                     </span>
                 </div>
                 <div class="dt-table-responsive">
@@ -1178,8 +1308,8 @@
                                 <th style="width: 80px; text-align: center;">Конец</th>
                                 <th style="width: 90px; text-align: center;">Время</th>
                                 <th style="width: 110px; text-align: right;">Листов</th>
-                                <th style="width: 155px; text-align: right; color: #9f1239;">Потери в год (₸)</th>
-                                <th style="width: 85px; text-align: right;">Доля</th>
+                                <th style="width: 115px; text-align: right;">Потеряно тонн</th>
+                                <th style="width: 100px; text-align: right;">Доля в простоях</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1189,6 +1319,10 @@
                 html += `<tr><td colspan="9" style="text-align: center; color: #94a3b8; padding: 1.4rem; font-size: 0.95rem;">Инциденты отсутствуют</td></tr>`;
             } else {
                 c.items.forEach(item => {
+                    const itmShare = (item.share_of_downtime !== undefined && item.share_of_downtime !== null)
+                        ? item.share_of_downtime
+                        : ((k.total_downtime_minutes > 0) ? (item.duration_minutes / k.total_downtime_minutes * 100) : 0);
+
                     html += `
                     <tr>
                         <td style="font-weight: 600; font-size: 0.92rem;">${item.date}</td>
@@ -1206,10 +1340,12 @@
                         <td style="text-align: right; font-family: monospace; font-weight: 700; font-size: 0.95rem; color: ${item.lost_sheets ? '#dc2626' : '#64748b'};">
                             ${item.lost_sheets ? '-' + item.lost_sheets.toLocaleString() + ' шт' : '—'}
                         </td>
-                        <td style="text-align: right; font-family: monospace; font-weight: 800; font-size: 0.95rem; color: ${item.annual_margin_loss_tenge ? '#9f1239' : '#64748b'};">
-                            ${item.annual_margin_loss_tenge ? '-' + Math.round(item.annual_margin_loss_tenge).toLocaleString() + ' ₸/год' : '0 ₸'}
+                        <td style="text-align: right; font-family: monospace; font-weight: 600; font-size: 0.95rem; color: #475569;">
+                            ${item.lost_tons ? '-' + Number(item.lost_tons).toFixed(2) + ' т' : '—'}
                         </td>
-                        <td style="text-align: right; font-family: monospace; font-weight: 600; font-size: 0.9rem; color: #475569;">${(item.percentage_of_pure_time * 100).toFixed(3)}%</td>
+                        <td style="text-align: right; font-family: monospace; font-weight: 600; font-size: 0.9rem; color: #475569;">
+                            ${itmShare.toFixed(2)}%
+                        </td>
                     </tr>
                     `;
                 });
@@ -1224,6 +1360,7 @@
         });
 
         container.innerHTML = html;
+        loadAndRenderWeeklyProductivity(dtCurrentFilter.start_date, dtCurrentFilter.end_date, dtCurrentFilter.line);
     }
 
     // Экспорт в Google Таблицу по кнопке со сквозной фильтрацией
