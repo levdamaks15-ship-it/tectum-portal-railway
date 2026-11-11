@@ -1226,7 +1226,7 @@
         container.innerHTML = html;
     }
 
-    // Экспорт в Google Таблицу по кнопке
+    // Экспорт в Google Таблицу по кнопке со сквозной фильтрацией
     window.exportDowntimesToGoogleSheets = async function (btnEl) {
         if (!btnEl) btnEl = document.getElementById('btn-export-downtimes-google');
         const origText = btnEl ? btnEl.innerHTML : '';
@@ -1242,12 +1242,27 @@
             const startDate = sInput ? sInput.value : dtCurrentFilter.start_date;
             const endDate = eInput ? eInput.value : dtCurrentFilter.end_date;
 
+            const lineSelect = document.getElementById('dt-filter-line');
+            const lineVal = lineSelect ? lineSelect.value : (dtCurrentFilter.line || 'all');
+
+            const catSelect = document.getElementById('dt-filter-category');
+            const catVal = catSelect ? catSelect.value : (dtCurrentFilter.category || 'all');
+
+            const unclassVal = Boolean(dtCurrentFilter.unclassified_only);
+
+            const searchInput = document.getElementById('dt-filter-search');
+            const searchVal = searchInput ? searchInput.value.trim() : (dtCurrentFilter.search || '');
+
             const res = await fetch('/api/downtimes/export/google-sheets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     start_date: startDate,
-                    end_date: endDate
+                    end_date: endDate,
+                    line: lineVal,
+                    category: catVal,
+                    unclassified_only: unclassVal,
+                    search: searchVal
                 })
             });
 
@@ -1257,7 +1272,7 @@
             }
 
             const url = data.spreadsheet_url || 'https://docs.google.com/spreadsheets/d/1Til9axXv7_U6TLsfYr3Cd4pKufuxnV8FY4F5QKfG5Qk/edit';
-            showDtModalSuccess(url, data.sheets_updated || ['Простои ЛФМ 1', 'Простои ЛФМ 2', 'Простои СВОД']);
+            showDtModalSuccess(url, data.sheets_updated || ['Сводная аналитика', 'Реестр простоев'], data.records_exported);
         } catch (e) {
             console.error(e);
             showDtToast(`Ошибка экспорта: ${e.message}`, 'error');
@@ -1270,7 +1285,7 @@
     };
 
     // Модальное окно успешного экспорта
-    function showDtModalSuccess(spreadsheetUrl, sheets) {
+    function showDtModalSuccess(spreadsheetUrl, sheets, recordsCount) {
         let modal = document.getElementById('dt-export-success-modal');
         if (!modal) {
             modal = document.createElement('div');
@@ -1280,6 +1295,7 @@
         }
 
         const sheetsListHtml = sheets.map(s => `<li style="margin-bottom: 4px;">📗 <b>${s}</b></li>`).join('');
+        const recordsHtml = recordsCount !== undefined ? `<div style="font-size: 0.8rem; color: #15803d; font-weight: 700; margin-top: 6px;">✓ Выгружено записей простоев: ${recordsCount} шт.</div>` : '';
 
         modal.innerHTML = `
         <div style="background: #ffffff; border-radius: 16px; padding: 1.75rem; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); animation: dtFadeIn 0.2s ease-out;">
@@ -1298,6 +1314,22 @@
                 <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.84rem; color: #1e293b;">
                     ${sheetsListHtml}
                 </ul>
+                ${recordsHtml}
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn-dt-action" onclick="document.getElementById('dt-export-success-modal').style.display='none'">
+                    Закрыть
+                </button>
+                <a href="${spreadsheetUrl}" target="_blank" class="btn-dt-action primary-sheets" style="text-decoration: none;" onclick="document.getElementById('dt-export-success-modal').style.display='none'">
+                    <span>Открыть таблицу</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+            </div>
+        </div>
+        `;
+        modal.style.display = 'flex';
+    }
             </div>
 
             <div style="display: flex; gap: 10px; justify-content: flex-end;">

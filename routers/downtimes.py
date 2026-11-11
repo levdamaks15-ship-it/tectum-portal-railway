@@ -1608,6 +1608,7 @@ def export_downtimes_to_google_endpoint(
 ):
     """
     Экспорт отчета по простоям в отдельную Google Таблицу (DOWNTIMES_SPREADSHEET_ID).
+    Поддерживает фильтрацию по датам, линии, категории, признаку классификации и поисковому запросу.
     """
     check_technologist_or_admin(request, db)
     if not google_sheets_integration:
@@ -1615,11 +1616,22 @@ def export_downtimes_to_google_endpoint(
 
     start_date = payload.get("start_date")
     end_date = payload.get("end_date")
+    line = payload.get("line", "all")
+    category = payload.get("category", "all")
+    unclassified_only = bool(payload.get("unclassified_only", False))
+    search = payload.get("search")
+
     if not start_date or not end_date:
         raise HTTPException(status_code=400, detail="Необходимо указать start_date и end_date")
 
     result = google_sheets_integration.export_downtime_technologist_report_to_google_sheets(
-        db, start_date, end_date
+        db=db,
+        start_date_str=start_date,
+        end_date_str=end_date,
+        line=line,
+        category=category,
+        unclassified_only=unclassified_only,
+        search=search
     )
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error", "Ошибка экспорта в Google Sheets"))
