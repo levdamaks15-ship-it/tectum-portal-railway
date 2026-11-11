@@ -1330,21 +1330,6 @@
         `;
         modal.style.display = 'flex';
     }
-            </div>
-
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button type="button" class="btn-dt-action" onclick="document.getElementById('dt-export-success-modal').style.display='none'">
-                    Закрыть
-                </button>
-                <a href="${spreadsheetUrl}" target="_blank" class="btn-dt-action primary-sheets" style="text-decoration: none;" onclick="document.getElementById('dt-export-success-modal').style.display='none'">
-                    <span>Открыть таблицу</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-            </div>
-        </div>
-        `;
-        modal.style.display = 'flex';
-    }
 
     // Всплывающие уведомления (Toasts)
     function showDtToast(msg, type = 'info') {
