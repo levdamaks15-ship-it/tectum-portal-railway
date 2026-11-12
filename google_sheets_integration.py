@@ -3846,36 +3846,64 @@ def export_downtime_technologist_report_to_google_sheets(
 
     updated_sheets = []
 
-    def get_or_rename_sheet(target_title: str, legacy_titles: list) -> int:
-        spreadsheet = service.spreadsheets().get(spreadsheetId=DOWNTIMES_SPREADSHEET_ID).execute()
-        for sh in spreadsheet.get("sheets", []):
-            if sh["properties"]["title"] == target_title:
-                return sh["properties"]["sheetId"]
-        for sh in spreadsheet.get("sheets", []):
-            if sh["properties"]["title"] in legacy_titles:
-                sh_id = sh["properties"]["sheetId"]
-                try:
-                    service.spreadsheets().batchUpdate(
-                        spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
-                        body={"requests": [{
-                            "updateSheetProperties": {
-                                "properties": {"sheetId": sh_id, "title": target_title},
-                                "fields": "title"
-                            }
-                        }]}
-                    ).execute()
-                    return sh_id
-                except Exception:
-                    pass
-        return get_or_create_sheet(service, DOWNTIMES_SPREADSHEET_ID, target_title)
+    summary_sheet_title = "Аналитика простоев"
+    weekly_sheet_title = "Недельная производительность"
+    all_dts_sheet_title = "База всех простоев"
+
+    summary_sheet_id = get_or_create_sheet(service, DOWNTIMES_SPREADSHEET_ID, summary_sheet_title)
+    weekly_sheet_id = get_or_create_sheet(service, DOWNTIMES_SPREADSHEET_ID, weekly_sheet_title)
+    all_dts_sheet_id = get_or_create_sheet(service, DOWNTIMES_SPREADSHEET_ID, all_dts_sheet_title)
+
+    # Очистка устаревших листов старого Excel-шаблона и фиксация порядка вкладок (1: Аналитика, 2: Недельная, 3: База)
+    legacy_sheet_names = [
+        "Простои ЛФМ 1", "Простои ЛФМ 2", "Простои СВОД",
+        "Сводная аналитика", "Реестр простоев", "Производительность", "Недельная выработка", "Все простои"
+    ]
+    try:
+        sp = service.spreadsheets().get(spreadsheetId=DOWNTIMES_SPREADSHEET_ID).execute()
+        existing_sheets = sp.get("sheets", [])
+        cleanup_reqs = []
+
+        # 1. Удаление устаревших листов старого Excel-шаблона
+        for sh in existing_sheets:
+            s_prop = sh.get("properties", {})
+            s_title = s_prop.get("title")
+            s_id = s_prop.get("sheetId")
+            if s_title in legacy_sheet_names and s_id not in (summary_sheet_id, weekly_sheet_id, all_dts_sheet_id):
+                cleanup_reqs.append({"deleteSheet": {"sheetId": s_id}})
+
+        # 2. Фиксация строгого порядка вкладок: index 0 (Аналитика), index 1 (Недельная), index 2 (База)
+        cleanup_reqs.append({
+            "updateSheetProperties": {
+                "properties": {"sheetId": summary_sheet_id, "index": 0},
+                "fields": "index"
+            }
+        })
+        cleanup_reqs.append({
+            "updateSheetProperties": {
+                "properties": {"sheetId": weekly_sheet_id, "index": 1},
+                "fields": "index"
+            }
+        })
+        cleanup_reqs.append({
+            "updateSheetProperties": {
+                "properties": {"sheetId": all_dts_sheet_id, "index": 2},
+                "fields": "index"
+            }
+        })
+
+        if cleanup_reqs:
+            service.spreadsheets().batchUpdate(
+                spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
+                body={"requests": cleanup_reqs}
+            ).execute()
+    except Exception as e:
+        print(f"Предупреждение при очистке/упорядочивании листов: {e}")
 
     # =========================================================================
     # ЛИСТ 1: «Аналитика простоев» (Сводка без финансовых полей, сумма долей 100%)
     # =========================================================================
-    summary_sheet_title = "Аналитика простоев"
     try:
-        summary_sheet_id = get_or_rename_sheet(summary_sheet_title, ["Сводная аналитика"])
-
         summary_rows = []
         # Row 1 (Header Title)
         summary_rows.append(["АНАЛИТИЧЕСКИЙ ОТЧЕТ ПО ПРОСТОЯМ ОБОРУДОВАНИЯ", "", "", "", "", "", "", "", "", ""])
@@ -3925,8 +3953,7 @@ def export_downtime_technologist_report_to_google_sheets(
             "Потеряно накатов", "Потеряно листов (шт)", "Потеряно тонн (т)", "Доля в простоях (%)"
         ])
 
-        # Rows 9..14 (Matrix Data Rows per Category)
-        matrix_start_row = 9
+        # Rows 9..14 (Matrix Data Rows per Category - точные предрассчитанные доли)
         for idx, cdef in enumerate(cat_defs):
             c_items = [p for p in processed_items if p["cat_key"] == cdef["key"]]
             c_count = len(c_items)
@@ -3934,7 +3961,7 @@ def export_downtime_technologist_report_to_google_sheets(
             c_rolls = sum(p["rolls"] for p in c_items)
             c_sheets = sum(p["sheets"] for p in c_items)
             c_tons = sum(p["tons"] for p in c_items)
-            row_idx = matrix_start_row + idx
+            c_share = round(c_mins / total_downtime_minutes, 4) if total_downtime_minutes > 0 else 0.0
 
             summary_rows.append([
                 cdef["title"],
@@ -3944,19 +3971,20 @@ def export_downtime_technologist_report_to_google_sheets(
                 round(c_rolls, 1),
                 c_sheets,
                 round(c_tons, 2),
-                f"=IF($D$15>0,D{row_idx}/$D$15,0)"
+                c_share
             ])
 
-        # Row 15 (Matrix Total Row with Formulas, сумма долей = 100%)
+        # Row 15 (Matrix Total Row - точные предрассчитанные числа, сумма долей = 100.00%)
+        total_rolls = round(sum(p["rolls"] for p in processed_items), 1)
         summary_rows.append([
             "ИТОГО ПО ВСЕМ КАТЕГОРИЯМ:",
-            "=SUM(B9:B14)",
+            len(processed_items),
             format_time_hh_mm_ss(total_downtime_minutes),
-            "=SUM(D9:D14)",
-            "=SUM(E9:E14)",
-            "=SUM(F9:F14)",
-            "=SUM(G9:G14)",
-            "=SUM(H9:H14)"
+            total_downtime_minutes,
+            total_rolls,
+            total_lost_sheets,
+            round(total_lost_tons, 2),
+            1.0 if total_downtime_minutes > 0 else 0.0
         ])
 
         # Очистка и запись листа «Аналитика простоев»
@@ -4051,7 +4079,7 @@ def export_downtime_technologist_report_to_google_sheets(
                     "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
                 }
             },
-            # Форматирование долей матрицы (Col H, Rows 9..15)
+            # Форматирование долей матрицы (Col H, Rows 9..15, нативный PERCENT 0.00%)
             {
                 "repeatCell": {
                     "range": {"sheetId": summary_sheet_id, "startRowIndex": 8, "endRowIndex": 15, "startColumnIndex": 7, "endColumnIndex": 8},
@@ -4161,12 +4189,303 @@ def export_downtime_technologist_report_to_google_sheets(
         print(f"Ошибка выгрузки листа '{summary_sheet_title}': {e}")
 
     # =========================================================================
-    # ЛИСТ 2: «База всех простоев» (100% записей из базы данных, без тенге, нативный автофильтр)
+    # ЛИСТ 2: «Недельная производительность» (по эталону со скриншота пользователя)
     # =========================================================================
-    all_dts_sheet_title = "База всех простоев"
     try:
-        all_dts_sheet_id = get_or_rename_sheet(all_dts_sheet_title, ["Реестр простоев", "Все простои"])
+        from routers.downtimes import compute_weekly_productivity
+        weekly_data = compute_weekly_productivity(db)
 
+        # Двухуровневая шапка (Row 1 и Row 2)
+        weekly_header_row1 = [
+            "Начало недели", "Конец недели",
+            "План на неделю", "",
+            "Кол-во произведеной продукции", "",
+            "Чистое время работы оборуд",
+            "Недопроизвели за неделю", "",
+            "Производительность", "",
+            "Выполнение плана производства, тонна",
+            "Кол-во отработ часов, ч",
+            "Мех", "Энерг", "Технол", "ТО и ППР", "Без остановки",
+            "Общее время простоя",
+            "% простоя от отработанного времени",
+            "Линия"
+        ]
+
+        weekly_header_row2 = [
+            "", "",
+            "т", "л",
+            "т", "л",
+            "ч",
+            "т", "л",
+            "т/ч", "л/ч",
+            "%",
+            "ч",
+            "ч:мм", "ч:мм", "ч:мм", "ч:мм", "ч:мм",
+            "ч",
+            "%",
+            ""
+        ]
+
+        weekly_rows = [weekly_header_row1, weekly_header_row2]
+
+        for idx, w in enumerate(weekly_data):
+            # Запись точных предрассчитанных чисел вместо строковых формул (исключает ошибки #ERROR! локалей)
+            weekly_rows.append([
+                w["start_date"],
+                w["end_date"],
+                w["plan_tons"],
+                w["plan_sheets"],
+                w["fact_tons"],
+                w["fact_sheets"],
+                w["clean_hours"],
+                w["underprod_tons"],
+                w["underprod_sheets"],
+                w["prod_tons_per_hour"],
+                w["prod_sheets_per_hour"],
+                round(w["plan_fulfillment_pct"] / 100.0, 4) if w.get("plan_fulfillment_pct") is not None else 0.0,
+                w["calendar_hours"],
+                w["mech_formatted"],
+                w["energy_formatted"],
+                w["tech_formatted"],
+                w["maint_formatted"],
+                w["no_stop_formatted"],
+                w["total_downtime_hours"],
+                round(w["downtime_pct"] / 100.0, 4) if w.get("downtime_pct") is not None else 0.0,
+                w["line"]
+            ])
+
+        total_weekly_rows = len(weekly_rows)
+
+        # Очищаем старые данные листа
+        service.spreadsheets().values().clear(
+            spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
+            range=f"'{weekly_sheet_title}'!A1:Z500"
+        ).execute()
+
+        # Записываем новые данные
+        service.spreadsheets().values().update(
+            spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
+            range=f"'{weekly_sheet_title}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": weekly_rows}
+        ).execute()
+
+        weekly_styles = [
+            # 1. Сброс объединений ячеек перед установкой новых
+            {"unmergeCells": {"range": {"sheetId": weekly_sheet_id}}},
+            # 2. Фиксация первых двух строк шапки
+            {
+                "updateSheetProperties": {
+                    "properties": {
+                        "sheetId": weekly_sheet_id,
+                        "gridProperties": {
+                            "frozenRowCount": 2
+                        }
+                    },
+                    "fields": "gridProperties.frozenRowCount"
+                }
+            },
+            # 3. Объединение ячеек двухуровневой шапки: C1:D1, E1:F1, H1:I1, J1:K1
+            {
+                "mergeCells": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 2, "endColumnIndex": 4},
+                    "mergeType": "MERGE_ALL"
+                }
+            },
+            {
+                "mergeCells": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 4, "endColumnIndex": 6},
+                    "mergeType": "MERGE_ALL"
+                }
+            },
+            {
+                "mergeCells": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 7, "endColumnIndex": 9},
+                    "mergeType": "MERGE_ALL"
+                }
+            },
+            {
+                "mergeCells": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 9, "endColumnIndex": 11},
+                    "mergeType": "MERGE_ALL"
+                }
+            },
+            # 4. Стиль шапки таблицы (Rows 1..2, мягкий пастельно-голубой фон как в образце Excel)
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 0, "endColumnIndex": 21},
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": {"red": 217/255.0, "green": 226/255.0, "blue": 243/255.0},
+                            "textFormat": {"bold": True, "fontSize": 9, "fontFamily": "Arial"},
+                            "horizontalAlignment": "CENTER",
+                            "verticalAlignment": "MIDDLE",
+                            "wrapStrategy": "WRAP"
+                        }
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+                }
+            },
+            # 5. Шрифт для строк данных (Arial 9pt)
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 0, "endColumnIndex": 21},
+                    "cell": {
+                        "userEnteredFormat": {
+                            "textFormat": {"fontFamily": "Arial", "fontSize": 9},
+                            "verticalAlignment": "MIDDLE"
+                        }
+                    },
+                    "fields": "userEnteredFormat(textFormat,verticalAlignment)"
+                }
+            },
+            # Выравнивание дат (Col 0..1) по центру
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 0, "endColumnIndex": 2},
+                    "cell": {"userEnteredFormat": {"horizontalAlignment": "CENTER"}},
+                    "fields": "userEnteredFormat.horizontalAlignment"
+                }
+            },
+            # Выравнивание времени и линии (Col 12..17 и Col 20) по центру
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 12, "endColumnIndex": 18},
+                    "cell": {"userEnteredFormat": {"horizontalAlignment": "CENTER"}},
+                    "fields": "userEnteredFormat.horizontalAlignment"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 20, "endColumnIndex": 21},
+                    "cell": {"userEnteredFormat": {"horizontalAlignment": "CENTER", "textFormat": {"bold": True}}},
+                    "fields": "userEnteredFormat(horizontalAlignment,textFormat)"
+                }
+            },
+            # Числовые форматы с двумя знаками: Тонны (Col 2, 4, 7), Чистые часы (Col 6), Производительность т/ч (Col 9), Общие часы простоя (Col 18)
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 2, "endColumnIndex": 3},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.0"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 4, "endColumnIndex": 5},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.0"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 6, "endColumnIndex": 8},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.00"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 9, "endColumnIndex": 10},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.00"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 18, "endColumnIndex": 19},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.00"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            # Числовые форматы целых: Листы (Col 3, 5, 8) и Производительность л/ч (Col 10)
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 3, "endColumnIndex": 4},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 5, "endColumnIndex": 6},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 8, "endColumnIndex": 9},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 10, "endColumnIndex": 11},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.0"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            # Проценты: Выполнение плана (Col 11) и % простоя (Col 19)
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 11, "endColumnIndex": 12},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.0%"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 19, "endColumnIndex": 20},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.00%"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            },
+            # Границы ячеек всей таблицы
+            {
+                "updateBorders": {
+                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 0, "endColumnIndex": 21},
+                    "top": {"style": "SOLID", "color": {"red": 0.5, "green": 0.6, "blue": 0.75}},
+                    "bottom": {"style": "SOLID", "color": {"red": 0.5, "green": 0.6, "blue": 0.75}},
+                    "left": {"style": "SOLID", "color": {"red": 0.5, "green": 0.6, "blue": 0.75}},
+                    "right": {"style": "SOLID", "color": {"red": 0.5, "green": 0.6, "blue": 0.75}},
+                    "innerHorizontal": {"style": "SOLID", "color": {"red": 0.8, "green": 0.85, "blue": 0.9}},
+                    "innerVertical": {"style": "SOLID", "color": {"red": 0.8, "green": 0.85, "blue": 0.9}}
+                }
+            }
+        ]
+
+        # Ширина колонок (21 колонка)
+        # [Начало, Конец, План_т, План_л, Факт_т, Факт_л, Чистые_ч, Недопр_т, Недопр_л, Пр_т/ч, Пр_л/ч, План_%, Отр_ч, Мех, Энерг, Технол, ТО_ППР, Без_ост, Общ_простой, %_простоя, Линия]
+        weekly_col_widths = [95, 95, 80, 80, 80, 80, 85, 80, 80, 80, 80, 95, 80, 65, 65, 65, 65, 75, 90, 100, 75]
+        for col_idx, width_px in enumerate(weekly_col_widths):
+            weekly_styles.append({
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": weekly_sheet_id,
+                        "dimension": "COLUMNS",
+                        "startIndex": col_idx,
+                        "endIndex": col_idx + 1
+                    },
+                    "properties": {"pixelSize": width_px},
+                    "fields": "pixelSize"
+                }
+            })
+
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
+            body={"requests": weekly_styles}
+        ).execute()
+
+        updated_sheets.append(weekly_sheet_title)
+    except Exception as e:
+        print(f"Ошибка выгрузки листа '{weekly_sheet_title}': {e}")
+
+    # =========================================================================
+    # ЛИСТ 3: «База всех простоев» (100% записей из базы данных, без тенге, нативный автофильтр)
+    # =========================================================================
+    try:
         # Выгружаем ВСЕ активные простои предприятия за всю историю
         all_db_dts = db.query(models.Downtime).options(
             joinedload(models.Downtime.shift),
@@ -4399,302 +4718,6 @@ def export_downtime_technologist_report_to_google_sheets(
         updated_sheets.append(all_dts_sheet_title)
     except Exception as e:
         print(f"Ошибка выгрузки листа '{all_dts_sheet_title}': {e}")
-
-    # =========================================================================
-    # ЛИСТ 3: «Недельная производительность» (по эталону со скриншота пользователя)
-    # =========================================================================
-    weekly_sheet_title = "Недельная производительность"
-    try:
-        weekly_sheet_id = get_or_rename_sheet(weekly_sheet_title, ["Производительность", "Недельная выработка"])
-        from routers.downtimes import compute_weekly_productivity
-        weekly_data = compute_weekly_productivity(db)
-
-        # Двухуровневая шапка (Row 1 и Row 2)
-        weekly_header_row1 = [
-            "Начало недели", "Конец недели",
-            "План на неделю", "",
-            "Кол-во произведеной продукции", "",
-            "Чистое время работы оборуд",
-            "Недопроизвели за неделю", "",
-            "Производительность", "",
-            "Выполнение плана производства, тонна",
-            "Кол-во отработ часов, ч",
-            "Мех", "Энерг", "Технол", "ТО и ППР", "Без остановки",
-            "Общее время простоя",
-            "% простоя от отработанного времени",
-            "Линия"
-        ]
-
-        weekly_header_row2 = [
-            "", "",
-            "т", "л",
-            "т", "л",
-            "ч",
-            "т", "л",
-            "т/ч", "л/ч",
-            "%",
-            "ч",
-            "ч:мм", "ч:мм", "ч:мм", "ч:мм", "ч:мм",
-            "ч",
-            "%",
-            ""
-        ]
-
-        weekly_rows = [weekly_header_row1, weekly_header_row2]
-
-        for idx, w in enumerate(weekly_data):
-            r_num = 3 + idx  # 1-based index в Google Sheets (Row 3, 4, 5...)
-            weekly_rows.append([
-                w["start_date"],
-                w["end_date"],
-                w["plan_tons"],
-                w["plan_sheets"],
-                w["fact_tons"],
-                w["fact_sheets"],
-                w["clean_hours"],
-                f"=IF(OR(C{r_num}=\"\",E{r_num}=\"\"),\"\",C{r_num}-E{r_num})",
-                f"=IF(OR(D{r_num}=\"\",F{r_num}=\"\"),\"\",D{r_num}-F{r_num})",
-                f"=IF(OR(E{r_num}=\"\",G{r_num}=\"\",G{r_num}=0),\"\",E{r_num}/G{r_num})",
-                f"=IF(OR(F{r_num}=\"\",G{r_num}=\"\",G{r_num}=0),\"\",F{r_num}/G{r_num})",
-                f"=IF(OR(E{r_num}=\"\",C{r_num}=\"\",C{r_num}=0),\"\",E{r_num}/C{r_num})",
-                w["calendar_hours"],
-                w["mech_formatted"],
-                w["energy_formatted"],
-                w["tech_formatted"],
-                w["maint_formatted"],
-                w["no_stop_formatted"],
-                w["total_downtime_hours"],
-                f"=IF(OR(S{r_num}=\"\",M{r_num}=\"\",M{r_num}=0),\"\",S{r_num}/M{r_num})",
-                w["line"]
-            ])
-
-        total_weekly_rows = len(weekly_rows)
-
-        # Очищаем старые данные листа
-        service.spreadsheets().values().clear(
-            spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
-            range=f"'{weekly_sheet_title}'!A1:Z500"
-        ).execute()
-
-        # Записываем новые данные
-        service.spreadsheets().values().update(
-            spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
-            range=f"'{weekly_sheet_title}'!A1",
-            valueInputOption="USER_ENTERED",
-            body={"values": weekly_rows}
-        ).execute()
-
-        weekly_styles = [
-            # 1. Сброс объединений ячеек перед установкой новых
-            {"unmergeCells": {"range": {"sheetId": weekly_sheet_id}}},
-            # 2. Фиксация первых двух строк шапки
-            {
-                "updateSheetProperties": {
-                    "properties": {
-                        "sheetId": weekly_sheet_id,
-                        "gridProperties": {
-                            "frozenRowCount": 2
-                        }
-                    },
-                    "fields": "gridProperties.frozenRowCount"
-                }
-            },
-            # 3. Объединение ячеек двухуровневой шапки: C1:D1, E1:F1, H1:I1, J1:K1
-            {
-                "mergeCells": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 2, "endColumnIndex": 4},
-                    "mergeType": "MERGE_ALL"
-                }
-            },
-            {
-                "mergeCells": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 4, "endColumnIndex": 6},
-                    "mergeType": "MERGE_ALL"
-                }
-            },
-            {
-                "mergeCells": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 7, "endColumnIndex": 9},
-                    "mergeType": "MERGE_ALL"
-                }
-            },
-            {
-                "mergeCells": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 9, "endColumnIndex": 11},
-                    "mergeType": "MERGE_ALL"
-                }
-            },
-            # 4. Стиль шапки таблицы (Rows 1..2, мягкий пастельно-голубой фон как в образце Excel)
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 0, "endColumnIndex": 21},
-                    "cell": {
-                        "userEnteredFormat": {
-                            "backgroundColor": {"red": 217/255.0, "green": 226/255.0, "blue": 243/255.0},
-                            "textFormat": {"bold": True, "fontSize": 9, "fontFamily": "Arial"},
-                            "horizontalAlignment": "CENTER",
-                            "verticalAlignment": "MIDDLE",
-                            "wrapStrategy": "WRAP"
-                        }
-                    },
-                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
-                }
-            },
-            # 5. Шрифт для строк данных (Arial 9pt)
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 0, "endColumnIndex": 21},
-                    "cell": {
-                        "userEnteredFormat": {
-                            "textFormat": {"fontFamily": "Arial", "fontSize": 9},
-                            "verticalAlignment": "MIDDLE"
-                        }
-                    },
-                    "fields": "userEnteredFormat(textFormat,verticalAlignment)"
-                }
-            },
-            # Выравнивание дат (Col 0..1) по центру
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 0, "endColumnIndex": 2},
-                    "cell": {"userEnteredFormat": {"horizontalAlignment": "CENTER"}},
-                    "fields": "userEnteredFormat.horizontalAlignment"
-                }
-            },
-            # Выравнивание времени и линии (Col 12..17 и Col 20) по центру
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 12, "endColumnIndex": 18},
-                    "cell": {"userEnteredFormat": {"horizontalAlignment": "CENTER"}},
-                    "fields": "userEnteredFormat.horizontalAlignment"
-                }
-            },
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 20, "endColumnIndex": 21},
-                    "cell": {"userEnteredFormat": {"horizontalAlignment": "CENTER", "textFormat": {"bold": True}}},
-                    "fields": "userEnteredFormat(horizontalAlignment,textFormat)"
-                }
-            },
-            # Числовые форматы с двумя знаками: Тонны (Col 2, 4, 7), Чистые часы (Col 6), Производительность т/ч (Col 9), Общие часы простоя (Col 18)
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 2, "endColumnIndex": 3},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.0"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 4, "endColumnIndex": 5},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.0"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 6, "endColumnIndex": 8},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.00"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 9, "endColumnIndex": 10},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.00"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 18, "endColumnIndex": 19},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.00"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            # Числовые форматы целых: Листы (Col 3, 5, 8) и Производительность л/ч (Col 10)
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 3, "endColumnIndex": 4},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 5, "endColumnIndex": 6},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 8, "endColumnIndex": 9},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 10, "endColumnIndex": 11},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.0"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            # Проценты: Выполнение плана (Col 11) и % простоя (Col 19)
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 11, "endColumnIndex": 12},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.0%"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            {
-                "repeatCell": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 2, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 19, "endColumnIndex": 20},
-                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.00%"}, "horizontalAlignment": "RIGHT"}},
-                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
-                }
-            },
-            # Границы ячеек всей таблицы
-            {
-                "updateBorders": {
-                    "range": {"sheetId": weekly_sheet_id, "startRowIndex": 0, "endRowIndex": max(3, total_weekly_rows), "startColumnIndex": 0, "endColumnIndex": 21},
-                    "top": {"style": "SOLID", "color": {"red": 0.5, "green": 0.6, "blue": 0.75}},
-                    "bottom": {"style": "SOLID", "color": {"red": 0.5, "green": 0.6, "blue": 0.75}},
-                    "left": {"style": "SOLID", "color": {"red": 0.5, "green": 0.6, "blue": 0.75}},
-                    "right": {"style": "SOLID", "color": {"red": 0.5, "green": 0.6, "blue": 0.75}},
-                    "innerHorizontal": {"style": "SOLID", "color": {"red": 0.8, "green": 0.85, "blue": 0.9}},
-                    "innerVertical": {"style": "SOLID", "color": {"red": 0.8, "green": 0.85, "blue": 0.9}}
-                }
-            }
-        ]
-
-        # Ширина колонок (21 колонка)
-        # [Начало, Конец, План_т, План_л, Факт_т, Факт_л, Чистые_ч, Недопр_т, Недопр_л, Пр_т/ч, Пр_л/ч, План_%, Отр_ч, Мех, Энерг, Технол, ТО_ППР, Без_ост, Общ_простой, %_простоя, Линия]
-        weekly_col_widths = [95, 95, 80, 80, 80, 80, 85, 80, 80, 80, 80, 95, 80, 65, 65, 65, 65, 75, 90, 100, 75]
-        for col_idx, width_px in enumerate(weekly_col_widths):
-            weekly_styles.append({
-                "updateDimensionProperties": {
-                    "range": {
-                        "sheetId": weekly_sheet_id,
-                        "dimension": "COLUMNS",
-                        "startIndex": col_idx,
-                        "endIndex": col_idx + 1
-                    },
-                    "properties": {"pixelSize": width_px},
-                    "fields": "pixelSize"
-                }
-            })
-
-        service.spreadsheets().batchUpdate(
-            spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
-            body={"requests": weekly_styles}
-        ).execute()
-
-        updated_sheets.append(weekly_sheet_title)
-    except Exception as e:
-        print(f"Ошибка выгрузки листа '{weekly_sheet_title}': {e}")
 
     return {
         "success": True,
