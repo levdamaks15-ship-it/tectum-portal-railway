@@ -213,13 +213,13 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
         "Количество замесов", "Формовка (листы)", "Формовка (тонны)",
         "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы листов (техн.)", "Сбросы (замена телеги)",
         "Слив асб. (кг)", "Слив цем. (кг)",
-        "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
+        "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-50 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
         "Расход Цемента С1 (кг)", "Расход Цемента С2 (кг)", "Расход Цемента С3 (кг)", "Расход Цемента С4 (кг)", "Расход Цемента общ. (кг)",
         "Расход Асбокартона (кг)",
         "Расход Лапрола под машину (мл)", "Расход Лапрола в Г/Пушитель (мл)", "Расход Лапрола общ. (мл)",
         "Расход Целлюлозы (кг)", "Расход Стекловолокна (кг)",
         "Расход Дробленого шифера (кг)", "Расход Асбозурита (кг)",
-        "Отклонение Хризотила 4-20 (%)", "Отклонение Хризотила 5-65 (%)", "Отклонение Хризотила 6-40 (%)", "Отклонение Хризотила общ. (%)",
+        "Отклонение Хризотила 4-20 (%)", "Отклонение Хризотила 5-50 (%)", "Отклонение Хризотила 5-65 (%)", "Отклонение Хризотила 6-40 (%)", "Отклонение Хризотила общ. (%)",
         "Отклонение Цемента общ. (%)", "Отклонение Асбокартона (%)", "Отклонение Лапрола (%)", "Отклонение Целлюлозы (%)",
         "Отклонение Стекловолокна (%)", "Отклонение Дробленого шифера (%)", "Отклонение Асбозурита (%)"
     ]
@@ -256,7 +256,7 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
         cart_resets = sum((getattr(r, 'lfm_cart_resets', 0) or 0) for r in s.lfm_reports)
         
         theory = {
-            "chrysotile_4_20": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
+            "chrysotile_4_20": 0.0, "chrysotile_5_50": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
             "cement": 0.0, "cellulose": 0.0, "crushed_slate": 0.0,
             "asbozurit": 0.0, "fiberglass": 0.0
         }
@@ -264,6 +264,7 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
             norm = norms_cache.get(r.product_name)
             if norm:
                 theory["chrysotile_4_20"] += r.lfm_sheets * (norm.norm_chrysotile_4_20 or 0.0)
+                theory["chrysotile_5_50"] += r.lfm_sheets * (getattr(norm, 'norm_chrysotile_5_50', 0.0) or 0.0)
                 theory["chrysotile_5_65"] += r.lfm_sheets * (norm.norm_chrysotile_5_65 or 0.0)
                 theory["chrysotile_6_40"] += r.lfm_sheets * (norm.norm_chrysotile_6_40 or 0.0)
                 theory["cement"] += r.lfm_sheets * (norm.norm_cement or 0.0)
@@ -274,6 +275,7 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
                 
         fact = {
             "chrysotile_4_20": s.zo_chrysotile_4_20 or 0.0,
+            "chrysotile_5_50": getattr(s, 'zo_chrysotile_5_50', 0.0) or 0.0,
             "chrysotile_5_65": s.zo_chrysotile_5_65 or 0.0,
             "chrysotile_6_40": s.zo_chrysotile_6_40 or 0.0,
             "cement_silo1": s.zo_cement_silo1 or 0.0,
@@ -294,8 +296,8 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
             laprol_pushitel = s.zo_laprol or 0.0
         laprol_total = (laprol_under_machine + laprol_pushitel) if (laprol_under_machine > 0 or laprol_pushitel > 0) else (s.zo_laprol or 0.0)
         
-        total_fact_asbestos = fact["chrysotile_4_20"] + fact["chrysotile_5_65"] + fact["chrysotile_6_40"]
-        total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
+        total_fact_asbestos = fact["chrysotile_4_20"] + fact["chrysotile_5_50"] + fact["chrysotile_5_65"] + fact["chrysotile_6_40"]
+        total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_50"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
         total_fact_cement = fact["cement_silo1"] + fact["cement_silo2"] + fact["cement_silo3"] + fact["cement_silo4"]
         theory_cement = theory["cement"]
         export_type = s.export_type or "Эталон"
@@ -319,6 +321,7 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
             s.zo_asb_drain or 0.0,
             s.zo_cem_drain or 0.0,
             fact["chrysotile_4_20"],
+            fact["chrysotile_5_50"],
             fact["chrysotile_5_65"],
             fact["chrysotile_6_40"],
             total_fact_asbestos,
@@ -337,6 +340,7 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
             fact["asbozurit"],
             # Deviations (in %!)
             get_pct_deviation(fact["chrysotile_4_20"], theory["chrysotile_4_20"]) / 100.0,
+            get_pct_deviation(fact["chrysotile_5_50"], theory["chrysotile_5_50"]) / 100.0,
             get_pct_deviation(fact["chrysotile_5_65"], theory["chrysotile_5_65"]) / 100.0,
             get_pct_deviation(fact["chrysotile_6_40"], theory["chrysotile_6_40"]) / 100.0,
             get_pct_deviation(total_fact_asbestos, total_theo_asbestos) / 100.0,
@@ -606,7 +610,7 @@ def export_norms_to_google_sheets(db: Session):
     
     headers = [
         "Продукция", "Вес готового листа (кг)", 
-        "Норма Хризотил 4-20", "Норма Хризотил 5-65", "Норма Хризотил 6-40",
+        "Норма Хризотил 4-20", "Норма Хризотил 5-50", "Норма Хризотил 5-65", "Норма Хризотил 6-40",
         "Норма Цемент", "Норма Целлюлоза", "Норма Дробленый шифер", 
         "Норма Асбозурит", "Норма Стекловолокно"
     ]
@@ -618,6 +622,7 @@ def export_norms_to_google_sheets(db: Session):
             n.product_name,
             n.weight_kg or 19.6,
             n.norm_chrysotile_4_20 or 0.0,
+            getattr(n, 'norm_chrysotile_5_50', 0.0) or 0.0,
             n.norm_chrysotile_5_65 or 0.0,
             n.norm_chrysotile_6_40 or 0.0,
             n.norm_cement or 0.0,
@@ -791,15 +796,15 @@ def sync_norms_from_google_sheets(db: Session):
     
     result = service.spreadsheets().values().get(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:K50"
+        range=f"'{sheet_name}'!A1:ZZ50"
     ).execute()
     
     rows = result.get("values", [])
     if not rows:
         raise ValueError("Лист 'Нормативы' пустой или не найден")
         
-    header = rows[0]
-    if "Продукция" not in header:
+    header = [str(c).strip() for c in rows[0]]
+    if not any("Продукция" in h for h in header):
         raise ValueError("Неверный формат шапки листа 'Нормативы'")
         
     # Вспомогательная функция для безопасного парсинга float
@@ -813,6 +818,16 @@ def sync_norms_from_google_sheets(db: Session):
             return float(val_str)
         except ValueError:
             return 0.0
+
+    def get_val_by_header(row_data, header_patterns, fallback_idx=None, default=0.0):
+        for pattern in header_patterns:
+            for idx, h in enumerate(header):
+                if pattern.lower() in h.lower():
+                    if idx < len(row_data):
+                        return safe_float(row_data[idx])
+        if fallback_idx is not None and fallback_idx < len(row_data):
+            return safe_float(row_data[fallback_idx])
+        return default
             
     # Начинаем безопасную синхронизацию (UPSERT)
     # Существующие в базе данных нормы НЕ удаляются, чтобы админ-панель оставалась первоисточником истины
@@ -825,20 +840,22 @@ def sync_norms_from_google_sheets(db: Session):
         if p_name == "Шифер 8 волн пиленый":
             p_name = "Шифер 8 волн рифленый"
             
-        weight = safe_float(row[1] if len(row) > 1 else 19.6)
-        n_c4 = safe_float(row[2] if len(row) > 2 else 0.0)
-        n_c5 = safe_float(row[3] if len(row) > 3 else 0.0)
-        n_c6 = safe_float(row[4] if len(row) > 4 else 0.0)
-        n_cem = safe_float(row[5] if len(row) > 5 else 0.0)
-        n_cel = safe_float(row[6] if len(row) > 6 else 0.0)
-        n_sl = safe_float(row[7] if len(row) > 7 else 0.0)
-        n_asb = safe_float(row[8] if len(row) > 8 else 0.0)
-        n_fib = safe_float(row[9] if len(row) > 9 else 0.0)
+        weight = get_val_by_header(row, ["Вес готового", "Вес листа"], 1, 19.6)
+        n_c4 = get_val_by_header(row, ["Норма Хризотил 4-20", "Хризотил 4-20", "4-20"], 2, 0.0)
+        n_c550 = get_val_by_header(row, ["Норма Хризотил 5-50", "Хризотил 5-50", "5-50"], None, 0.0)
+        n_c5 = get_val_by_header(row, ["Норма Хризотил 5-65", "Хризотил 5-65", "5-65"], 3, 0.0)
+        n_c6 = get_val_by_header(row, ["Норма Хризотил 6-40", "Хризотил 6-40", "6-40"], 4, 0.0)
+        n_cem = get_val_by_header(row, ["Норма Цемент", "Цемент"], 5, 0.0)
+        n_cel = get_val_by_header(row, ["Норма Целлюлоза", "Целлюлоза"], 6, 0.0)
+        n_sl = get_val_by_header(row, ["Норма Дробленый", "Дробленый"], 7, 0.0)
+        n_asb = get_val_by_header(row, ["Норма Асбозурит", "Асбозурит"], 8, 0.0)
+        n_fib = get_val_by_header(row, ["Норма Стекловолокно", "Стекловолокно"], 9, 0.0)
         
         existing = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == p_name).first()
         if existing:
             existing.weight_kg = weight
             existing.norm_chrysotile_4_20 = n_c4
+            existing.norm_chrysotile_5_50 = n_c550
             existing.norm_chrysotile_5_65 = n_c5
             existing.norm_chrysotile_6_40 = n_c6
             existing.norm_cement = n_cem
@@ -851,6 +868,7 @@ def sync_norms_from_google_sheets(db: Session):
                 product_name=p_name,
                 weight_kg=weight,
                 norm_chrysotile_4_20=n_c4,
+                norm_chrysotile_5_50=n_c550,
                 norm_chrysotile_5_65=n_c5,
                 norm_chrysotile_6_40=n_c6,
                 norm_cement=n_cem,
@@ -881,7 +899,7 @@ def export_receipt_to_google_sheets(db: Session):
     # 1. Формируем заголовки
     headers = [
         "Дата", "Смена", "Линия", "Мастер",
-        "Хризотил 4-20 (кг)", "Хризотил 5-65 (кг)", "Хризотил 6-40 (кг)",
+        "Хризотил 4-20 (кг)", "Хризотил 5-50 (кг)", "Хризотил 5-65 (кг)", "Хризотил 6-40 (кг)",
         "Цемент С1 (кг)", "Цемент С2 (кг)", "Цемент С3 (кг)", "Цемент С4 (кг)", 
         "Целлюлоза (кг)", "Дробленый шифер (кг)",
         "Асбозурит (кг)", "Асбокартон (кг)", "Паллеты (шт)",
@@ -915,6 +933,7 @@ def export_receipt_to_google_sheets(db: Session):
             line,
             master_name,
             r.chrysotile_4_20 or 0.0,
+            getattr(r, 'chrysotile_5_50', 0.0) or 0.0,
             r.chrysotile_5_65 or 0.0,
             r.chrysotile_6_40 or 0.0,
             r.cement_silo1 or 0.0,

@@ -42,6 +42,12 @@ class Shift(Base):
     zo_chrysotile_4_20_silo3 = Column(Float, default=0)
     zo_chrysotile_4_20_silo4 = Column(Float, default=0)
     
+    zo_chrysotile_5_50 = Column(Float, default=0)
+    zo_chrysotile_5_50_silo1 = Column(Float, default=0)
+    zo_chrysotile_5_50_silo2 = Column(Float, default=0)
+    zo_chrysotile_5_50_silo3 = Column(Float, default=0)
+    zo_chrysotile_5_50_silo4 = Column(Float, default=0)
+
     zo_chrysotile_5_65 = Column(Float, default=0)
     zo_chrysotile_5_65_silo1 = Column(Float, default=0)
     zo_chrysotile_5_65_silo2 = Column(Float, default=0)
@@ -126,6 +132,7 @@ class RawMaterialReceipt(Base):
     master = relationship("Master")
     
     chrysotile_4_20 = Column(Float, default=0.0)
+    chrysotile_5_50 = Column(Float, default=0.0)
     chrysotile_5_65 = Column(Float, default=0.0)
     chrysotile_6_40 = Column(Float, default=0.0)
     
@@ -331,6 +338,7 @@ class ProductNorm(Base):
     weight_kg = Column(Float, default=0.0)
     
     norm_chrysotile_4_20 = Column(Float, default=0.0)
+    norm_chrysotile_5_50 = Column(Float, default=0.0)
     norm_chrysotile_5_65 = Column(Float, default=0.0)
     norm_chrysotile_6_40 = Column(Float, default=0.0)
     norm_cement = Column(Float, default=0.0)

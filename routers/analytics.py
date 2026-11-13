@@ -69,7 +69,7 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
             product_counts[r.product_name] = product_counts.get(r.product_name, 0) + r.lfm_sheets
             
         theoretical = {
-            "chrysotile_4_20": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
+            "chrysotile_4_20": 0.0, "chrysotile_5_50": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
             "cement": 0.0, "cellulose": 0.0, "crushed_slate": 0.0,
             "asbozurit": 0.0, "fiberglass": 0.0
         }
@@ -77,17 +77,19 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
         for prod_name, sheets in product_counts.items():
             norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == prod_name).first()
             if norm:
-                theoretical["chrysotile_4_20"] += sheets * norm.norm_chrysotile_4_20
-                theoretical["chrysotile_5_65"] += sheets * norm.norm_chrysotile_5_65
-                theoretical["chrysotile_6_40"] += sheets * norm.norm_chrysotile_6_40
-                theoretical["cement"] += sheets * norm.norm_cement
-                theoretical["cellulose"] += sheets * norm.norm_cellulose
-                theoretical["crushed_slate"] += sheets * norm.norm_crushed_slate
-                theoretical["asbozurit"] += sheets * norm.norm_asbozurit
-                theoretical["fiberglass"] += sheets * norm.norm_fiberglass
+                theoretical["chrysotile_4_20"] += sheets * (norm.norm_chrysotile_4_20 or 0.0)
+                theoretical["chrysotile_5_50"] += sheets * (getattr(norm, 'norm_chrysotile_5_50', 0.0) or 0.0)
+                theoretical["chrysotile_5_65"] += sheets * (norm.norm_chrysotile_5_65 or 0.0)
+                theoretical["chrysotile_6_40"] += sheets * (norm.norm_chrysotile_6_40 or 0.0)
+                theoretical["cement"] += sheets * (norm.norm_cement or 0.0)
+                theoretical["cellulose"] += sheets * (norm.norm_cellulose or 0.0)
+                theoretical["crushed_slate"] += sheets * (norm.norm_crushed_slate or 0.0)
+                theoretical["asbozurit"] += sheets * (norm.norm_asbozurit or 0.0)
+                theoretical["fiberglass"] += sheets * (norm.norm_fiberglass or 0.0)
 
         # Фактический расход сырья из ЗО за смену
         fact_raw = (shift.zo_chrysotile_4_20 or 0.0) + \
+                   (getattr(shift, 'zo_chrysotile_5_50', 0.0) or 0.0) + \
                    (shift.zo_chrysotile_5_65 or 0.0) + \
                    (shift.zo_chrysotile_6_40 or 0.0) + \
                    (shift.zo_cement or 0.0) + \
@@ -1226,6 +1228,7 @@ def get_dashboard_stats(request: Request, db: Session = Depends(get_db)):
 
     mats_query_receipt = db.query(
         func.sum(models.RawMaterialReceipt.chrysotile_4_20).label('r_4_20'),
+        func.sum(models.RawMaterialReceipt.chrysotile_5_50).label('r_5_50'),
         func.sum(models.RawMaterialReceipt.chrysotile_5_65).label('r_5_65'),
         func.sum(models.RawMaterialReceipt.chrysotile_6_40).label('r_6_40'),
         func.sum(models.RawMaterialReceipt.cement_silo1 + models.RawMaterialReceipt.cement_silo2 + models.RawMaterialReceipt.cement_silo3 + models.RawMaterialReceipt.cement_silo4).label('r_cem'),
@@ -1234,6 +1237,7 @@ def get_dashboard_stats(request: Request, db: Session = Depends(get_db)):
 
     mats_query_zo = db.query(
         func.sum(models.Shift.zo_chrysotile_4_20).label('z_4_20'),
+        func.sum(models.Shift.zo_chrysotile_5_50).label('z_5_50'),
         func.sum(models.Shift.zo_chrysotile_5_65).label('z_5_65'),
         func.sum(models.Shift.zo_chrysotile_6_40).label('z_6_40'),
         func.sum(models.Shift.zo_cement).label('z_cem'),
@@ -1477,6 +1481,7 @@ def get_report_summary(
             
                 "receipts": {
                     "chrysotile_4_20": (sum((r.chrysotile_4_20 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "chrysotile_5_50": (sum((getattr(r, 'chrysotile_5_50', 0.0) or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
                     "chrysotile_5_65": (sum((r.chrysotile_5_65 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
                     "chrysotile_6_40": (sum((r.chrysotile_6_40 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
                     "cement": (sum((((r.cement_silo1 or 0.0) + (r.cement_silo2 or 0.0) + (r.cement_silo3 or 0.0) + (r.cement_silo4 or 0.0))) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
@@ -1490,6 +1495,7 @@ def get_report_summary(
                 },
                 "zo_usage": {
                     "chrysotile_4_20": shift.zo_chrysotile_4_20 if not is_other_master else 0.0,
+                    "chrysotile_5_50": getattr(shift, 'zo_chrysotile_5_50', 0.0) if not is_other_master else 0.0,
                     "chrysotile_5_65": shift.zo_chrysotile_5_65 if not is_other_master else 0.0,
                     "chrysotile_6_40": shift.zo_chrysotile_6_40 if not is_other_master else 0.0,
                     "cement_silo1": shift.zo_cement_silo1 if not is_other_master else 0.0,
@@ -1541,7 +1547,7 @@ def get_materials_summary(
         shifts = query.order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.Shift.id.asc()).all()
     
         materials = [
-            "chrysotile_4_20", "chrysotile_5_65", "chrysotile_6_40",
+            "chrysotile_4_20", "chrysotile_5_50", "chrysotile_5_65", "chrysotile_6_40",
             "cement", "cellulose", "crushed_slate", "asbozurit",
             "asbocarton", "fiberglass", "laprol"
         ]
@@ -1554,6 +1560,7 @@ def get_materials_summary(
         
             shift_mats = {
                 "chrysotile_4_20": {"receipt": (sum((r.chrysotile_4_20 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_chrysotile_4_20 or 0.0},
+                "chrysotile_5_50": {"receipt": (sum((getattr(r, 'chrysotile_5_50', 0.0) or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": getattr(shift, 'zo_chrysotile_5_50', 0.0) or 0.0},
                 "chrysotile_5_65": {"receipt": (sum((r.chrysotile_5_65 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_chrysotile_5_65 or 0.0},
                 "chrysotile_6_40": {"receipt": (sum((r.chrysotile_6_40 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_chrysotile_6_40 or 0.0},
                 "cement": {"receipt": (sum((((r.cement_silo1 or 0.0) + (r.cement_silo2 or 0.0) + (r.cement_silo3 or 0.0) + (r.cement_silo4 or 0.0))) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": zo_cem},

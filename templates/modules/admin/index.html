@@ -625,6 +625,7 @@
                                 <th>Продукция</th>
                                 <th>Вес (кг)</th>
                                 <th>Норма Хризотил 4-20</th>
+                                <th>Норма Хризотил 5-50</th>
                                 <th>Норма Хризотил 5-65</th>
                                 <th>Норма Хризотил 6-40</th>
                                 <th>Норма Цемент</th>
@@ -1626,6 +1627,10 @@
                     <input type="number" id="norm-chr420" step="0.001">
                 </div>
                 <div>
+                    <label>Норма Хризотил 5-50 (кг)</label>
+                    <input type="number" id="norm-chr550" step="0.001">
+                </div>
+                <div>
                     <label>Норма Хризотил 5-65 (кг)</label>
                     <input type="number" id="norm-chr565" step="0.001">
                 </div>
@@ -1810,6 +1815,20 @@
                             style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
                     </div>
 
+                    <!-- Хризотил 5-50 -->
+                    <div class="uni-rm-label-row">Хризотил 5-50 (кг)</div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-50-1"
+                            oninput="calcAdminSumRM('chr-5-50')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-50-2"
+                            oninput="calcAdminSumRM('chr-5-50')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-50-3"
+                            oninput="calcAdminSumRM('chr-5-50')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-50-4"
+                            oninput="calcAdminSumRM('chr-5-50')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-zo-chr-5-50" readonly
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                    </div>
+
                     <!-- Хризотил 5-65 -->
                     <div class="uni-rm-label-row">Хризотил 5-65 (кг)</div>
                     <div class="form-group"><input type="number" id="uni-calc-chr-5-65-1"
@@ -1866,6 +1885,11 @@
                     <input type="hidden" id="uni-zo-chr-4-20-2" value="0">
                     <input type="hidden" id="uni-zo-chr-4-20-3" value="0">
                     <input type="hidden" id="uni-zo-chr-4-20-4" value="0">
+
+                    <input type="hidden" id="uni-zo-chr-5-50-1" value="0">
+                    <input type="hidden" id="uni-zo-chr-5-50-2" value="0">
+                    <input type="hidden" id="uni-zo-chr-5-50-3" value="0">
+                    <input type="hidden" id="uni-zo-chr-5-50-4" value="0">
 
                     <input type="hidden" id="uni-zo-chr-5-65-1" value="0">
                     <input type="hidden" id="uni-zo-chr-5-65-2" value="0">
@@ -2238,6 +2262,8 @@
                         step="0.1"></div>
                 <div class="form-group"><label>Хризотил 4-20 (мешков по 50 кг)</label><input type="number"
                         id="edit-receipt-c420" step="0.1"></div>
+                <div class="form-group"><label>Хризотил 5-50 (мешков по 50 кг)</label><input type="number"
+                        id="edit-receipt-c550" step="0.1"></div>
                 <div class="form-group"><label>Хризотил 5-65 (мешков по 50 кг)</label><input type="number"
                         id="edit-receipt-c565" step="0.1"></div>
                 <div class="form-group"><label>Хризотил 6-40 (мешков по 50 кг)</label><input type="number"

@@ -216,6 +216,7 @@ def get_product_raw_weight_kg(db: Session, product_name: str) -> float:
         return 18.2
     return (
         (norm.norm_chrysotile_4_20 or 0) +
+        (getattr(norm, 'norm_chrysotile_5_50', 0) or 0) +
         (norm.norm_chrysotile_5_65 or 0) +
         (norm.norm_chrysotile_6_40 or 0) +
         (norm.norm_cement or 0) +
@@ -697,6 +698,7 @@ def calculate_shift_deviations(db: Session, shift: models.Shift):
         
     theoretical = {
         "chrysotile_4_20": 0.0,
+        "chrysotile_5_50": 0.0,
         "chrysotile_5_65": 0.0,
         "chrysotile_6_40": 0.0,
         "cement": 0.0,
@@ -712,6 +714,7 @@ def calculate_shift_deviations(db: Session, shift: models.Shift):
         norm = _get_norm_cached(db, prod_name)
         if norm:
             theoretical["chrysotile_4_20"] += sheets * (norm.norm_chrysotile_4_20 or 0.0)
+            theoretical["chrysotile_5_50"] += sheets * (getattr(norm, 'norm_chrysotile_5_50', 0.0) or 0.0)
             theoretical["chrysotile_5_65"] += sheets * (norm.norm_chrysotile_5_65 or 0.0)
             theoretical["chrysotile_6_40"] += sheets * (norm.norm_chrysotile_6_40 or 0.0)
             theoretical["cement"] += sheets * (norm.norm_cement or 0.0)
@@ -722,6 +725,7 @@ def calculate_shift_deviations(db: Session, shift: models.Shift):
             
     actual = {
         "chrysotile_4_20": shift.zo_chrysotile_4_20 or 0.0,
+        "chrysotile_5_50": getattr(shift, 'zo_chrysotile_5_50', 0.0) or 0.0,
         "chrysotile_5_65": shift.zo_chrysotile_5_65 or 0.0,
         "chrysotile_6_40": shift.zo_chrysotile_6_40 or 0.0,
         "cement": shift.zo_cement or 0.0,

@@ -140,6 +140,7 @@ def seed_norms():
     ]
 
     for data in norms_data:
+        data.setdefault("norm_chrysotile_5_50", 0.0)
         existing = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == data["product_name"]).first()
         if not existing:
             norm = models.ProductNorm(**data)
@@ -147,6 +148,8 @@ def seed_norms():
             print(f"Added norm for {data['product_name']}")
         else:
             for key, val in data.items():
+                if key == "norm_chrysotile_5_50" and existing.norm_chrysotile_5_50 is not None:
+                    continue
                 setattr(existing, key, val)
             print(f"Updated norm for {data['product_name']}")
             

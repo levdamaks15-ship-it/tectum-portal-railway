@@ -80,13 +80,13 @@ def generate_flat_report(db: Session) -> bytes:
         "Количество замесов", "Формовка (листы)", "Формовка (тонны)",
         "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы листов (техн.)", "Сбросы (замена телеги)",
         "Слив асб. (кг)", "Слив цем. (кг)",
-        "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
+        "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-50 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
         "Расход Цемента С1 (кг)", "Расход Цемента С2 (кг)", "Расход Цемента С3 (кг)", "Расход Цемента С4 (кг)", "Расход Цемента общ. (кг)",
         "Расход Асбокартона (кг)",
         "Расход Лапрола под машину (мл)", "Расход Лапрола в Г/Пушитель (мл)", "Расход Лапрола общ. (мл)",
         "Расход Целлюлозы (кг)", "Расход Стекловолокна (кг)",
         "Расход Дробленого шифера (кг)", "Расход Асбозурита (кг)",
-        "Отклонение Хризотила 4-20 (%)", "Отклонение Хризотила 5-65 (%)", "Отклонение Хризотила 6-40 (%)", "Отклонение Хризотила общ. (%)",
+        "Отклонение Хризотила 4-20 (%)", "Отклонение Хризотила 5-50 (%)", "Отклонение Хризотила 5-65 (%)", "Отклонение Хризотила 6-40 (%)", "Отклонение Хризотила общ. (%)",
         "Отклонение Цемента общ. (%)", "Отклонение Асбокартона (%)", "Отклонение Лапрола (%)", "Отклонение Целлюлозы (%)",
         "Отклонение Стекловолокна (%)", "Отклонение Дробленого шифера (%)", "Отклонение Асбозурита (%)"
     ]
@@ -154,7 +154,7 @@ def generate_flat_report(db: Session) -> bytes:
         
         # Raw materials theoretical norms sum
         theory = {
-            "chrysotile_4_20": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
+            "chrysotile_4_20": 0.0, "chrysotile_5_50": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
             "cement": 0.0, "cellulose": 0.0, "crushed_slate": 0.0,
             "asbozurit": 0.0, "fiberglass": 0.0, "asbocarton": 0.0, "laprol": 0.0
         }
@@ -162,6 +162,7 @@ def generate_flat_report(db: Session) -> bytes:
             norm = norms_cache.get(r.product_name)
             if norm:
                 theory["chrysotile_4_20"] += r.lfm_sheets * (norm.norm_chrysotile_4_20 or 0.0)
+                theory["chrysotile_5_50"] += r.lfm_sheets * (getattr(norm, 'norm_chrysotile_5_50', 0.0) or 0.0)
                 theory["chrysotile_5_65"] += r.lfm_sheets * (norm.norm_chrysotile_5_65 or 0.0)
                 theory["chrysotile_6_40"] += r.lfm_sheets * (norm.norm_chrysotile_6_40 or 0.0)
                 theory["cement"] += r.lfm_sheets * (norm.norm_cement or 0.0)
@@ -173,6 +174,7 @@ def generate_flat_report(db: Session) -> bytes:
         # Factual consumption
         fact = {
             "chrysotile_4_20": s.zo_chrysotile_4_20 or 0.0,
+            "chrysotile_5_50": getattr(s, 'zo_chrysotile_5_50', 0.0) or 0.0,
             "chrysotile_5_65": s.zo_chrysotile_5_65 or 0.0,
             "chrysotile_6_40": s.zo_chrysotile_6_40 or 0.0,
             "cement_silo1": s.zo_cement_silo1 or 0.0,
@@ -187,8 +189,8 @@ def generate_flat_report(db: Session) -> bytes:
             "asbozurit": s.zo_asbozurit or 0.0,
         }
         
-        total_fact_asbestos = fact["chrysotile_4_20"] + fact["chrysotile_5_65"] + fact["chrysotile_6_40"]
-        total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
+        total_fact_asbestos = fact["chrysotile_4_20"] + fact["chrysotile_5_50"] + fact["chrysotile_5_65"] + fact["chrysotile_6_40"]
+        total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_50"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
         
         total_fact_cement = fact["cement_silo1"] + fact["cement_silo2"] + fact["cement_silo3"] + fact["cement_silo4"]
         theory_cement = theory["cement"]
@@ -222,6 +224,7 @@ def generate_flat_report(db: Session) -> bytes:
             s.zo_asb_drain or 0.0,
             s.zo_cem_drain or 0.0,
             fact["chrysotile_4_20"],
+            fact["chrysotile_5_50"],
             fact["chrysotile_5_65"],
             fact["chrysotile_6_40"],
             total_fact_asbestos,
@@ -240,6 +243,7 @@ def generate_flat_report(db: Session) -> bytes:
             fact["asbozurit"],
             # Deviations (in %!)
             get_pct_deviation(fact["chrysotile_4_20"], theory["chrysotile_4_20"]),
+            get_pct_deviation(fact["chrysotile_5_50"], theory["chrysotile_5_50"]),
             get_pct_deviation(fact["chrysotile_5_65"], theory["chrysotile_5_65"]),
             get_pct_deviation(fact["chrysotile_6_40"], theory["chrysotile_6_40"]),
             get_pct_deviation(total_fact_asbestos, total_theo_asbestos),
@@ -322,7 +326,7 @@ def create_initial_directories_xlsx(db: Session) -> bytes:
     
     norm_headers = [
         "Продукция", "Вес готового листа (кг)", 
-        "Норма Хризотил 4-20", "Норма Хризотил 5-65", "Норма Хризотил 6-40",
+        "Норма Хризотил 4-20", "Норма Хризотил 5-50", "Норма Хризотил 5-65", "Норма Хризотил 6-40",
         "Норма Цемент", "Норма Целлюлоза", "Норма Дробленый шифер", 
         "Норма Асбозурит", "Норма Стекловолокно"
     ]
@@ -332,7 +336,7 @@ def create_initial_directories_xlsx(db: Session) -> bytes:
     for n in norms:
         ws_norm.append([
             n.product_name, n.weight_kg or 19.6,
-            n.norm_chrysotile_4_20 or 0.0, n.norm_chrysotile_5_65 or 0.0, n.norm_chrysotile_6_40 or 0.0,
+            n.norm_chrysotile_4_20 or 0.0, getattr(n, 'norm_chrysotile_5_50', 0.0) or 0.0, n.norm_chrysotile_5_65 or 0.0, n.norm_chrysotile_6_40 or 0.0,
             n.norm_cement or 0.0, n.norm_cellulose or 0.0, n.norm_crushed_slate or 0.0,
             n.norm_asbozurit or 0.0, n.norm_fiberglass or 0.0
         ])
@@ -379,8 +383,25 @@ def sync_directories_from_excel_bytes(file_bytes: bytes, db: Session):
     
     if "Нормативы" in wb.sheetnames:
         ws_norm = wb["Нормативы"]
-        header_row = [cell.value for cell in ws_norm[1]]
-        if header_row and "Продукция" in header_row:
+        header_row = [str(cell.value or "").strip() for cell in ws_norm[1]]
+        if header_row and any("Продукция" in h for h in header_row):
+            def _get_h_idx(patterns, fallback):
+                for p in patterns:
+                    for i, h in enumerate(header_row):
+                        if p.lower() in h.lower():
+                            return i + 1
+                return fallback
+            
+            c4_col = _get_h_idx(["4-20"], 3)
+            c550_col = _get_h_idx(["5-50"], None)
+            c5_col = _get_h_idx(["5-65"], 4)
+            c6_col = _get_h_idx(["6-40"], 5)
+            cem_col = _get_h_idx(["Цемент"], 6)
+            cel_col = _get_h_idx(["Целлюлоза"], 7)
+            sl_col = _get_h_idx(["Дробленый"], 8)
+            asb_col = _get_h_idx(["Асбозурит"], 9)
+            fib_col = _get_h_idx(["Стекловолокно"], 10)
+
             db.query(models.ProductNorm).delete()
             for row_idx in range(2, ws_norm.max_row + 1):
                 p_name = ws_norm.cell(row=row_idx, column=1).value
@@ -390,19 +411,21 @@ def sync_directories_from_excel_bytes(file_bytes: bytes, db: Session):
                     p_name = "Шифер 8 волн рифленый"
                 
                 weight = float(ws_norm.cell(row=row_idx, column=2).value or 0.0)
-                n_c4 = float(ws_norm.cell(row=row_idx, column=3).value or 0.0)
-                n_c5 = float(ws_norm.cell(row=row_idx, column=4).value or 0.0)
-                n_c6 = float(ws_norm.cell(row=row_idx, column=5).value or 0.0)
-                n_cem = float(ws_norm.cell(row=row_idx, column=6).value or 0.0)
-                n_cel = float(ws_norm.cell(row=row_idx, column=7).value or 0.0)
-                n_sl = float(ws_norm.cell(row=row_idx, column=8).value or 0.0)
-                n_asb = float(ws_norm.cell(row=row_idx, column=9).value or 0.0)
-                n_fib = float(ws_norm.cell(row=row_idx, column=10).value or 0.0)
+                n_c4 = float(ws_norm.cell(row=row_idx, column=c4_col).value or 0.0) if c4_col else 0.0
+                n_c550 = float(ws_norm.cell(row=row_idx, column=c550_col).value or 0.0) if c550_col else 0.0
+                n_c5 = float(ws_norm.cell(row=row_idx, column=c5_col).value or 0.0) if c5_col else 0.0
+                n_c6 = float(ws_norm.cell(row=row_idx, column=c6_col).value or 0.0) if c6_col else 0.0
+                n_cem = float(ws_norm.cell(row=row_idx, column=cem_col).value or 0.0) if cem_col else 0.0
+                n_cel = float(ws_norm.cell(row=row_idx, column=cel_col).value or 0.0) if cel_col else 0.0
+                n_sl = float(ws_norm.cell(row=row_idx, column=sl_col).value or 0.0) if sl_col else 0.0
+                n_asb = float(ws_norm.cell(row=row_idx, column=asb_col).value or 0.0) if asb_col else 0.0
+                n_fib = float(ws_norm.cell(row=row_idx, column=fib_col).value or 0.0) if fib_col else 0.0
                 
                 db.add(models.ProductNorm(
                     product_name=p_name,
                     weight_kg=weight,
                     norm_chrysotile_4_20=n_c4,
+                    norm_chrysotile_5_50=n_c550,
                     norm_chrysotile_5_65=n_c5,
                     norm_chrysotile_6_40=n_c6,
                     norm_cement=n_cem,
@@ -481,13 +504,13 @@ def generate_full_backup_excel(db: Session) -> bytes:
         "Количество замесов", "Формовка (листы)", "Формовка (тонны)",
         "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы листов (техн.)", "Сбросы (замена телеги)",
         "Слив асб. (кг)", "Слив цем. (кг)",
-        "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
+        "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-50 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
         "Расход Цемента С1 (кг)", "Расход Цемента С2 (кг)", "Расход Цемента С3 (кг)", "Расход Цемента С4 (кг)", "Расход Цемента общ. (кг)",
         "Расход Асбокартона (кг)",
         "Расход Лапрола под машину (мл)", "Расход Лапрола в Г/Пушитель (мл)", "Расход Лапрола общ. (мл)",
         "Расход Целлюлозы (кг)", "Расход Стекловолокна (кг)",
         "Расход Дробленого шифера (кг)", "Расход Асбозурита (кг)",
-        "Отклонение Хризотила 4-20 (%)", "Отклонение Хризотила 5-65 (%)", "Отклонение Хризотила 6-40 (%)", "Отклонение Хризотила общ. (%)",
+        "Отклонение Хризотила 4-20 (%)", "Отклонение Хризотила 5-50 (%)", "Отклонение Хризотила 5-65 (%)", "Отклонение Хризотила 6-40 (%)", "Отклонение Хризотила общ. (%)",
         "Отклонение Цемента общ. (%)", "Отклонение Асбокартона (%)", "Отклонение Лапрола (%)", "Отклонение Целлюлозы (%)",
         "Отклонение Стекловолокна (%)", "Отклонение Дробленого шифера (%)", "Отклонение Асбозурита (%)"
     ]
@@ -540,7 +563,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
         cart_resets = sum((getattr(r, 'lfm_cart_resets', 0) or 0) for r in s.lfm_reports)
         
         theory = {
-            "chrysotile_4_20": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
+            "chrysotile_4_20": 0.0, "chrysotile_5_50": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
             "cement": 0.0, "cellulose": 0.0, "crushed_slate": 0.0,
             "asbozurit": 0.0, "fiberglass": 0.0, "asbocarton": 0.0, "laprol": 0.0
         }
@@ -548,6 +571,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
             norm = norms_cache.get(r.product_name)
             if norm:
                 theory["chrysotile_4_20"] += r.lfm_sheets * (norm.norm_chrysotile_4_20 or 0.0)
+                theory["chrysotile_5_50"] += r.lfm_sheets * (getattr(norm, 'norm_chrysotile_5_50', 0.0) or 0.0)
                 theory["chrysotile_5_65"] += r.lfm_sheets * (norm.norm_chrysotile_5_65 or 0.0)
                 theory["chrysotile_6_40"] += r.lfm_sheets * (norm.norm_chrysotile_6_40 or 0.0)
                 theory["cement"] += r.lfm_sheets * (norm.norm_cement or 0.0)
@@ -558,6 +582,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
                 
         fact = {
             "chrysotile_4_20": s.zo_chrysotile_4_20 or 0.0,
+            "chrysotile_5_50": getattr(s, 'zo_chrysotile_5_50', 0.0) or 0.0,
             "chrysotile_5_65": s.zo_chrysotile_5_65 or 0.0,
             "chrysotile_6_40": s.zo_chrysotile_6_40 or 0.0,
             "cement_silo1": s.zo_cement_silo1 or 0.0,
@@ -572,8 +597,8 @@ def generate_full_backup_excel(db: Session) -> bytes:
             "asbozurit": s.zo_asbozurit or 0.0,
         }
         
-        total_fact_asbestos = fact["chrysotile_4_20"] + fact["chrysotile_5_65"] + fact["chrysotile_6_40"]
-        total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
+        total_fact_asbestos = fact["chrysotile_4_20"] + fact["chrysotile_5_50"] + fact["chrysotile_5_65"] + fact["chrysotile_6_40"]
+        total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_50"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
         total_fact_cement = fact["cement_silo1"] + fact["cement_silo2"] + fact["cement_silo3"] + fact["cement_silo4"]
         theory_cement = theory["cement"]
         export_type = s.export_type or "Эталон"
@@ -601,6 +626,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
             s.zo_asb_drain or 0.0,
             s.zo_cem_drain or 0.0,
             fact["chrysotile_4_20"],
+            fact["chrysotile_5_50"],
             fact["chrysotile_5_65"],
             fact["chrysotile_6_40"],
             total_fact_asbestos,
@@ -618,6 +644,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
             fact["crushed_slate"],
             fact["asbozurit"],
             _get_pct(fact["chrysotile_4_20"], theory["chrysotile_4_20"]),
+            _get_pct(fact["chrysotile_5_50"], theory["chrysotile_5_50"]),
             _get_pct(fact["chrysotile_5_65"], theory["chrysotile_5_65"]),
             _get_pct(fact["chrysotile_6_40"], theory["chrysotile_6_40"]),
             _get_pct(total_fact_asbestos, total_theo_asbestos),
@@ -654,7 +681,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
     ws2.views.sheetView[0].showGridLines = True
     headers2 = [
         "Дата", "Смена", "Линия", "Мастер",
-        "Хризотил 4-20 (кг)", "Хризотил 5-65 (кг)", "Хризотил 6-40 (кг)",
+        "Хризотил 4-20 (кг)", "Хризотил 5-50 (кг)", "Хризотил 5-65 (кг)", "Хризотил 6-40 (кг)",
         "Цемент С1 (кг)", "Цемент С2 (кг)", "Цемент С3 (кг)", "Цемент С4 (кг)", 
         "Целлюлоза (кг)", "Дробленый шифер (кг)",
         "Асбозурит (кг)", "Асбокартон (кг)", "Паллеты (шт)",
@@ -687,6 +714,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
             line,
             master_name,
             r.chrysotile_4_20 or 0.0,
+            getattr(r, 'chrysotile_5_50', 0.0) or 0.0,
             r.chrysotile_5_65 or 0.0,
             r.chrysotile_6_40 or 0.0,
             r.cement_silo1 or 0.0,
@@ -1114,6 +1142,9 @@ def restore_from_backup_excel(file_bytes: bytes, db: Session, user_name: str = "
     # 1. Приход сырья
     if "Приход сырья" in wb.sheetnames:
         ws = wb["Приход сырья"]
+        header_row = [str(cell.value or "").strip() for cell in ws[1]]
+        has_550 = any("5-50" in h for h in header_row)
+
         for row_idx in range(2, ws.max_row + 1):
             date_val = ws.cell(row=row_idx, column=1).value
             if not date_val: continue
@@ -1140,20 +1171,30 @@ def restore_from_backup_excel(file_bytes: bytes, db: Session, user_name: str = "
                 m_obj = db.query(models.Master).filter(models.Master.name == m_name).first()
                 if m_obj: master_id = m_obj.id
                 
-            c4 = float(ws.cell(row=row_idx, column=5).value or 0.0)
-            c5 = float(ws.cell(row=row_idx, column=6).value or 0.0)
-            c6 = float(ws.cell(row=row_idx, column=7).value or 0.0)
-            cs1 = float(ws.cell(row=row_idx, column=8).value or 0.0)
-            cs2 = float(ws.cell(row=row_idx, column=9).value or 0.0)
-            cs3 = float(ws.cell(row=row_idx, column=10).value or 0.0)
-            cs4 = float(ws.cell(row=row_idx, column=11).value or 0.0)
-            cell = float(ws.cell(row=row_idx, column=12).value or 0.0)
-            sl = float(ws.cell(row=row_idx, column=13).value or 0.0)
-            asb = float(ws.cell(row=row_idx, column=14).value or 0.0)
-            asbc = float(ws.cell(row=row_idx, column=15).value or 0.0)
-            pal = float(ws.cell(row=row_idx, column=16).value or 0.0)
-            fib = float(ws.cell(row=row_idx, column=17).value or 0.0)
-            lap = float(ws.cell(row=row_idx, column=18).value or 0.0)
+            if has_550:
+                c4 = float(ws.cell(row=row_idx, column=5).value or 0.0)
+                c550 = float(ws.cell(row=row_idx, column=6).value or 0.0)
+                c5 = float(ws.cell(row=row_idx, column=7).value or 0.0)
+                c6 = float(ws.cell(row=row_idx, column=8).value or 0.0)
+                shift_offset = 1
+            else:
+                c4 = float(ws.cell(row=row_idx, column=5).value or 0.0)
+                c550 = 0.0
+                c5 = float(ws.cell(row=row_idx, column=6).value or 0.0)
+                c6 = float(ws.cell(row=row_idx, column=7).value or 0.0)
+                shift_offset = 0
+
+            cs1 = float(ws.cell(row=row_idx, column=8 + shift_offset).value or 0.0)
+            cs2 = float(ws.cell(row=row_idx, column=9 + shift_offset).value or 0.0)
+            cs3 = float(ws.cell(row=row_idx, column=10 + shift_offset).value or 0.0)
+            cs4 = float(ws.cell(row=row_idx, column=11 + shift_offset).value or 0.0)
+            cell = float(ws.cell(row=row_idx, column=12 + shift_offset).value or 0.0)
+            sl = float(ws.cell(row=row_idx, column=13 + shift_offset).value or 0.0)
+            asb = float(ws.cell(row=row_idx, column=14 + shift_offset).value or 0.0)
+            asbc = float(ws.cell(row=row_idx, column=15 + shift_offset).value or 0.0)
+            pal = float(ws.cell(row=row_idx, column=16 + shift_offset).value or 0.0)
+            fib = float(ws.cell(row=row_idx, column=17 + shift_offset).value or 0.0)
+            lap = float(ws.cell(row=row_idx, column=18 + shift_offset).value or 0.0)
             
             # Ищем существующую запись
             existing = db.query(models.RawMaterialReceipt).filter(
@@ -1164,6 +1205,7 @@ def restore_from_backup_excel(file_bytes: bytes, db: Session, user_name: str = "
             
             if existing:
                 existing.chrysotile_4_20 = c4
+                existing.chrysotile_5_50 = c550
                 existing.chrysotile_5_65 = c5
                 existing.chrysotile_6_40 = c6
                 existing.cement_silo1 = cs1
@@ -1186,6 +1228,7 @@ def restore_from_backup_excel(file_bytes: bytes, db: Session, user_name: str = "
                     line=line,
                     master_id=master_id,
                     chrysotile_4_20=c4,
+                    chrysotile_5_50=c550,
                     chrysotile_5_65=c5,
                     chrysotile_6_40=c6,
                     cement_silo1=cs1,

@@ -747,6 +747,7 @@ def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, background
         raise HTTPException(status_code=403, detail="Недостаточно прав")
         
     shift.zo_chrysotile_4_20 = data.chrysotile_4_20
+    shift.zo_chrysotile_5_50 = getattr(data, 'chrysotile_5_50', 0.0) or 0.0
     shift.zo_chrysotile_5_65 = data.chrysotile_5_65
     shift.zo_chrysotile_6_40 = data.chrysotile_6_40
     
@@ -837,6 +838,7 @@ def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdat
         
     # Записываем расход ЗО
     shift.zo_chrysotile_4_20 = data.zo_chrysotile_4_20
+    shift.zo_chrysotile_5_50 = getattr(data, 'zo_chrysotile_5_50', 0.0) or 0.0
     shift.zo_chrysotile_5_65 = data.zo_chrysotile_5_65
     shift.zo_chrysotile_6_40 = data.zo_chrysotile_6_40
     shift.zo_cement_silo1 = data.zo_cement_silo1
@@ -887,6 +889,7 @@ def calculate_shift_deviations(db: Session, shift: models.Shift):
         
     theoretical = {
         "chrysotile_4_20": 0.0,
+        "chrysotile_5_50": 0.0,
         "chrysotile_5_65": 0.0,
         "chrysotile_6_40": 0.0,
         "cement": 0.0,
@@ -902,6 +905,7 @@ def calculate_shift_deviations(db: Session, shift: models.Shift):
         norm = _get_norm_cached(db, prod_name)
         if norm:
             theoretical["chrysotile_4_20"] += sheets * (norm.norm_chrysotile_4_20 or 0.0)
+            theoretical["chrysotile_5_50"] += sheets * (getattr(norm, 'norm_chrysotile_5_50', 0.0) or 0.0)
             theoretical["chrysotile_5_65"] += sheets * (norm.norm_chrysotile_5_65 or 0.0)
             theoretical["chrysotile_6_40"] += sheets * (norm.norm_chrysotile_6_40 or 0.0)
             theoretical["cement"] += sheets * (norm.norm_cement or 0.0)
@@ -912,6 +916,7 @@ def calculate_shift_deviations(db: Session, shift: models.Shift):
             
     actual = {
         "chrysotile_4_20": shift.zo_chrysotile_4_20 or 0.0,
+        "chrysotile_5_50": shift.zo_chrysotile_5_50 or 0.0,
         "chrysotile_5_65": shift.zo_chrysotile_5_65 or 0.0,
         "chrysotile_6_40": shift.zo_chrysotile_6_40 or 0.0,
         "cement": shift.zo_cement or 0.0,
@@ -944,6 +949,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
             "product_name": shift.product_name,
             "zo_batches": shift.zo_batches,
             "zo_chrysotile_4_20": shift.zo_chrysotile_4_20,
+            "zo_chrysotile_5_50": shift.zo_chrysotile_5_50,
             "zo_chrysotile_5_65": shift.zo_chrysotile_5_65,
             "zo_chrysotile_6_40": shift.zo_chrysotile_6_40,
             "zo_cement_silo1": shift.zo_cement_silo1,
@@ -980,6 +986,10 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
                     "zo_chrysotile_4_20_silo2": shift.zo_chrysotile_4_20_silo2,
                     "zo_chrysotile_4_20_silo3": shift.zo_chrysotile_4_20_silo3,
                     "zo_chrysotile_4_20_silo4": shift.zo_chrysotile_4_20_silo4,
+                    "zo_chrysotile_5_50_silo1": shift.zo_chrysotile_5_50_silo1,
+                    "zo_chrysotile_5_50_silo2": shift.zo_chrysotile_5_50_silo2,
+                    "zo_chrysotile_5_50_silo3": shift.zo_chrysotile_5_50_silo3,
+                    "zo_chrysotile_5_50_silo4": shift.zo_chrysotile_5_50_silo4,
                     "zo_chrysotile_5_65_silo1": shift.zo_chrysotile_5_65_silo1,
                     "zo_chrysotile_5_65_silo2": shift.zo_chrysotile_5_65_silo2,
                     "zo_chrysotile_5_65_silo3": shift.zo_chrysotile_5_65_silo3,
@@ -1096,6 +1106,21 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
         shift.zo_chrysotile_4_20_silo2 = 0.0
         shift.zo_chrysotile_4_20_silo3 = 0.0
         shift.zo_chrysotile_4_20_silo4 = 0.0
+    
+    # Хризотил 5-50
+    chr_5_50_sum = (data.zo_chrysotile_5_50_silo1 or 0) + (data.zo_chrysotile_5_50_silo2 or 0) + (data.zo_chrysotile_5_50_silo3 or 0) + (data.zo_chrysotile_5_50_silo4 or 0)
+    if chr_5_50_sum > 0:
+        shift.zo_chrysotile_5_50_silo1 = data.zo_chrysotile_5_50_silo1
+        shift.zo_chrysotile_5_50_silo2 = data.zo_chrysotile_5_50_silo2
+        shift.zo_chrysotile_5_50_silo3 = data.zo_chrysotile_5_50_silo3
+        shift.zo_chrysotile_5_50_silo4 = data.zo_chrysotile_5_50_silo4
+        shift.zo_chrysotile_5_50 = chr_5_50_sum
+    else:
+        shift.zo_chrysotile_5_50 = data.zo_chrysotile_5_50 or 0.0
+        shift.zo_chrysotile_5_50_silo1 = data.zo_chrysotile_5_50 or 0.0
+        shift.zo_chrysotile_5_50_silo2 = 0.0
+        shift.zo_chrysotile_5_50_silo3 = 0.0
+        shift.zo_chrysotile_5_50_silo4 = 0.0
     
     # Хризотил 5-65
     chr_5_65_sum = (data.zo_chrysotile_5_65_silo1 or 0) + (data.zo_chrysotile_5_65_silo2 or 0) + (data.zo_chrysotile_5_65_silo3 or 0) + (data.zo_chrysotile_5_65_silo4 or 0)
@@ -1322,6 +1347,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
             "product_name": shift.product_name,
             "zo_batches": shift.zo_batches,
             "zo_chrysotile_4_20": shift.zo_chrysotile_4_20,
+            "zo_chrysotile_5_50": shift.zo_chrysotile_5_50,
             "zo_chrysotile_5_65": shift.zo_chrysotile_5_65,
             "zo_chrysotile_6_40": shift.zo_chrysotile_6_40,
             "zo_cement_silo1": shift.zo_cement_silo1,
@@ -1337,6 +1363,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
             "zo_asb_drain": shift.zo_asb_drain,
             "zo_cem_drain": shift.zo_cem_drain,
             "receipt_chrysotile_4_20": sum((r.chrysotile_4_20 or 0.0) for r in shift.receipts) if shift.receipts else 0.0,
+            "receipt_chrysotile_5_50": sum((getattr(r, 'chrysotile_5_50', 0.0) or 0.0) for r in shift.receipts) if shift.receipts else 0.0,
             "receipt_chrysotile_5_65": sum((r.chrysotile_5_65 or 0.0) for r in shift.receipts) if shift.receipts else 0.0,
             "receipt_chrysotile_6_40": sum((r.chrysotile_6_40 or 0.0) for r in shift.receipts) if shift.receipts else 0.0,
             "receipt_cement": sum((((r.cement_silo1 or 0.0) + (r.cement_silo2 or 0.0) + (r.cement_silo3 or 0.0) + (r.cement_silo4 or 0.0))) for r in shift.receipts) if shift.receipts else 0.0,
@@ -1379,7 +1406,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
                 warnings.append("Не указана выработка ЛФМ (0 листов)")
             if (shift.zo_cement or 0) <= 0:
                 warnings.append("Не заполнен расход цемента (0 т)")
-            if (shift.zo_chrysotile_4_20 or 0) + (shift.zo_chrysotile_5_65 or 0) + (shift.zo_chrysotile_6_40 or 0) <= 0:
+            if (shift.zo_chrysotile_4_20 or 0) + (shift.zo_chrysotile_5_50 or 0) + (shift.zo_chrysotile_5_65 or 0) + (shift.zo_chrysotile_6_40 or 0) <= 0:
                 warnings.append("Не заполнен расход хризотила (все группы 0 т)")
                 
             # Проверка аномального брака дестакера (> 4%)
@@ -2005,6 +2032,10 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
                 "zo_chrysotile_4_20_silo2": shift.zo_chrysotile_4_20_silo2,
                 "zo_chrysotile_4_20_silo3": shift.zo_chrysotile_4_20_silo3,
                 "zo_chrysotile_4_20_silo4": shift.zo_chrysotile_4_20_silo4,
+                "zo_chrysotile_5_50_silo1": shift.zo_chrysotile_5_50_silo1,
+                "zo_chrysotile_5_50_silo2": shift.zo_chrysotile_5_50_silo2,
+                "zo_chrysotile_5_50_silo3": shift.zo_chrysotile_5_50_silo3,
+                "zo_chrysotile_5_50_silo4": shift.zo_chrysotile_5_50_silo4,
                 "zo_chrysotile_5_65_silo1": shift.zo_chrysotile_5_65_silo1,
                 "zo_chrysotile_5_65_silo2": shift.zo_chrysotile_5_65_silo2,
                 "zo_chrysotile_5_65_silo3": shift.zo_chrysotile_5_65_silo3,
@@ -2128,8 +2159,9 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         
     # ZO raw materials
     zo_fields = [
-        "zo_batches", "zo_chrysotile_4_20", "zo_chrysotile_5_65", "zo_chrysotile_6_40",
+        "zo_batches", "zo_chrysotile_4_20", "zo_chrysotile_5_50", "zo_chrysotile_5_65", "zo_chrysotile_6_40",
         "zo_chrysotile_4_20_silo1", "zo_chrysotile_4_20_silo2", "zo_chrysotile_4_20_silo3", "zo_chrysotile_4_20_silo4",
+        "zo_chrysotile_5_50_silo1", "zo_chrysotile_5_50_silo2", "zo_chrysotile_5_50_silo3", "zo_chrysotile_5_50_silo4",
         "zo_chrysotile_5_65_silo1", "zo_chrysotile_5_65_silo2", "zo_chrysotile_5_65_silo3", "zo_chrysotile_5_65_silo4",
         "zo_chrysotile_6_40_silo1", "zo_chrysotile_6_40_silo2", "zo_chrysotile_6_40_silo3", "zo_chrysotile_6_40_silo4",
         "zo_cement_silo1", "zo_cement_silo2", "zo_cement_silo3", "zo_cement_silo4",

@@ -210,6 +210,12 @@ class ShiftBase(ORMBaseModel):
     zo_chrysotile_4_20_silo3: Optional[float] = 0
     zo_chrysotile_4_20_silo4: Optional[float] = 0
     
+    zo_chrysotile_5_50: Optional[float] = 0
+    zo_chrysotile_5_50_silo1: Optional[float] = 0
+    zo_chrysotile_5_50_silo2: Optional[float] = 0
+    zo_chrysotile_5_50_silo3: Optional[float] = 0
+    zo_chrysotile_5_50_silo4: Optional[float] = 0
+
     zo_chrysotile_5_65: Optional[float] = 0
     zo_chrysotile_5_65_silo1: Optional[float] = 0
     zo_chrysotile_5_65_silo2: Optional[float] = 0
@@ -280,6 +286,7 @@ class RawMaterialReceiptBase(ORMBaseModel):
     line: Optional[str] = None
     master_id: Optional[int] = None
     chrysotile_4_20: float = 0.0
+    chrysotile_5_50: float = 0.0
     chrysotile_5_65: float = 0.0
     chrysotile_6_40: float = 0.0
     cement_silo1: float = 0.0
@@ -311,6 +318,7 @@ class RawMaterialReceiptUpdate(ORMBaseModel):
     line: Optional[str] = None
     master_id: Optional[int] = None
     chrysotile_4_20: Optional[float] = None
+    chrysotile_5_50: Optional[float] = None
     chrysotile_5_65: Optional[float] = None
     chrysotile_6_40: Optional[float] = None
     cement_silo1: Optional[float] = None
@@ -364,6 +372,7 @@ class Master(MasterBase):
 
 class ZOUpdate(ORMBaseModel):
     chrysotile_4_20: float
+    chrysotile_5_50: float = 0
     chrysotile_5_65: float
     chrysotile_6_40: float
     cement_silo1: float = 0
@@ -389,6 +398,7 @@ class ProductNormBase(ORMBaseModel):
     product_name: str
     weight_kg: float = 0.0
     norm_chrysotile_4_20: float = 0.0
+    norm_chrysotile_5_50: float = 0.0
     norm_chrysotile_5_65: float = 0.0
     norm_chrysotile_6_40: float = 0.0
     norm_cement: float = 0.0
@@ -404,6 +414,7 @@ class ProductNormUpdate(ORMBaseModel):
     product_name: Optional[str] = None
     weight_kg: Optional[float] = None
     norm_chrysotile_4_20: Optional[float] = None
+    norm_chrysotile_5_50: Optional[float] = None
     norm_chrysotile_5_65: Optional[float] = None
     norm_chrysotile_6_40: Optional[float] = None
     norm_cement: Optional[float] = None
@@ -472,6 +483,7 @@ class DowntimeDirectory(DowntimeDirectoryBase):
 
 class RawMaterialsBulkUpdate(ORMBaseModel):
     zo_chrysotile_4_20: float = 0.0
+    zo_chrysotile_5_50: float = 0.0
     zo_chrysotile_5_65: float = 0.0
     zo_chrysotile_6_40: float = 0.0
     zo_cement_silo1: float = 0.0
@@ -544,6 +556,12 @@ class ShiftReportCreate(ORMBaseModel):
     zo_chrysotile_4_20_silo3: float = 0.0
     zo_chrysotile_4_20_silo4: float = 0.0
     
+    zo_chrysotile_5_50: float = 0.0
+    zo_chrysotile_5_50_silo1: float = 0.0
+    zo_chrysotile_5_50_silo2: float = 0.0
+    zo_chrysotile_5_50_silo3: float = 0.0
+    zo_chrysotile_5_50_silo4: float = 0.0
+
     zo_chrysotile_5_65: float = 0.0
     zo_chrysotile_5_65_silo1: float = 0.0
     zo_chrysotile_5_65_silo2: float = 0.0
@@ -659,6 +677,12 @@ class AdminShiftReportUpdate(ORMBaseModel):
     zo_chrysotile_4_20_silo3: Optional[float] = None
     zo_chrysotile_4_20_silo4: Optional[float] = None
     
+    zo_chrysotile_5_50: Optional[float] = None
+    zo_chrysotile_5_50_silo1: Optional[float] = None
+    zo_chrysotile_5_50_silo2: Optional[float] = None
+    zo_chrysotile_5_50_silo3: Optional[float] = None
+    zo_chrysotile_5_50_silo4: Optional[float] = None
+
     zo_chrysotile_5_65: Optional[float] = None
     zo_chrysotile_5_65_silo1: Optional[float] = None
     zo_chrysotile_5_65_silo2: Optional[float] = None

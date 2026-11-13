@@ -62,6 +62,28 @@ def run_sqlite_migrations():
                 conn.execute(f"ALTER TABLE shifts ADD COLUMN {col_name} {col_def};")
             except Exception:
                 pass
+
+        # Chrysotile 5-50 migrations
+        for col_name in [
+            "zo_chrysotile_5_50", "zo_chrysotile_5_50_silo1", "zo_chrysotile_5_50_silo2",
+            "zo_chrysotile_5_50_silo3", "zo_chrysotile_5_50_silo4"
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE shifts ADD COLUMN {col_name} REAL DEFAULT 0;")
+            except Exception:
+                pass
+        try:
+            conn.execute("ALTER TABLE raw_material_receipts ADD COLUMN chrysotile_5_50 REAL DEFAULT 0.0;")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE product_norms ADD COLUMN norm_chrysotile_5_50 REAL DEFAULT 0.0;")
+        except Exception:
+            pass
+        try:
+            conn.execute("UPDATE product_norms SET norm_chrysotile_5_50 = 0.0 WHERE norm_chrysotile_5_50 IS NULL;")
+        except Exception:
+            pass
         conn.commit()
         conn.close()
     except Exception as e:
@@ -126,6 +148,20 @@ def run_database_migrations():
             ensure_pg_column(db, "batches", "qcd_defect_curved_edge", "INTEGER DEFAULT 0")
             ensure_pg_column(db, "batches", "qcd_defect_no_pattern", "INTEGER DEFAULT 0")
             ensure_pg_column(db, "batches", "qcd_defect_tech", "INTEGER DEFAULT 0")
+
+            # Chrysotile 5-50 migrations
+            ensure_pg_column(db, "shifts", "zo_chrysotile_5_50", "FLOAT DEFAULT 0")
+            ensure_pg_column(db, "shifts", "zo_chrysotile_5_50_silo1", "FLOAT DEFAULT 0")
+            ensure_pg_column(db, "shifts", "zo_chrysotile_5_50_silo2", "FLOAT DEFAULT 0")
+            ensure_pg_column(db, "shifts", "zo_chrysotile_5_50_silo3", "FLOAT DEFAULT 0")
+            ensure_pg_column(db, "shifts", "zo_chrysotile_5_50_silo4", "FLOAT DEFAULT 0")
+            ensure_pg_column(db, "raw_material_receipts", "chrysotile_5_50", "FLOAT DEFAULT 0.0")
+            ensure_pg_column(db, "product_norms", "norm_chrysotile_5_50", "FLOAT DEFAULT 0.0")
+            try:
+                db.execute(text("UPDATE product_norms SET norm_chrysotile_5_50 = 0.0 WHERE norm_chrysotile_5_50 IS NULL;"))
+                db.commit()
+            except Exception:
+                db.rollback()
 
             try:
                 db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 800 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'День' AND plan_sheets IN (2700, 0);"))

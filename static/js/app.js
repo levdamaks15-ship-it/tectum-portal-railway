@@ -447,10 +447,11 @@ function recalcDefectTotal() {
 
 function recalcChrTotal() {
     const v1 = parseFloat(document.getElementById('zo-chr-4-20')?.value) || 0;
+    const v_550 = parseFloat(document.getElementById('zo-chr-5-50')?.value) || 0;
     const v2 = parseFloat(document.getElementById('zo-chr-5-65')?.value) || 0;
     const v3 = parseFloat(document.getElementById('zo-chr-6-40')?.value) || 0;
     const target = document.getElementById('zo-chr-total-readonly');
-    if (target) target.value = (v1 + v2 + v3).toFixed(1);
+    if (target) target.value = (v1 + v_550 + v2 + v3).toFixed(1);
 }
 
 function recalcCemTotal() {
@@ -1334,6 +1335,7 @@ function prefillReportForm(shift) {
     // Raw materials zo
     const materials = [
         {dbKey: 'zo_chrysotile_4_20', uiKey: 'chr-4-20', hiddenKey: 'zo-chr-4-20'},
+        {dbKey: 'zo_chrysotile_5_50', uiKey: 'chr-5-50', hiddenKey: 'zo-chr-5-50'},
         {dbKey: 'zo_chrysotile_5_65', uiKey: 'chr-5-65', hiddenKey: 'zo-chr-5-65'},
         {dbKey: 'zo_chrysotile_6_40', uiKey: 'chr-6-40', hiddenKey: 'zo-chr-6-40'},
         {dbKey: 'zo_cement', uiKey: 'cem', hiddenKey: 'zo-cem'},
@@ -1476,7 +1478,7 @@ function prefillReportForm(shift) {
 
 async function submitShiftReport() {
     // Force sync all raw material calculation fields before collecting data
-    const rmKeys = ['chr-4-20', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
+    const rmKeys = ['chr-4-20', 'chr-5-50', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
     rmKeys.forEach(k => {
         if (typeof calcSumRM === 'function') calcSumRM(k);
     });
@@ -1534,6 +1536,12 @@ async function submitShiftReport() {
         zo_chrysotile_4_20_silo2: parseFloat(document.getElementById('calc-chr-4-20-2')?.value) || parseFloat(document.getElementById('zo-chr-4-20-2')?.value) || 0.0,
         zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('calc-chr-4-20-3')?.value) || parseFloat(document.getElementById('zo-chr-4-20-3')?.value) || 0.0,
         zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('calc-chr-4-20-4')?.value) || parseFloat(document.getElementById('zo-chr-4-20-4')?.value) || 0.0,
+        
+        // Хризотил 5-50
+        zo_chrysotile_5_50_silo1: parseFloat(document.getElementById('calc-chr-5-50-1')?.value) || parseFloat(document.getElementById('zo-chr-5-50-1')?.value) || 0.0,
+        zo_chrysotile_5_50_silo2: parseFloat(document.getElementById('calc-chr-5-50-2')?.value) || parseFloat(document.getElementById('zo-chr-5-50-2')?.value) || 0.0,
+        zo_chrysotile_5_50_silo3: parseFloat(document.getElementById('calc-chr-5-50-3')?.value) || parseFloat(document.getElementById('zo-chr-5-50-3')?.value) || 0.0,
+        zo_chrysotile_5_50_silo4: parseFloat(document.getElementById('calc-chr-5-50-4')?.value) || parseFloat(document.getElementById('zo-chr-5-50-4')?.value) || 0.0,
         
         // Хризотил 5-65
         zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('calc-chr-5-65-1')?.value) || parseFloat(document.getElementById('zo-chr-5-65-1')?.value) || 0.0,
@@ -1593,6 +1601,7 @@ async function submitShiftReport() {
         
         // Итоги
         zo_chrysotile_4_20: parseFloat(document.getElementById('zo-chr-4-20')?.value) || 0.0,
+        zo_chrysotile_5_50: parseFloat(document.getElementById('zo-chr-5-50')?.value) || 0.0,
         zo_chrysotile_5_65: parseFloat(document.getElementById('zo-chr-5-65')?.value) || 0.0,
         zo_chrysotile_6_40: parseFloat(document.getElementById('zo-chr-6-40')?.value) || 0.0,
         zo_cement: parseFloat(document.getElementById('zo-cem-total-readonly')?.value) || 0.0,
@@ -1816,14 +1825,15 @@ function resetReportForm() {
         'rep-prev-warehouse-gp', 'rep-prev-first-grade', 'rep-warehouse-gp-total-readonly',
         'prev-def-scratch', 'prev-def-bad-cut', 'prev-def-stick-top', 'prev-def-broken', 'prev-def-fell', 
         'prev-def-thickness', 'prev-def-edge',
-        'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4', 
+        'zo-chr-4-20', 'zo-chr-5-50', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4', 
         'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol', 'zo-asbocarton', 
         'zo-asb-drain', 'zo-cem-drain',
-        'rec-chr-4-20', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement-1', 'rec-cement-2', 'rec-cement-3', 'rec-cement-4', 'rec-cellulose', 'rec-crushed-slate', 
+        'rec-chr-4-20', 'rec-chr-5-50', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement-1', 'rec-cement-2', 'rec-cement-3', 'rec-cement-4', 'rec-cellulose', 'rec-crushed-slate', 
         'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol',
         
         // Calculator inputs
         'calc-chr-4-20-1', 'calc-chr-4-20-2', 'calc-chr-4-20-3', 'calc-chr-4-20-4',
+        'calc-chr-5-50-1', 'calc-chr-5-50-2', 'calc-chr-5-50-3', 'calc-chr-5-50-4',
         'calc-chr-5-65-1', 'calc-chr-5-65-2', 'calc-chr-5-65-3', 'calc-chr-5-65-4',
         'calc-chr-6-40-1', 'calc-chr-6-40-2', 'calc-chr-6-40-3', 'calc-chr-6-40-4',
         'calc-cem-1', 'calc-cem-2', 'calc-cem-3', 'calc-cem-4',
@@ -2071,16 +2081,17 @@ function renderSummaryTable(rows) {
     tbody.innerHTML = '';
     
     if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="45" style="text-align: center; color: var(--text-secondary);">Нет данных за выбранный период</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="47" style="text-align: center; color: var(--text-secondary);">Нет данных за выбранный период</td></tr>';
         return;
     }
 
     rows.forEach(r => {
         const u = r.zo_usage || {};
         const chrys_4_20 = u.chrysotile_4_20 || 0;
+        const chrys_5_50 = u.chrysotile_5_50 || 0;
         const chrys_5_65 = u.chrysotile_5_65 || 0;
         const chrys_6_40 = u.chrysotile_6_40 || 0;
-        const totalAsbestos = chrys_4_20 + chrys_5_65 + chrys_6_40;
+        const totalAsbestos = chrys_4_20 + chrys_5_50 + chrys_5_65 + chrys_6_40;
 
         const cem_1 = u.cement_silo1 || 0;
         const cem_2 = u.cement_silo2 || 0;
@@ -2103,9 +2114,10 @@ function renderSummaryTable(rows) {
         // Theoretical values for relative deviations
         const theo = r.deviations && r.deviations.theoretical ? r.deviations.theoretical : {};
         const t_4_20 = theo.chrysotile_4_20 || 0;
+        const t_5_50 = theo.chrysotile_5_50 || 0;
         const t_5_65 = theo.chrysotile_5_65 || 0;
         const t_6_40 = theo.chrysotile_6_40 || 0;
-        const totalTheoAsbestos = t_4_20 + t_5_65 + t_6_40;
+        const totalTheoAsbestos = t_4_20 + t_5_50 + t_5_65 + t_6_40;
         const t_cement = theo.cement || 0;
         const t_asbocarton = theo.asbocarton || 0;
         const t_laprol = theo.laprol || 0;
@@ -2158,6 +2170,7 @@ function renderSummaryTable(rows) {
                 <td>${(u.asb_drain || 0).toFixed(0)}</td>
                 <td>${(u.cem_drain || 0).toFixed(0)}</td>
                 <td>${chrys_4_20.toFixed(0)}</td>
+                <td>${chrys_5_50.toFixed(0)}</td>
                 <td>${chrys_5_65.toFixed(0)}</td>
                 <td>${chrys_6_40.toFixed(0)}</td>
                 <td style="font-weight: 500;">${totalAsbestos.toFixed(0)}</td>
@@ -2175,6 +2188,7 @@ function renderSummaryTable(rows) {
                 <td>${(u.crushed_slate || 0).toFixed(0)}</td>
                 <td>${(u.asbozurit || 0).toFixed(0)}</td>
                 ${getDevCell(chrys_4_20, t_4_20)}
+                ${getDevCell(chrys_5_50, t_5_50)}
                 ${getDevCell(chrys_5_65, t_5_65)}
                 ${getDevCell(chrys_6_40, t_6_40)}
                 ${getDevCell(totalAsbestos, totalTheoAsbestos)}
@@ -2452,6 +2466,7 @@ function renderMaterialsTable(totals) {
 
     const matNamesRu = {
         "chrysotile_4_20": "Хризотил 4-20",
+        "chrysotile_5_50": "Хризотил 5-50",
         "chrysotile_5_65": "Хризотил 5-65",
         "chrysotile_6_40": "Хризотил 6-40",
         "cement": "Цемент",
@@ -2489,6 +2504,7 @@ function renderMaterialsCharts(data) {
     const materials = Object.keys(data.totals);
     const matNamesRu = {
         "chrysotile_4_20": "Хр 4-20",
+        "chrysotile_5_50": "Хр 5-50",
         "chrysotile_5_65": "Хр 5-65",
         "chrysotile_6_40": "Хр 6-40",
         "cement": "Цемент",
@@ -4454,12 +4470,13 @@ const REPORT_FIELDS = [
     'rep-has-defect', 'def-chip', 'def-scratch', 'def-bad-cut', 'def-stick-bottom',
     'def-stick-top', 'def-broken', 'def-fell', 'def-dent', 'def-thickness',
     'def-delamination', 'def-edge', 'rep-qcd-defect',
-    'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4',
+    'zo-chr-4-20', 'zo-chr-5-50', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4',
     'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol',
     'zo-asbocarton', 'zo-asb-drain', 'zo-cem-drain',
     
     // Calculator inputs for draft saving
     'calc-chr-4-20-1', 'calc-chr-4-20-2', 'calc-chr-4-20-3', 'calc-chr-4-20-4',
+    'calc-chr-5-50-1', 'calc-chr-5-50-2', 'calc-chr-5-50-3', 'calc-chr-5-50-4',
     'calc-chr-5-65-1', 'calc-chr-5-65-2', 'calc-chr-5-65-3', 'calc-chr-5-65-4',
     'calc-chr-6-40-1', 'calc-chr-6-40-2', 'calc-chr-6-40-3', 'calc-chr-6-40-4',
     'calc-cem-1', 'calc-cem-2', 'calc-cem-3', 'calc-cem-4',
@@ -4540,7 +4557,7 @@ function loadReportDraft() {
                 if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints(!hasDraftNumbers);
                 
                 // Recalculate and sync all raw material calculation fields
-                const rmKeys = ['chr-4-20', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
+                const rmKeys = ['chr-4-20', 'chr-5-50', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
                 rmKeys.forEach(k => {
                     if (typeof calcSumRM === 'function') calcSumRM(k);
                 });
@@ -5068,9 +5085,10 @@ async function addReceipt() {
         shift_name: shift_name,
         line: line,
         master_id: parseInt(master_id) || null,
-        chrysotile_4_20: (parseFloat(document.getElementById('rec-chr-4-20').value) || 0.0) * 50,
-        chrysotile_5_65: (parseFloat(document.getElementById('rec-chr-5-65').value) || 0.0) * 50,
-        chrysotile_6_40: (parseFloat(document.getElementById('rec-chr-6-40').value) || 0.0) * 50,
+        chrysotile_4_20: (parseFloat(document.getElementById('rec-chr-4-20')?.value) || 0.0) * 50,
+        chrysotile_5_50: (parseFloat(document.getElementById('rec-chr-5-50')?.value) || 0.0) * 50,
+        chrysotile_5_65: (parseFloat(document.getElementById('rec-chr-5-65')?.value) || 0.0) * 50,
+        chrysotile_6_40: (parseFloat(document.getElementById('rec-chr-6-40')?.value) || 0.0) * 50,
         cement_silo1: parseFloat(document.getElementById('rec-cement-1').value) || 0.0,
         cement_silo2: parseFloat(document.getElementById('rec-cement-2').value) || 0.0,
         cement_silo3: parseFloat(document.getElementById('rec-cement-3').value) || 0.0,
@@ -5094,7 +5112,7 @@ async function addReceipt() {
         if (res.ok) {
             saveLastLineAndShift(line, shift_name);
             // Clear fields
-            ['rec-chr-4-20', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement-1', 'rec-cement-2', 'rec-cement-3', 'rec-cement-4', 'rec-cellulose', 'rec-crushed-slate', 'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol'].forEach(id => {
+            ['rec-chr-4-20', 'rec-chr-5-50', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement-1', 'rec-cement-2', 'rec-cement-3', 'rec-cement-4', 'rec-cellulose', 'rec-crushed-slate', 'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });

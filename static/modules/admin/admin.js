@@ -449,6 +449,7 @@ async function loadNorms() {
                 <td>${n.product_name}</td>
                 <td>${n.weight_kg || 0}</td>
                 <td>${n.norm_chrysotile_4_20 || 0}</td>
+                <td>${n.norm_chrysotile_5_50 || 0}</td>
                 <td>${n.norm_chrysotile_5_65 || 0}</td>
                 <td>${n.norm_chrysotile_6_40 || 0}</td>
                 <td>${n.norm_cement || 0}</td>
@@ -471,6 +472,7 @@ function openNormModal() {
     document.getElementById('norm-weight').value = 0;
     document.getElementById('norm-cement').value = 0;
     document.getElementById('norm-chr420').value = 0;
+    document.getElementById('norm-chr550').value = 0;
     document.getElementById('norm-chr565').value = 0;
     document.getElementById('norm-chr640').value = 0;
     document.getElementById('norm-cel').value = 0;
@@ -487,6 +489,7 @@ function editNorm(n) {
     document.getElementById('norm-weight').value = n.weight_kg || 0;
     document.getElementById('norm-cement').value = n.norm_cement || 0;
     document.getElementById('norm-chr420').value = n.norm_chrysotile_4_20 || 0;
+    document.getElementById('norm-chr550').value = n.norm_chrysotile_5_50 || 0;
     document.getElementById('norm-chr565').value = n.norm_chrysotile_5_65 || 0;
     document.getElementById('norm-chr640').value = n.norm_chrysotile_6_40 || 0;
     document.getElementById('norm-cel').value = n.norm_cellulose || 0;
@@ -504,6 +507,7 @@ async function saveNorm() {
         weight_kg: parseFloat(document.getElementById('norm-weight').value) || 0,
         norm_cement: parseFloat(document.getElementById('norm-cement').value) || 0,
         norm_chrysotile_4_20: parseFloat(document.getElementById('norm-chr420').value) || 0,
+        norm_chrysotile_5_50: parseFloat(document.getElementById('norm-chr550').value) || 0,
         norm_chrysotile_5_65: parseFloat(document.getElementById('norm-chr565').value) || 0,
         norm_chrysotile_6_40: parseFloat(document.getElementById('norm-chr640').value) || 0,
         norm_cellulose: parseFloat(document.getElementById('norm-cel').value) || 0,
@@ -1508,6 +1512,7 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
 
         const materials = [
             {dbKey: 'zo_chrysotile_4_20', uiKey: 'chr-4-20', hiddenKey: 'uni-zo-chr-4-20'},
+            {dbKey: 'zo_chrysotile_5_50', uiKey: 'chr-5-50', hiddenKey: 'uni-zo-chr-5-50'},
             {dbKey: 'zo_chrysotile_5_65', uiKey: 'chr-5-65', hiddenKey: 'uni-zo-chr-5-65'},
             {dbKey: 'zo_chrysotile_6_40', uiKey: 'chr-6-40', hiddenKey: 'uni-zo-chr-6-40'},
             {dbKey: 'zo_cement', uiKey: 'cem', hiddenKey: 'uni-zo-cem'},
@@ -1730,7 +1735,7 @@ async function saveUnifiedShiftReport() {
     }
 
     // Force sync all raw material calculation fields before collecting data
-    const rmKeys = ['chr-4-20', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
+    const rmKeys = ['chr-4-20', 'chr-5-50', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
     rmKeys.forEach(k => {
         if (typeof calcAdminSumRM === 'function') calcAdminSumRM(k);
     });
@@ -1763,6 +1768,12 @@ async function saveUnifiedShiftReport() {
         zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('uni-calc-chr-4-20-3')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-3')?.value) || 0,
         zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('uni-calc-chr-4-20-4')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-4')?.value) || 0,
         zo_chrysotile_4_20: parseFloat(document.getElementById('uni-zo-chr-4-20')?.value) || 0,
+
+        zo_chrysotile_5_50_silo1: parseFloat(document.getElementById('uni-calc-chr-5-50-1')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-50-1')?.value) || 0,
+        zo_chrysotile_5_50_silo2: parseFloat(document.getElementById('uni-calc-chr-5-50-2')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-50-2')?.value) || 0,
+        zo_chrysotile_5_50_silo3: parseFloat(document.getElementById('uni-calc-chr-5-50-3')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-50-3')?.value) || 0,
+        zo_chrysotile_5_50_silo4: parseFloat(document.getElementById('uni-calc-chr-5-50-4')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-50-4')?.value) || 0,
+        zo_chrysotile_5_50: parseFloat(document.getElementById('uni-zo-chr-5-50')?.value) || 0,
 
         zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('uni-calc-chr-5-65-1')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-1')?.value) || 0,
         zo_chrysotile_5_65_silo2: parseFloat(document.getElementById('uni-calc-chr-5-65-2')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-2')?.value) || 0,
@@ -2481,6 +2492,10 @@ async function loadAdminReceipts() {
             if (r.chrysotile_4_20 > 0) {
                 badges.push(`<span class="mat-badge mat-badge-chrysotile"><i class="fa-solid fa-layer-group"></i> Хриз. 4-20: <b>${r.chrysotile_4_20.toLocaleString('ru-RU')} кг</b></span>`);
             }
+            if (r.chrysotile_5_50 > 0) {
+                const tons = (r.chrysotile_5_50 / 1000).toFixed(1);
+                badges.push(`<span class="mat-badge mat-badge-chrysotile"><i class="fa-solid fa-layer-group"></i> Хриз. 5-50: <b>${r.chrysotile_5_50.toLocaleString('ru-RU')} кг (${tons} т)</b></span>`);
+            }
             if (r.chrysotile_5_65 > 0) {
                 const tons = (r.chrysotile_5_65 / 1000).toFixed(1);
                 badges.push(`<span class="mat-badge mat-badge-chrysotile"><i class="fa-solid fa-layer-group"></i> Хриз. 5-65: <b>${r.chrysotile_5_65.toLocaleString('ru-RU')} кг (${tons} т)</b></span>`);
@@ -2562,6 +2577,7 @@ async function editReceiptRow(r) {
     document.getElementById('edit-receipt-cement3').value = r.cement_silo3;
     document.getElementById('edit-receipt-cement4').value = r.cement_silo4;
     document.getElementById('edit-receipt-c420').value = r.chrysotile_4_20 / 50;
+    document.getElementById('edit-receipt-c550').value = (r.chrysotile_5_50 || 0) / 50;
     document.getElementById('edit-receipt-c565').value = r.chrysotile_5_65 / 50;
     document.getElementById('edit-receipt-c640').value = r.chrysotile_6_40 / 50;
     document.getElementById('edit-receipt-cellulose').value = r.cellulose;
@@ -2590,6 +2606,7 @@ async function saveReceiptEdit() {
         cement_silo3: parseFloat(document.getElementById('edit-receipt-cement3').value) || 0,
         cement_silo4: parseFloat(document.getElementById('edit-receipt-cement4').value) || 0,
         chrysotile_4_20: (parseFloat(document.getElementById('edit-receipt-c420').value) || 0) * 50,
+        chrysotile_5_50: (parseFloat(document.getElementById('edit-receipt-c550')?.value) || 0) * 50,
         chrysotile_5_65: (parseFloat(document.getElementById('edit-receipt-c565').value) || 0) * 50,
         chrysotile_6_40: (parseFloat(document.getElementById('edit-receipt-c640').value) || 0) * 50,
         cellulose: parseFloat(document.getElementById('edit-receipt-cellulose').value) || 0,
